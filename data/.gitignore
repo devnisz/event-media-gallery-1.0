@@ -1,0 +1,12 @@
+node_modules
+.next
+.env
+.env.local
+dist
+coverage
+
+public/videos
+public/thumbnails
+
+data/videos.json
+data/events.json

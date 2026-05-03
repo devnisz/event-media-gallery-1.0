@@ -1,0 +1,14 @@
+node_modules
+.next
+.env
+.env.local
+dist
+coverage
+
+public/videos
+public/thumbnails
+public/qrcodes
+
+data/videos.json
+data/events.json
+data/*.tmp
