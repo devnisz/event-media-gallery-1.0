@@ -131,10 +131,14 @@ export function AdminEventsDashboard({
       });
       const data = (await res.json()) as {
         error?: string;
+        errorDetail?: string;
         event?: GalleryEventRecord;
       };
       if (!res.ok) {
-        throw new Error(data.error ?? "Falha ao criar evento.");
+        const parts = [data.error, data.errorDetail].filter(Boolean);
+        throw new Error(
+          parts.length > 0 ? parts.join(" — ") : "Falha ao criar evento.",
+        );
       }
       if (!data.event) {
         throw new Error("Resposta invalida do servidor.");

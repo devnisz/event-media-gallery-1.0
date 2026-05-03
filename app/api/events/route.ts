@@ -1,10 +1,15 @@
 import { revalidatePath } from "next/cache";
-import { createEventRecord } from "@/services/eventService";
+import { createEventRecordWithPersistence } from "@/services/eventService";
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { name?: string };
     const name = typeof body.name === "string" ? body.name.trim() : "";
+
+    console.log("[EVENT_CREATE] POST recebido", {
+      nameLength: name.length,
+      hasName: Boolean(name),
+    });
 
     if (!name) {
       return Response.json(
@@ -13,18 +18,39 @@ export async function POST(request: Request) {
       );
     }
 
-    const event = await createEventRecord(name);
+    const { event, persistence } = await createEventRecordWithPersistence(name);
+
+    console.log("[EVENT_CREATE] sucesso", {
+      eventId: event.id,
+      slug: event.slug,
+      persistenceBranch: persistence.branch,
+      repositoryLabel: persistence.repositoryLabel,
+      usedFallbackJson: persistence.usedFallbackJson,
+      keyMode: persistence.keyMode,
+      supabaseClientCreated: persistence.supabaseClientCreated,
+    });
 
     revalidatePath("/");
     revalidatePath("/admin");
     revalidatePath(`/evento/${event.slug}`);
 
-    return Response.json({ ok: true, event });
+    return Response.json({ ok: true, event, persistence });
   } catch (error) {
-    console.error("Erro ao criar evento:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+
+    console.error("[EVENT_CREATE] erro ao criar evento", {
+      message,
+      stack,
+      error,
+    });
 
     return Response.json(
-      { error: "Nao foi possivel criar o evento." },
+      {
+        error: "Nao foi possivel criar o evento.",
+        errorDetail: message,
+        errorStack: stack ?? null,
+      },
       { status: 500 },
     );
   }

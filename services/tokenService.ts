@@ -2,17 +2,14 @@
  * Serviço de tokens de upload — validação estilo backend para watcher/API.
  */
 import { timingSafeEqual } from "crypto";
-import type { GalleryEventRecord } from "@/types/event";
+import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
-  readEventsFromStorage,
-  writeEventsToStorage,
-} from "@/services/storageService";
+  readEventsLooseForHydration,
+  persistEventsFullReplace,
+} from "@/repositories/eventRepository";
 import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 
-/** Linha persistida antes da migração de uploadToken. */
-export type StoredEventLoose = Omit<GalleryEventRecord, "uploadToken"> & {
-  uploadToken?: string;
-};
+export type { StoredEventLoose } from "@/types/event";
 
 export function hydrateAssignTokens(
   events: StoredEventLoose[],
@@ -67,11 +64,11 @@ export function hydrateAssignTokens(
 export async function listPersistedEventsHydrated(): Promise<
   GalleryEventRecord[]
 > {
-  const raw = await readEventsFromStorage();
-  const { next, changed } = hydrateAssignTokens(raw as StoredEventLoose[]);
+  const raw = await readEventsLooseForHydration();
+  const { next, changed } = hydrateAssignTokens(raw);
 
   if (changed) {
-    await writeEventsToStorage(next);
+    await persistEventsFullReplace(next);
   }
 
   return next;

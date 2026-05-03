@@ -6,16 +6,17 @@ import {
 } from "@/utils/slug";
 import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import { listPersistedEventsHydrated } from "@/services/tokenService";
-import {
-  writeEventsToStorage,
-} from "@/services/storageService";
+import type { PersistEventsOutcome } from "@/repositories/eventRepository";
+import { persistEventsFullReplace } from "@/repositories/eventRepository";
 
 export async function readEvents(): Promise<GalleryEventRecord[]> {
   return listPersistedEventsHydrated();
 }
 
-export async function writeEvents(events: GalleryEventRecord[]) {
-  await writeEventsToStorage(events);
+export async function writeEvents(
+  events: GalleryEventRecord[],
+): Promise<PersistEventsOutcome> {
+  return persistEventsFullReplace(events);
 }
 
 export async function getEventBySlug(
@@ -34,7 +35,9 @@ export async function getEventById(
   return events.find((e) => e.id === id);
 }
 
-export async function createEventRecord(name: string): Promise<GalleryEventRecord> {
+export async function createEventRecordWithPersistence(
+  name: string,
+): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
   const trimmed = name.trim();
 
   if (!trimmed) {
@@ -58,9 +61,15 @@ export async function createEventRecord(name: string): Promise<GalleryEventRecor
   };
 
   events.push(record);
-  await writeEvents(events);
+  const persistence = await writeEvents(events);
 
-  return record;
+  return { event: record, persistence };
+}
+
+export async function createEventRecord(name: string): Promise<GalleryEventRecord> {
+  const { event } = await createEventRecordWithPersistence(name);
+
+  return event;
 }
 
 export async function adjustEventVideosCount(

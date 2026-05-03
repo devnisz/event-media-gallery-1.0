@@ -1,10 +1,7 @@
 import { unlink } from "fs/promises";
 import path from "path";
 import { readEvents, writeEvents } from "@/services/eventService";
-import {
-  readVideosJsonRaw,
-  writeVideosToStorage,
-} from "@/services/storageService";
+import { replaceAllMediaFromGalleryRecords, readPersistedMediaRaw } from "@/repositories/mediaRepository";
 import type { GalleryEventRecord } from "@/types/event";
 import type { EventMedia, GalleryMediaRecord } from "@/types/media";
 import { galleryPublicPath } from "@/lib/paths";
@@ -221,48 +218,11 @@ export function sortGalleryMediaRecords(
   return [...list].sort(compareGalleryMediaForDisplay);
 }
 
-/** Linha JSON dual-field (`url` + `videoUrl`) para watcher legado e novos campos. */
+/** Delega à camada de repositório (Supabase + fallback JSON). */
 export async function replaceGalleryMediaRecordsOnDisk(
   mediaList: GalleryMediaRecord[],
 ): Promise<void> {
-  const rows = mediaList.map((m) => {
-    const row: Record<string, unknown> = {
-      id: m.id,
-      eventId: m.eventId,
-      eventSlug: m.eventSlug,
-      name: m.name,
-      url: m.url,
-      videoUrl: m.url,
-      qrCode: m.qrCode,
-      mediaType: m.mediaType,
-      fileType: m.fileType,
-    };
-
-    if (m.thumbnailUrl) {
-      row.thumbnailUrl = m.thumbnailUrl;
-      row.thumbnail = m.thumbnailUrl;
-    }
-
-    if (m.createdAt) {
-      row.createdAt = m.createdAt;
-    }
-
-    if (m.uploadedAt) {
-      row.uploadedAt = m.uploadedAt;
-    }
-
-    if (m.timestamp) {
-      row.timestamp = m.timestamp;
-    }
-
-    if (hasManualOrderIndex(m)) {
-      row.orderIndex = m.orderIndex;
-    }
-
-    return row;
-  });
-
-  await writeVideosToStorage(rows);
+  await replaceAllMediaFromGalleryRecords(mediaList);
 }
 
 function isMediaLike(item: unknown): item is RawMediaRecord {
@@ -287,7 +247,7 @@ function isMediaLike(item: unknown): item is RawMediaRecord {
 }
 
 async function readMediaFromDisk(): Promise<GalleryMediaRecord[]> {
-  const parsed = await readVideosJsonRaw();
+  const parsed = await readPersistedMediaRaw();
 
   return parsed.filter(isMediaLike).map(toGalleryRecord);
 }
@@ -389,13 +349,14 @@ export async function readGalleryVideosRaw(): Promise<GalleryMediaRecord[]> {
 export async function loadGalleryVideosForMutation(): Promise<
   GalleryMediaRecord[]
 > {
-  const parsed = await readVideosJsonRaw();
-  const mediaList = parsed.filter(isMediaLike).map(toGalleryRecord);
+  const mediaList = await readMediaFromDisk();
 
   await migrateLegacyAssociations(mediaList);
 
   return sortGalleryMediaRecords(mediaList);
 }
+
+/** @deprecated usar `readGalleryMediaRaw` quando padronizar nomes */
 export async function getGalleryVideos(): Promise<GalleryMediaRecord[]> {
   return readGalleryVideosRaw();
 }
