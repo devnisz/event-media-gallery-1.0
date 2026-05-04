@@ -34,7 +34,7 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
     notFound();
   }
 
-  const eventVideos = await getEventVideosForEventSlug(slug);
+  const eventVideos = await getEventVideosForEventSlug(slug, event.id);
 
   return (
     <main className="relative min-h-dvh overflow-hidden px-5 py-8 text-white sm:px-8 lg:px-12 2xl:px-20">

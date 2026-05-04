@@ -1,13 +1,18 @@
 import { unlink } from "fs/promises";
 import path from "path";
 import { readEvents, writeEvents } from "@/services/eventService";
-import { replaceAllMediaFromGalleryRecords, readPersistedMediaRaw } from "@/repositories/mediaRepository";
+import {
+  readPersistedMediaRaw,
+  readPersistedMediaRawForEventSlug,
+  replaceAllMediaFromGalleryRecords,
+} from "@/repositories/mediaRepository";
 import type { GalleryEventRecord } from "@/types/event";
 import type { EventMedia, GalleryMediaRecord } from "@/types/media";
 import { galleryPublicPath } from "@/lib/paths";
 import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import { inferFileType, inferMediaKind } from "@/utils/mediaInference";
 import { ensureUniqueSlug } from "@/utils/slug";
+import { getSupabaseServerKeyMode } from "@/lib/supabase/server";
 
 const publicDirectory = galleryPublicPath();
 const deletablePublicFolders = new Set([
@@ -35,18 +40,42 @@ type RawMediaRecord = {
   name?: string;
   url?: string;
   videoUrl?: string;
-  qrCode: string;
+  qrCode?: string;
   thumbnail?: string;
   thumbnailUrl?: string;
+  /** Alias snake_case (Supabase / PostgREST). */
+  thumbnail_url?: string;
+  /** URLs alternativas vistas em ingestões externas. */
+  public_url?: string;
+  file_url?: string;
+  playback_url?: string;
+  src?: string;
   eventId?: string;
   eventSlug?: string;
+  event_id?: string;
+  event_slug?: string;
   createdAt?: unknown;
+  created_at?: unknown;
   uploadedAt?: unknown;
+  uploaded_at?: unknown;
   timestamp?: unknown;
+  legacy_timestamp?: unknown;
   orderIndex?: unknown;
+  order_index?: unknown;
   mediaType?: string;
+  /** Alias snake_case (Supabase). */
+  media_type?: string;
+  /** Alias opcional quando a origem só expõe `video_url`. */
+  video_url?: string;
   fileType?: string;
+  file_type?: string;
 };
+
+function logFrontendMedia(message: string, meta?: Record<string, unknown>): void {
+  const suffix =
+    meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
+  console.log(`[FRONTEND_MEDIA] ${message}${suffix}`);
+}
 
 export function getPrimaryMediaUrl(record: GalleryMediaRecord): string {
   return record.url.trim();
@@ -100,32 +129,69 @@ function legacyStringDate(raw: unknown): string | undefined {
 }
 
 function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
-  const url = (raw.url ?? raw.videoUrl ?? "").trim();
-  const thumbnailUrlRaw = (raw.thumbnailUrl ?? raw.thumbnail)?.trim();
+  const url = (
+    raw.url ??
+    raw.videoUrl ??
+    raw.video_url ??
+    raw.public_url ??
+    raw.file_url ??
+    raw.playback_url ??
+    raw.src ??
+    ""
+  ).trim();
+  const thumbnailUrlRaw = (
+    raw.thumbnailUrl ??
+    raw.thumbnail ??
+    raw.thumbnail_url
+  )?.trim();
   const thumbnailUrl = thumbnailUrlRaw || undefined;
-  const mediaType = inferMediaKind(raw.mediaType, raw.fileType, url);
-  const fileType = inferFileType(mediaType, raw.fileType, url);
+  const explicitMediaType = raw.mediaType ?? raw.media_type;
+  const explicitFileType = raw.fileType ?? raw.file_type;
+  const mediaType = inferMediaKind(explicitMediaType, explicitFileType, url);
+  const fileType = inferFileType(mediaType, explicitFileType, url);
   const createdAt =
-    coerceDateField(raw.createdAt) ?? legacyStringDate(raw.createdAt);
+    coerceDateField(raw.createdAt) ??
+    coerceDateField(raw.created_at) ??
+    legacyStringDate(raw.createdAt) ??
+    legacyStringDate(raw.created_at);
   const uploadedAt =
-    coerceDateField(raw.uploadedAt) ?? legacyStringDate(raw.uploadedAt);
+    coerceDateField(raw.uploadedAt) ??
+    coerceDateField(raw.uploaded_at) ??
+    legacyStringDate(raw.uploadedAt) ??
+    legacyStringDate(raw.uploaded_at);
   const timestamp =
-    coerceDateField(raw.timestamp) ?? legacyStringDate(raw.timestamp);
+    coerceDateField(raw.timestamp) ??
+    coerceDateField(raw.legacy_timestamp) ??
+    legacyStringDate(raw.timestamp) ??
+    legacyStringDate(raw.legacy_timestamp);
+
+  const eventId =
+    raw.eventId?.trim() ?? raw.event_id?.trim() ?? "";
+  const eventSlug =
+    raw.eventSlug?.trim() ?? raw.event_slug?.trim() ?? "";
+
+  const qrFromRaw = raw.qrCode?.trim();
+  const qrCode =
+    qrFromRaw && qrFromRaw.length > 0
+      ? qrFromRaw
+      : `/qrcodes/${encodeURIComponent(raw.id)}.png`;
 
   return {
     id: raw.id,
-    eventId: raw.eventId?.trim() ?? "",
-    eventSlug: raw.eventSlug?.trim() ?? "",
+    eventId,
+    eventSlug,
     name: raw.name?.trim() || "Mídia",
     url,
-    qrCode: raw.qrCode,
+    qrCode,
     thumbnailUrl,
     mediaType,
     fileType,
     createdAt,
     uploadedAt,
     timestamp,
-    orderIndex: parseFiniteOrderIndex(raw.orderIndex),
+    orderIndex:
+      parseFiniteOrderIndex(raw.orderIndex) ??
+      parseFiniteOrderIndex(raw.order_index),
   };
 }
 
@@ -237,19 +303,31 @@ function isMediaLike(item: unknown): item is RawMediaRecord {
       ? o.url
       : typeof o.videoUrl === "string"
         ? o.videoUrl
-        : "";
+        : typeof o.video_url === "string"
+          ? o.video_url
+          : typeof o.public_url === "string"
+            ? o.public_url
+            : typeof o.file_url === "string"
+              ? o.file_url
+              : "";
 
-  return (
-    typeof o.id === "string" &&
-    typeof o.qrCode === "string" &&
-    primary.trim().length > 0
-  );
+  const idOk = typeof o.id === "string" && o.id.trim().length > 0;
+  const urlOk = primary.trim().length > 0;
+
+  return idOk && urlOk;
 }
 
 async function readMediaFromDisk(): Promise<GalleryMediaRecord[]> {
   const parsed = await readPersistedMediaRaw();
+  const rawCount = Array.isArray(parsed) ? parsed.length : 0;
+  const records = parsed.filter(isMediaLike).map(toGalleryRecord);
 
-  return parsed.filter(isMediaLike).map(toGalleryRecord);
+  logFrontendMedia("readMediaFromDisk", {
+    brutos: rawCount,
+    aceitos: records.length,
+  });
+
+  return records;
 }
 
 async function migrateLegacyAssociations(
@@ -340,7 +418,13 @@ export async function readGalleryVideosRaw(): Promise<GalleryMediaRecord[]> {
   await migrateLegacyAssociations(mediaList);
   await reconcileEventCountsFromMediaList(mediaList);
 
-  return sortGalleryMediaRecords(mediaList);
+  const sorted = sortGalleryMediaRecords(mediaList);
+
+  logFrontendMedia("readGalleryVideosRaw → lista final ordenada", {
+    total: sorted.length,
+  });
+
+  return sorted;
 }
 
 /**
@@ -439,11 +523,30 @@ async function resolveEventNameMap(): Promise<Map<string, string>> {
   return map;
 }
 
+function normalizeSlugPart(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 export async function getEventVideosForEventSlug(
   eventSlug: string,
+  resolvedEventId?: string,
 ): Promise<EventMedia[]> {
-  const galleryMedia = await readGalleryVideosRaw();
-  const filtered = galleryMedia.filter((v) => v.eventSlug === eventSlug);
+  const parsed = await readPersistedMediaRawForEventSlug(
+    eventSlug,
+    resolvedEventId,
+  );
+
+  console.log("[FRONTEND_MEDIA]", parsed);
+
+  const filtered = sortGalleryMediaRecords(
+    parsed.filter(isMediaLike).map(toGalleryRecord),
+  );
+
+  logFrontendMedia("getEventVideosForEventSlug", {
+    slugOuId: normalizeSlugPart(eventSlug).slice(0, 48),
+    encontrados: filtered.length,
+    comEventIdResolvido: Boolean(resolvedEventId?.trim()),
+  });
 
   if (filtered.length === 0) {
     return [];
@@ -460,6 +563,12 @@ export async function getEventVideosForEventSlug(
 
 export async function getEventVideos(): Promise<EventMedia[]> {
   const galleryMedia = await readGalleryVideosRaw();
+
+  console.log("[FRONTEND_MEDIA]", {
+    hook: "getEventVideos",
+    total: galleryMedia.length,
+    supabaseServerKeyMode: getSupabaseServerKeyMode(),
+  });
 
   if (galleryMedia.length === 0) {
     return [];

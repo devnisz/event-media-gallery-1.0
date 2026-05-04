@@ -23,8 +23,9 @@ export async function getEventBySlug(
   slug: string,
 ): Promise<GalleryEventRecord | undefined> {
   const events = await readEvents();
+  const needle = slug.trim().toLowerCase();
 
-  return events.find((e) => e.slug === slug);
+  return events.find((e) => e.slug.trim().toLowerCase() === needle);
 }
 
 export async function getEventById(

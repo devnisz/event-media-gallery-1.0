@@ -43,10 +43,17 @@ export function getSupabaseAnonKeyAtRuntime(): string | undefined {
   );
 }
 
+/**
+ * True se o servidor Next pode falar com o Supabase (URL + pelo menos uma chave).
+ * Aceita só `SUPABASE_SERVICE_ROLE_KEY` (sem anon) para leituras/escritas no Node;
+ * o browser continua precisando da anon em `createBrowserSupabase`.
+ */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    getSupabaseUrlAtRuntime() && getSupabaseAnonKeyAtRuntime(),
-  );
+  const url = getSupabaseUrlAtRuntime();
+  const anon = getSupabaseAnonKeyAtRuntime();
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  return Boolean(url && (anon || service));
 }
 
 /** Log temporário de diagnóstico (Vercel runtime vs build). */
@@ -94,7 +101,7 @@ export function getSupabaseEnvDiagnostics(): {
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
 
   return {
-    configured: Boolean(url && anon),
+    configured: Boolean(url && (anon || service)),
     hasUrl: Boolean(url),
     hasAnonKey: Boolean(anon),
     hasServiceRole: Boolean(service),
