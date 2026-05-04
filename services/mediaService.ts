@@ -46,6 +46,8 @@ type RawMediaRecord = {
   url?: string;
   videoUrl?: string;
   qrCode?: string;
+  /** Alias snake_case (Supabase / PostgREST). */
+  qr_code?: string;
   thumbnail?: string;
   thumbnailUrl?: string;
   /** Alias snake_case (Supabase / PostgREST). */
@@ -175,11 +177,11 @@ function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
   const eventSlug =
     raw.eventSlug?.trim() ?? raw.event_slug?.trim() ?? "";
 
-  const qrFromRaw = raw.qrCode?.trim();
-  const qrCode =
-    qrFromRaw && qrFromRaw.length > 0
-      ? qrFromRaw
-      : `/qrcodes/${encodeURIComponent(raw.id)}.png`;
+  const qrCodeValue = (
+    raw.qrCode?.trim() ||
+    raw.qr_code?.trim() ||
+    ""
+  ).trim();
 
   return {
     id: raw.id,
@@ -187,7 +189,7 @@ function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     eventSlug,
     name: raw.name?.trim() || "Mídia",
     url,
-    qrCode,
+    qrCode: qrCodeValue,
     thumbnailUrl,
     mediaType,
     fileType,
@@ -495,6 +497,9 @@ function toEventMedia(
   const thumb = record.thumbnailUrl;
   const url = record.url;
 
+  const qrCode = record.qrCode?.trim() ?? "";
+  console.log("[QR_DEBUG]", qrCode);
+
   return {
     id: record.id,
     slug: record.id,
@@ -510,7 +515,7 @@ function toEventMedia(
     videoUrl: url,
     downloadUrl: url,
     qrUrl: pageUrl,
-    qrCode: record.qrCode,
+    qrCode: qrCode || undefined,
     thumbnail: thumb,
     thumbnailUrl: thumb,
   };

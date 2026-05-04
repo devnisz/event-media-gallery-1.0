@@ -6,17 +6,37 @@ type QrCodeProps = {
   imagePath?: string;
 };
 
+function isAbsoluteHttpUrl(s: string): boolean {
+  return /^https?:\/\//i.test(s.trim());
+}
+
 export function QrCode({ label, value, imagePath }: QrCodeProps) {
+  const src = imagePath?.trim() ?? "";
+  const hasImage = src.length > 0;
+  const useRemoteImg = hasImage && isAbsoluteHttpUrl(src);
+
   return (
     <div className="flex items-center gap-5 rounded-[1.75rem] border border-white/10 bg-black/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
-      {imagePath ? (
-        <Image
-          src={imagePath}
-          alt={`QR Code para ${label}`}
-          width={112}
-          height={112}
-          className="size-28 rounded-2xl bg-white p-2"
-        />
+      {hasImage ? (
+        useRemoteImg ? (
+          // URLs absolutas (ex.: R2): evita exigir remotePatterns no next.config
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={`QR Code para ${label}`}
+            width={112}
+            height={112}
+            className="size-28 rounded-2xl bg-white p-2 object-contain"
+          />
+        ) : (
+          <Image
+            src={src}
+            alt={`QR Code para ${label}`}
+            width={112}
+            height={112}
+            className="size-28 rounded-2xl bg-white p-2"
+          />
+        )
       ) : (
         <div
           className="flex size-28 flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-white/5 p-3 text-center"

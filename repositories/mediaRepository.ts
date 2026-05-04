@@ -166,7 +166,7 @@ function coerceRowStringId(row: SupabaseMediaRow): string {
 
 /**
  * Converte uma linha `media` do Supabase para o formato esperado por `mediaService`
- * (`videoUrl`, `thumbnail`, `mediaType`, `fileType`, QR sintético se ausente).
+ * (`videoUrl`, `thumbnail`, URL de QR quando `qr_code` vem do banco).
  */
 function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
   const id = coerceRowStringId(row);
@@ -189,9 +189,9 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
   const thumbnailUrl =
     coerceOptionalString(row.thumbnail_url) ||
     coerceOptionalString(row.thumbnailUrl);
-  const qrFromDb = coerceOptionalString(row.qr_code);
-  const qrCode =
-    qrFromDb || (id ? `/qrcodes/${encodeURIComponent(id)}.png` : "");
+  const qrFromDb =
+    coerceOptionalString(row.qr_code) || coerceOptionalString(row.qrCode);
+  const qrCode = qrFromDb;
 
   const o: Record<string, unknown> = {
     id,
