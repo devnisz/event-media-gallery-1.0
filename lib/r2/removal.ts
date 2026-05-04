@@ -132,3 +132,49 @@ export async function deleteAllObjectsWithPrefix(
 
   return { deleted, errors };
 }
+
+/**
+ * Remove objetos por chaves exatas no bucket (ex.: `thumbnails/{id}.jpg`, `qrcodes/{id}.png`).
+ * Ignora lista vazia; chaves repetidas são deduplicadas.
+ */
+export async function deleteR2ObjectsByKeys(
+  client: S3Client,
+  bucket: string,
+  keys: string[],
+): Promise<{ deleted: number; errors: string[] }> {
+  const uniq = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
+  const errors: string[] = [];
+  let deleted = 0;
+
+  if (uniq.length === 0) {
+    return { deleted: 0, errors: [] };
+  }
+
+  try {
+    for (let i = 0; i < uniq.length; i += 1000) {
+      const batch = uniq.slice(i, i + 1000);
+
+      const delOut = await client.send(
+        new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: {
+            Objects: batch.map((Key) => ({ Key })),
+            Quiet: false,
+          },
+        }),
+      );
+
+      deleted += delOut.Deleted?.length ?? 0;
+
+      for (const err of delOut.Errors ?? []) {
+        errors.push(
+          `${err.Key ?? "?"}: ${err.Message ?? err.Code ?? "unknown"}`,
+        );
+      }
+    }
+  } catch (err) {
+    errors.push(`deleteR2ObjectsByKeys: ${formatErr(err)}`);
+  }
+
+  return { deleted, errors };
+}

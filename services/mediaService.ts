@@ -13,6 +13,11 @@ import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import { inferFileType, inferMediaKind } from "@/utils/mediaInference";
 import { ensureUniqueSlug } from "@/utils/slug";
 import { getSupabaseServerKeyMode } from "@/lib/supabase/server";
+import {
+  deleteAllObjectsWithPrefix,
+  deleteR2ObjectsByKeys,
+  tryCreateR2DeletionClient,
+} from "@/lib/r2/removal";
 
 const publicDirectory = galleryPublicPath();
 const deletablePublicFolders = new Set([
@@ -688,6 +693,21 @@ export async function deleteGalleryMedia(id: string) {
 
   if (!item) {
     return null;
+  }
+
+  const r2 = tryCreateR2DeletionClient();
+
+  if (r2) {
+    try {
+      const prefix = `${r2.keyPrefix}/${item.id}/`;
+      await deleteAllObjectsWithPrefix(r2.client, r2.bucket, prefix);
+      await deleteR2ObjectsByKeys(r2.client, r2.bucket, [
+        `thumbnails/${item.id}.jpg`,
+        `qrcodes/${item.id}.png`,
+      ]);
+    } catch (err) {
+      console.error("[deleteGalleryMedia] R2 (melhor esforço):", err);
+    }
   }
 
   await Promise.all([

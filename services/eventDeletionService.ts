@@ -17,6 +17,7 @@ import {
 } from "@/services/mediaService";
 import {
   deleteAllObjectsWithPrefix,
+  deleteR2ObjectsByKeys,
   tryCreateR2DeletionClient,
 } from "@/lib/r2/removal";
 
@@ -86,8 +87,28 @@ export async function deleteEventAndRelatedAssets(
         r2Errors.push(...errors);
         push(`R2: ${deleted} objeto(s) removidos para mídia ${v.id}.`);
 
+        const sidecarKeys = [
+          `thumbnails/${v.id}.jpg`,
+          `qrcodes/${v.id}.png`,
+        ];
+        const sidecarDel = await deleteR2ObjectsByKeys(
+          r2.client,
+          r2.bucket,
+          sidecarKeys,
+        );
+
+        r2ObjectsRemoved += sidecarDel.deleted;
+        r2Errors.push(...sidecarDel.errors);
+
+        push(
+          `R2: sidecars (${sidecarKeys.join(", ")}) → ${sidecarDel.deleted} removido(s).`,
+        );
+
         for (const err of errors) {
           push(`R2 erro: ${err}`);
+        }
+        for (const err of sidecarDel.errors) {
+          push(`R2 sidecar: ${err}`);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
