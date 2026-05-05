@@ -6,9 +6,38 @@ import { DownloadButton } from "@/components/public/download-button";
 import { QrCode } from "@/components/public/qr-code";
 import { VideoPlayer } from "@/components/public/video-player";
 import { routes } from "@/lib/routes";
+import type { EventMedia } from "@/types/media";
 import { getVideoById } from "@/services/videoService";
 
 export const dynamic = "force-dynamic";
+
+function suggestedDownloadFileName(media: EventMedia): string {
+  const base =
+    media.title
+      .replace(/[/\\?%*:|"<>]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim() || "midia";
+
+  if (media.mediaType === "gif") {
+    return `${base}.gif`;
+  }
+
+  if (media.mediaType === "image") {
+    const ft = media.fileType.toLowerCase();
+
+    if (ft.includes("png")) {
+      return `${base}.png`;
+    }
+
+    if (ft.includes("webp")) {
+      return `${base}.webp`;
+    }
+
+    return `${base}.jpg`;
+  }
+
+  return `${base}.mp4`;
+}
 
 type VideoPageProps = {
   params: Promise<{
@@ -75,20 +104,26 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
         </header>
 
         <section className="grid flex-1 items-center gap-8 xl:grid-cols-[1fr_24rem]">
-          <div className="animate-rise [animation-delay:80ms]">
+          <div className="animate-rise min-w-0 [animation-delay:80ms]">
             <VideoPlayer video={video} autoPlay />
           </div>
 
-          <aside className="animate-rise rounded-[2rem] border border-white/10 bg-white/[0.06] p-7 backdrop-blur-2xl [animation-delay:140ms]">
-            <p className="text-sm font-semibold uppercase tracking-[0.32em] text-amber-200">
+          <aside className="animate-rise min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-7 backdrop-blur-2xl [animation-delay:140ms]">
+            <p className="break-words text-sm font-semibold uppercase tracking-[0.32em] text-amber-200">
               {video.event}
             </p>
-            <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white xl:text-5xl">
+            <h1 className="mt-4 break-words text-lg font-black tracking-[-0.03em] text-white md:text-3xl md:tracking-[-0.04em]">
               {video.title}
             </h1>
-            <p className="mt-5 text-lg leading-8 text-white/60">{bodyCopy}</p>
+            <p className="mt-5 text-sm leading-7 text-white/60 md:text-base md:leading-8">
+              {bodyCopy}
+            </p>
             <div className="mt-8 flex flex-col gap-4">
-              <DownloadButton href={video.downloadUrl} label={downloadLabel} />
+              <DownloadButton
+                href={video.downloadUrl}
+                label={downloadLabel}
+                fileName={suggestedDownloadFileName(video)}
+              />
               <Link
                 href={eventHref}
                 className="inline-flex min-h-14 items-center justify-center rounded-full border border-white/15 px-8 text-base font-semibold text-white/82 transition hover:bg-white/10 active:scale-[0.98]"
