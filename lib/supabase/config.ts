@@ -6,7 +6,22 @@
  * `next build` com valor vazio se as envs não estiverem disponíveis naquele momento.
  * Use `SUPABASE_URL` e `SUPABASE_ANON_KEY` (mesmos valores, sem prefixo público) no Vercel
  * para leitura garantida em runtime no servidor.
+ *
+ * **Browser:** apenas `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` existem
+ * no bundle; `SUPABASE_*` sem prefixo não é enviado ao cliente pelo Next.js.
  */
+
+/** Diagnóstico no browser ao carregar este módulo (uma vez por sessão da aba). */
+if (typeof window !== "undefined") {
+  console.log(
+    "[SUPABASE CONFIG] NEXT_PUBLIC_SUPABASE_URL:",
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  );
+  console.log(
+    "[SUPABASE CONFIG] NEXT_PUBLIC_SUPABASE_ANON_KEY:",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+}
 
 function firstNonEmptyTrimmed(
   ...keys: readonly string[]

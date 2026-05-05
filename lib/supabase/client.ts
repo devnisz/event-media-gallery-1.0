@@ -1,28 +1,12 @@
 "use client";
 
-/**
- * Cliente browser (anon) para futura UI autenticada ou leituras públicas.
- */
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import {
-  getSupabaseAnonKeyAtRuntime,
-  getSupabaseUrlAtRuntime,
-} from "@/lib/supabase/config";
+import { createClient } from "@supabase/supabase-js";
 
-export function createBrowserSupabase(): SupabaseClient {
-  const url = getSupabaseUrlAtRuntime();
-  const anon = getSupabaseAnonKeyAtRuntime();
+export function createBrowserSupabase() {
+  const url = "https://kwchocfrqzdhxthccpnw.supabase.co";
+  const anon = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3Y2hvY2ZycXpkaHh0aGNjcG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MTQ0MjQsImV4cCI6MjA5MzM5MDQyNH0.nafhZbSx9Zo8HqwSIiI3o7SHDUFd-eMaxCDnZDYrqTc";
 
-  if (!url || !anon) {
-    throw new Error(
-      "Supabase no browser: defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (ou SUPABASE_URL / SUPABASE_ANON_KEY espelhados para o bundle).",
-    );
-  }
+  console.log("TESTE FORÇADO SUPABASE", { url, anon });
 
-  return createClient(url, anon, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  });
+  return createClient(url, anon);
 }
