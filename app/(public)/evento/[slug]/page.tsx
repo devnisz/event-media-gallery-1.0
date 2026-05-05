@@ -64,7 +64,12 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
           </div>
         </header>
 
-        <VideoGallery initialVideos={eventVideos} />
+        <VideoGallery
+          initialVideos={eventVideos}
+          eventSlug={event.slug}
+          eventName={event.name}
+          eventId={event.id}
+        />
       </section>
     </main>
   );

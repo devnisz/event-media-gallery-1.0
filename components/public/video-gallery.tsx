@@ -1,18 +1,118 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
 import { VideoCard } from "./video-card";
 
 type VideoGalleryProps = {
   initialVideos: EventVideo[];
+  eventSlug: string;
+  eventName: string;
+  /** Fallback quando o INSERT só inclui `event_id` (sem `event_slug`). */
+  eventId?: string;
 };
+
+function realtimeRowMatchesEvent(
+  row: Record<string, unknown>,
+  slug: string,
+  resolvedEventId?: string,
+): boolean {
+  const targetSlug = slug.trim().toLowerCase();
+  const rowSlug =
+    typeof row.event_slug === "string"
+      ? row.event_slug.trim().toLowerCase()
+      : "";
+
+  if (rowSlug.length > 0 && rowSlug === targetSlug) {
+    return true;
+  }
+
+  const targetId = resolvedEventId?.trim().toLowerCase();
+
+  if (!targetId) {
+    return false;
+  }
+
+  const rowEventId =
+    typeof row.event_id === "string"
+      ? row.event_id.trim().toLowerCase()
+      : "";
+
+  return rowEventId.length > 0 && rowEventId === targetId;
+}
 
 export function VideoGallery({
   initialVideos,
+  eventSlug,
+  eventName,
+  eventId,
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setVideos(initialVideos);
+  }, [initialVideos]);
+
+  useEffect(() => {
+    console.log("REALTIME INIT");
+
+    let supabase: ReturnType<typeof createBrowserSupabase> | null = null;
+
+    try {
+      supabase = createBrowserSupabase();
+    } catch {
+      console.error("Supabase client não foi criado");
+      return;
+    }
+
+    if (!supabase) {
+      console.error("Supabase client não foi criado");
+      return;
+    }
+
+    console.log("SUPABASE CLIENT:", supabase);
+
+    const channel = supabase
+      .channel("media_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "media",
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+
+          if (!realtimeRowMatchesEvent(row, eventSlug, eventId)) {
+            return;
+          }
+
+          console.log("Novo vídeo:", payload.new);
+
+          const media = tryRealtimeRowToEventMedia(payload.new, eventName, 0);
+
+          if (!media) {
+            return;
+          }
+
+          setVideos((prev) => {
+            if (prev.some((v) => v.id === media.id)) {
+              return prev;
+            }
+            return [media, ...prev];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [eventId, eventName, eventSlug]);
 
   const visibleVideoCount = useMemo(
     () => videos.length - removingIds.size,
