@@ -4,6 +4,7 @@
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   createServiceRoleSupabase,
+  createServiceRoleSupabaseResult,
   getSupabaseServerKeyMode,
   peekSupabaseKeyJwtRole,
 } from "@/lib/supabase/server";
@@ -313,15 +314,17 @@ export async function persistEventsFullReplace(
   }
 
   const keyMode = getSupabaseServerKeyMode();
-  const client = createServiceRoleSupabase();
+  const sr = createServiceRoleSupabaseResult();
 
-  logSupabase(`createServiceRoleSupabase keyMode=${keyMode} clienteCriado=${Boolean(client)}`);
+  logSupabase(`createServiceRoleSupabase keyMode=${keyMode} clienteCriado=${sr.ok}`);
 
-  if (!client) {
+  if (!sr.ok) {
     if (shouldPersistLegacyJsonFiles()) {
       await writeEventsToStorage(events);
-      logRepository("repository em uso: JSON (cliente Supabase nulo)");
-      logMigration("events escritos em JSON (sem cliente Supabase)");
+      logRepository(
+        `repository em uso: JSON (service role inválida: ${sr.reason})`,
+      );
+      logMigration("events escritos em JSON (sem cliente Supabase válido)");
 
       return {
         branch: "json_no_client",
@@ -337,14 +340,13 @@ export async function persistEventsFullReplace(
     }
 
     logSupabase(
-      "persistEventsFullReplace: cliente Supabase nulo e JSON desativado — verifique chaves no servidor",
+      "persistEventsFullReplace: service role rejeitada e JSON desativado — verifique chaves no servidor",
+      sr.reason,
     );
-    throw new Error(
-      "Supabase (service role) não inicializado. Na Vercel defina SUPABASE_SERVICE_ROLE_KEY com o segredo do painel Supabase (Settings → API). A chave anon não permite upserts com as políticas RLS atuais.",
-    );
+    throw new Error(sr.reason);
   }
 
-  const syncResult = await syncEventsToSupabase(client, events);
+  const syncResult = await syncEventsToSupabase(sr.client, events);
 
   if (!syncResult.ok) {
     const stack =
