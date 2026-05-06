@@ -1,12 +1,42 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export function createBrowserSupabase() {
-  const url = "https://kwchocfrqzdhxthccpnw.supabase.co";
-  const anon = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3Y2hvY2ZycXpkaHh0aGNjcG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MTQ0MjQsImV4cCI6MjA5MzM5MDQyNH0.nafhZbSx9Zo8HqwSIiI3o7SHDUFd-eMaxCDnZDYrqTc";
+let supabaseClient: SupabaseClient | null = null;
 
-  console.log("TESTE FORÇADO SUPABASE", { url, anon });
+/**
+ * Cliente Supabase no browser (singleton). Sem env público → null (não lança).
+ */
+export function createBrowserSupabase(): SupabaseClient | null {
+  if (supabaseClient) {
+    return supabaseClient;
+  }
 
-  return createClient(url, anon);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[Supabase browser]", {
+      hasUrl: Boolean(url),
+      hasAnon: Boolean(anon),
+    });
+  }
+
+  if (!url || !anon) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[Supabase browser] defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      );
+    }
+    return null;
+  }
+
+  supabaseClient = createClient(url, anon, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  return supabaseClient;
 }

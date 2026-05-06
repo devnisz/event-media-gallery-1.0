@@ -1,5 +1,5 @@
 "use client";
-console.log("🔥 NOVO CODIGO RODANDO 🔥");
+
 import { useEffect, useMemo, useState } from "react";
 
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
@@ -25,17 +25,21 @@ function realtimeRowMatchesEvent(
       ? row.event_slug.trim().toLowerCase()
       : "";
 
-  if (rowSlug && rowSlug === targetSlug) return true;
+  if (rowSlug.length > 0 && rowSlug === targetSlug) {
+    return true;
+  }
 
   const targetId = resolvedEventId?.trim().toLowerCase();
-  if (!targetId) return false;
+  if (!targetId) {
+    return false;
+  }
 
   const rowEventId =
     typeof row.event_id === "string"
       ? row.event_id.trim().toLowerCase()
       : "";
 
-  return rowEventId && rowEventId === targetId;
+  return rowEventId.length > 0 && rowEventId === targetId;
 }
 
 export function VideoGallery({
@@ -51,36 +55,30 @@ export function VideoGallery({
     setVideos(initialVideos);
   }, [initialVideos]);
 
-  // 🔍 DEBUG ENV (CORRETO AGORA)
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    console.log("DEBUG ENV FRONT:", {
-      hasUrl: !!url,
-      hasAnon: !!anon,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[gallery] env público Supabase:", {
+        hasUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+        hasAnon: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()),
+      });
+    }
   }, []);
 
-  // 🚀 REALTIME
   useEffect(() => {
-    console.log("REALTIME INIT");
-
-    let supabase: ReturnType<typeof createBrowserSupabase> | null = null;
-
-    try {
-      supabase = createBrowserSupabase();
-    } catch (err) {
-      console.error("Erro ao criar Supabase:", err);
-      return;
+    if (process.env.NODE_ENV === "development") {
+      console.log("[gallery] realtime: inicializando subscription");
     }
+
+    const supabase = createBrowserSupabase();
 
     if (!supabase) {
-      console.error("Supabase client não foi criado");
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "[gallery] realtime indisponível: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY ausentes",
+        );
+      }
       return;
     }
-
-    console.log("SUPABASE OK");
 
     const channel = supabase
       .channel("media_changes")
@@ -94,9 +92,13 @@ export function VideoGallery({
         (payload) => {
           const row = payload.new as Record<string, unknown>;
 
-          if (!realtimeRowMatchesEvent(row, eventSlug, eventId)) return;
+          if (!realtimeRowMatchesEvent(row, eventSlug, eventId)) {
+            return;
+          }
 
-          console.log("Novo vídeo:", payload.new);
+          if (process.env.NODE_ENV === "development") {
+            console.log("[gallery] insert em media (evento atual)");
+          }
 
           const media = tryRealtimeRowToEventMedia(
             payload.new,
@@ -104,10 +106,14 @@ export function VideoGallery({
             0,
           );
 
-          if (!media) return;
+          if (!media) {
+            return;
+          }
 
           setVideos((prev) => {
-            if (prev.some((v) => v.id === media.id)) return prev;
+            if (prev.some((v) => v.id === media.id)) {
+              return prev;
+            }
             return [media, ...prev];
           });
         },
@@ -115,7 +121,7 @@ export function VideoGallery({
       .subscribe();
 
     return () => {
-      supabase?.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [eventId, eventName, eventSlug]);
 
@@ -127,7 +133,7 @@ export function VideoGallery({
   function handleDeleted(id: string) {
     setRemovingIds((current) => new Set(current).add(id));
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setVideos((current) => current.filter((v) => v.id !== id));
       setRemovingIds((current) => {
         const next = new Set(current);
