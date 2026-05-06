@@ -5,6 +5,11 @@
 import { randomUUID } from "crypto";
 import { readFile, rename, writeFile } from "fs/promises";
 import { galleryDataPath } from "@/lib/paths";
+import {
+  isVercelDeployment,
+  logLegacyJsonWriteSkipped,
+  shouldPersistLegacyJsonFiles,
+} from "@/lib/supabase/config";
 import type { GalleryEventRecord } from "@/types/event";
 
 const EVENTS_JSON = galleryDataPath("events.json");
@@ -39,6 +44,15 @@ export async function readEventsFromStorage(): Promise<GalleryEventRecord[]> {
 export async function writeEventsToStorage(
   events: GalleryEventRecord[],
 ): Promise<void> {
+  if (!shouldPersistLegacyJsonFiles()) {
+    logLegacyJsonWriteSkipped(
+      isVercelDeployment()
+        ? "Vercel — sem escrita em data/"
+        : "Supabase ativo sem dual-write JSON",
+    );
+    return;
+  }
+
   await atomicWriteJson(EVENTS_JSON, events);
 }
 
@@ -65,5 +79,14 @@ export async function readVideosJsonRaw(): Promise<unknown[]> {
 export async function writeVideosToStorage(
   videos: unknown[],
 ): Promise<void> {
+  if (!shouldPersistLegacyJsonFiles()) {
+    logLegacyJsonWriteSkipped(
+      isVercelDeployment()
+        ? "Vercel — sem escrita em data/"
+        : "Supabase ativo sem dual-write JSON",
+    );
+    return;
+  }
+
   await atomicWriteJson(VIDEOS_JSON, videos);
 }

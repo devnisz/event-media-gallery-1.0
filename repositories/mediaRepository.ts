@@ -8,9 +8,11 @@ import {
 } from "@/lib/supabase/server";
 import {
   isSupabaseConfigured,
+  isVercelDeployment,
   logMigration,
   logRepository,
   shouldDualWriteLegacyJson,
+  shouldPersistLegacyJsonFiles,
 } from "@/lib/supabase/config";
 import {
   readVideosJsonRaw,
@@ -356,8 +358,6 @@ async function loadMediaFromSupabase(
 
     const { data, error } = await qb;
 
-    console.log("[FRONTEND_MEDIA]", data);
-
     if (error) {
       logFrontendMedia("media.select erro PostgREST", {
         message: error.message,
@@ -383,8 +383,6 @@ async function loadMediaFromSupabase(
         .from("media")
         .select("*")
         .ilike("event_slug", escapeIlikeExactLiteral(trimmedSlug));
-
-      console.log("[FRONTEND_MEDIA]", data);
 
       if (error) {
         logFrontendMedia("media.select ILIKE erro PostgREST", {
@@ -569,6 +567,15 @@ export async function readPersistedMediaRawForEventSlug(
   const client = createServerSupabase();
 
   if (!client) {
+    if (isVercelDeployment() && isSupabaseConfigured()) {
+      logFrontendMedia(
+        "readPersistedMediaRawForEventSlug: cliente Supabase nulo na Vercel — não usar JSON vazio",
+        { slug: slug.trim().slice(0, 64) },
+      );
+      throw new Error(
+        "Supabase não inicializado no servidor (verifique SUPABASE_SERVICE_ROLE_KEY na Vercel).",
+      );
+    }
     return readPersistedMediaRawForEventSlugFromJson(slug, resolvedEventId);
   }
 
@@ -597,6 +604,9 @@ export async function readPersistedMediaRawForEventSlug(
       "media por event_slug Supabase falhou → fallback JSON filtrado",
       err,
     );
+    if (isVercelDeployment()) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
     return readPersistedMediaRawForEventSlugFromJson(slug, resolvedEventId);
   }
 }
@@ -633,6 +643,11 @@ export async function readPersistedMediaRaw(): Promise<unknown[]> {
     logFrontendMedia(
       "Cliente Supabase não criado — fallback videos.json (verifique SUPABASE_URL e chaves).",
     );
+    if (isVercelDeployment() && isSupabaseConfigured()) {
+      throw new Error(
+        "Supabase não inicializado no servidor (verifique SUPABASE_SERVICE_ROLE_KEY na Vercel).",
+      );
+    }
     return readVideosJsonRaw();
   }
 
@@ -645,6 +660,9 @@ export async function readPersistedMediaRaw(): Promise<unknown[]> {
       message: err instanceof Error ? err.message : String(err),
     });
     logMigration("media Supabase falhou → fallback JSON", err);
+    if (isVercelDeployment()) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
     return readVideosJsonRaw();
   }
 }
@@ -654,6 +672,11 @@ export async function replaceAllMediaFromGalleryRecords(
   mediaList: GalleryMediaRecord[],
 ): Promise<void> {
   if (!isSupabaseConfigured()) {
+    if (isVercelDeployment()) {
+      throw new Error(
+        "Supabase obrigatório na Vercel para persistir mídias.",
+      );
+    }
     await persistMediaJsonLegacy(mediaList);
     logMigration("media escritas apenas em JSON");
     return;
@@ -662,20 +685,29 @@ export async function replaceAllMediaFromGalleryRecords(
   const client = createServerSupabase();
 
   if (!client) {
-    await persistMediaJsonLegacy(mediaList);
-    return;
+    if (shouldPersistLegacyJsonFiles()) {
+      await persistMediaJsonLegacy(mediaList);
+      return;
+    }
+    throw new Error(
+      "Supabase não inicializado no servidor (verifique SUPABASE_SERVICE_ROLE_KEY).",
+    );
   }
 
   try {
     await syncMediaToSupabase(client, mediaList);
     logRepository(`media persistidas no Supabase: ${mediaList.length}`);
 
-    if (shouldDualWriteLegacyJson()) {
+    if (shouldDualWriteLegacyJson() && shouldPersistLegacyJsonFiles()) {
       await persistMediaJsonLegacy(mediaList);
       logMigration("media dual-write JSON espelho concluído");
     }
   } catch (err) {
-    logMigration("media falha ao escrever no Supabase → JSON", err);
-    await persistMediaJsonLegacy(mediaList);
+    logMigration("media falha ao escrever no Supabase", err);
+    if (shouldPersistLegacyJsonFiles()) {
+      await persistMediaJsonLegacy(mediaList);
+    } else {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 }

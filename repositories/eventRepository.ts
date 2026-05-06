@@ -9,12 +9,14 @@ import {
 import {
   getSupabaseEnvDiagnostics,
   isSupabaseConfigured,
+  isVercelDeployment,
   logFallback,
   logMigration,
   logRepository,
   logSupabase,
   logSupabaseEnvCheck,
   shouldDualWriteLegacyJson,
+  shouldPersistLegacyJsonFiles,
 } from "@/lib/supabase/config";
 import {
   readEventsFromStorage,
@@ -231,6 +233,17 @@ export async function readEventsLooseForHydration(): Promise<StoredEventLoose[]>
   } catch (err) {
     const stack = err instanceof Error ? err.stack : undefined;
 
+    if (isVercelDeployment()) {
+      logFallback("events read: Supabase falhou na Vercel — sem fallback JSON neste ambiente", {
+        error: err,
+        stack,
+        serialized: serializeSupabaseError(err),
+      });
+      throw err instanceof Error
+        ? err
+        : new Error(String(err));
+    }
+
     logFallback("events read: Supabase falhou → fallback JSON", {
       error: err,
       stack,
@@ -259,6 +272,13 @@ export async function persistEventsFullReplace(
   );
 
   if (!isSupabaseConfigured()) {
+    if (isVercelDeployment()) {
+      logSupabase("persistEventsFullReplace: Supabase não configurado na Vercel — abortado");
+      throw new Error(
+        "Configure NEXT_PUBLIC_SUPABASE_URL, chave anon e SUPABASE_SERVICE_ROLE_KEY no projeto Vercel.",
+      );
+    }
+
     await writeEventsToStorage(events);
     logRepository(
       "repository em uso: JSON apenas (Supabase não configurado)",
@@ -284,21 +304,30 @@ export async function persistEventsFullReplace(
   logSupabase(`createServerSupabase efetivo keyMode=${keyMode} clienteCriado=${Boolean(client)}`);
 
   if (!client) {
-    await writeEventsToStorage(events);
-    logRepository("repository em uso: JSON (cliente Supabase nulo)");
-    logMigration("events escritos em JSON (sem cliente Supabase)");
+    if (shouldPersistLegacyJsonFiles()) {
+      await writeEventsToStorage(events);
+      logRepository("repository em uso: JSON (cliente Supabase nulo)");
+      logMigration("events escritos em JSON (sem cliente Supabase)");
 
-    return {
-      branch: "json_no_client",
-      isSupabaseConfigured: true,
-      supabaseClientCreated: false,
-      keyMode,
-      repositoryLabel: "json_only_no_client",
-      upsertAttempted: false,
-      upsertRowCount: events.length,
-      jsonWritten: true,
-      usedFallbackJson: false,
-    };
+      return {
+        branch: "json_no_client",
+        isSupabaseConfigured: true,
+        supabaseClientCreated: false,
+        keyMode,
+        repositoryLabel: "json_only_no_client",
+        upsertAttempted: false,
+        upsertRowCount: events.length,
+        jsonWritten: true,
+        usedFallbackJson: false,
+      };
+    }
+
+    logSupabase(
+      "persistEventsFullReplace: cliente Supabase nulo e JSON desativado — verifique chaves no servidor",
+    );
+    throw new Error(
+      "Supabase não inicializado no servidor. Na Vercel defina SUPABASE_URL (ou NEXT_PUBLIC_SUPABASE_URL) e SUPABASE_SERVICE_ROLE_KEY.",
+    );
   }
 
   const syncResult = await syncEventsToSupabase(client, events);
@@ -309,31 +338,38 @@ export async function persistEventsFullReplace(
         ? syncResult.error.stack
         : undefined;
 
-    logFallback("events persist: Supabase falhou → JSON", {
+    logFallback("events persist: Supabase falhou", {
       phase: syncResult.phase,
       error: syncResult.error,
       serialized: serializeSupabaseError(syncResult.error),
       payload: syncResult.rows,
       stack,
+      jsonFallbackAllowed: shouldPersistLegacyJsonFiles(),
     });
-    logMigration("events falha ao escrever no Supabase → JSON", syncResult.error);
-    await writeEventsToStorage(events);
+    logMigration("events falha ao escrever no Supabase", syncResult.error);
 
-    return {
-      branch: "supabase_failed_json_fallback",
-      isSupabaseConfigured: true,
-      supabaseClientCreated: true,
-      keyMode,
-      repositoryLabel: "supabase_then_json_fallback",
-      upsertAttempted: syncResult.phase === "upsert",
-      upsertRowCount: events.length,
-      upsertPayload: syncResult.rows,
-      supabaseError: serializeSupabaseError(syncResult.error),
-      syncFailedPhase: syncResult.phase,
-      jsonWritten: true,
-      usedFallbackJson: true,
-      errorStack: stack,
-    };
+    if (shouldPersistLegacyJsonFiles()) {
+      await writeEventsToStorage(events);
+      return {
+        branch: "supabase_failed_json_fallback",
+        isSupabaseConfigured: true,
+        supabaseClientCreated: true,
+        keyMode,
+        repositoryLabel: "supabase_then_json_fallback",
+        upsertAttempted: syncResult.phase === "upsert",
+        upsertRowCount: events.length,
+        upsertPayload: syncResult.rows,
+        supabaseError: serializeSupabaseError(syncResult.error),
+        syncFailedPhase: syncResult.phase,
+        jsonWritten: true,
+        usedFallbackJson: true,
+        errorStack: stack,
+      };
+    }
+
+    throw new Error(
+      `Falha ao persistir eventos no Supabase (${syncResult.phase}). Verifique RLS e SUPABASE_SERVICE_ROLE_KEY.`,
+    );
   }
 
   logRepository(`events persistidos no Supabase: ${events.length}`, {
@@ -341,7 +377,7 @@ export async function persistEventsFullReplace(
     payloadSummary: { rowCount: syncResult.rows.length },
   });
 
-  if (shouldDualWriteLegacyJson()) {
+  if (shouldDualWriteLegacyJson() && shouldPersistLegacyJsonFiles()) {
     await writeEventsToStorage(events);
     logMigration("events dual-write JSON espelho concluído");
 
@@ -358,6 +394,12 @@ export async function persistEventsFullReplace(
       jsonWritten: true,
       usedFallbackJson: false,
     };
+  }
+
+  if (shouldDualWriteLegacyJson() && !shouldPersistLegacyJsonFiles()) {
+    logRepository(
+      "[LEGACY_JSON] dual-write pedido por env mas desativado neste host (ex.: Vercel)",
+    );
   }
 
   return {

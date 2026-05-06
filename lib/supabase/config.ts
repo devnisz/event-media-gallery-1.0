@@ -109,6 +109,38 @@ export function shouldDualWriteLegacyJson(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+/**
+ * Deploy na Vercel: filesystem do serverless é só leitura (exceto /tmp efémero);
+ * `data/events.json` não existe como pasta gravável → ENOENT em `open`.
+ */
+export function isVercelDeployment(): boolean {
+  return process.env.VERCEL === "1";
+}
+
+/**
+ * Quando pode gravar `data/*.json` de forma suportada.
+ * - Nunca na Vercel (usar só Supabase em produção).
+ * - Sem Supabase: sim (modo ficheiro local / dev).
+ * - Com Supabase fora da Vercel: só se `GALLERY_DUAL_WRITE_LEGACY_JSON` estiver ativo.
+ */
+export function shouldPersistLegacyJsonFiles(): boolean {
+  if (isVercelDeployment()) {
+    return false;
+  }
+
+  if (!isSupabaseConfigured()) {
+    return true;
+  }
+
+  return shouldDualWriteLegacyJson();
+}
+
+export function logLegacyJsonWriteSkipped(reason: string): void {
+  logRepository(
+    `[LEGACY_JSON] escrita ignorada (${reason}). Fonte: Supabase apenas.`,
+  );
+}
+
 export function logSupabase(message: string, detail?: unknown): void {
   if (detail !== undefined) {
     console.log(`[SUPABASE] ${message}`, detail);
