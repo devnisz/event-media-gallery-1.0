@@ -14,12 +14,14 @@ export function QrCode({ label, value, imagePath }: QrCodeProps) {
   const src = imagePath?.trim() ?? "";
   const hasImage = src.length > 0;
   const useRemoteImg = hasImage && isAbsoluteHttpUrl(src);
+  /** Só `next/image` para ficheiros em `public/` (`/`). Outros paths quebram o otimizer no SSR. */
+  const useNextImage = hasImage && !useRemoteImg && src.startsWith("/");
 
   return (
     <div className="flex items-center gap-5 rounded-[1.75rem] border border-white/10 bg-black/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
       {hasImage ? (
-        useRemoteImg ? (
-          // URLs absolutas (ex.: R2): evita exigir remotePatterns no next.config
+        useRemoteImg || !useNextImage ? (
+          // URLs absolutas (ex.: R2) ou paths não-public: evita `Image` a falhar no build/SSR
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}

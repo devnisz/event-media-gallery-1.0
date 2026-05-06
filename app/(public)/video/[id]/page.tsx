@@ -6,6 +6,7 @@ import { DownloadButton } from "@/components/public/download-button";
 import { QrCode } from "@/components/public/qr-code";
 import { VideoPlayer } from "@/components/public/video-player";
 import { routes } from "@/lib/routes";
+import { safeDecodeURIComponentSegment } from "@/lib/utils/safe-decode-uri";
 import type { EventMedia } from "@/types/media";
 import { getVideoById } from "@/services/videoService";
 
@@ -23,7 +24,7 @@ function suggestedDownloadFileName(media: EventMedia): string {
   }
 
   if (media.mediaType === "image") {
-    const ft = media.fileType.toLowerCase();
+    const ft = String(media.fileType ?? "").toLowerCase();
 
     if (ft.includes("png")) {
       return `${base}.png`;
@@ -47,10 +48,15 @@ type VideoPageProps = {
 
 export async function generateMetadata({ params }: VideoPageProps) {
   const { id } = await params;
-  const video = await getVideoById(decodeURIComponent(id));
+  const decodedId = safeDecodeURIComponentSegment(id);
+  const video = await getVideoById(decodedId);
+  const title =
+    video?.title && String(video.title).trim()
+      ? String(video.title).trim()
+      : "Mídia";
 
   return {
-    title: video ? video.title : "Mídia",
+    title,
   };
 }
 
@@ -58,7 +64,7 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
   await connection();
 
   const { id } = await params;
-  const video = await getVideoById(decodeURIComponent(id));
+  const video = await getVideoById(safeDecodeURIComponentSegment(id));
 
   if (!video) {
     notFound();
