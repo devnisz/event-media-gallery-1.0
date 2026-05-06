@@ -39,7 +39,7 @@ function realtimeRowMatchesEvent(
       ? row.event_id.trim().toLowerCase()
       : "";
 
-  return rowEventId.length > 0 && rowEventId === targetId;
+      return Boolean(rowEventId && rowEventId === targetId);
 }
 
 export function VideoGallery({
