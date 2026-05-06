@@ -5,6 +5,7 @@ import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   createServiceRoleSupabase,
   getSupabaseServerKeyMode,
+  peekSupabaseKeyJwtRole,
 } from "@/lib/supabase/server";
 import {
   getSupabaseEnvDiagnostics,
@@ -77,6 +78,19 @@ function serializeSupabaseError(
   }
 
   return { message: String(err) };
+}
+
+function formatSupabaseErrorForThrow(
+  ser: NonNullable<PersistEventsOutcome["supabaseError"]>,
+): string {
+  const parts = [
+    ser.message,
+    ser.code ? `code=${ser.code}` : "",
+    ser.details ? `details=${ser.details}` : "",
+    ser.hint ? `hint=${ser.hint}` : "",
+  ].filter(Boolean);
+
+  return parts.join(" | ");
 }
 
 function rowToLoose(row: EventRow): StoredEventLoose {
@@ -264,7 +278,7 @@ export async function persistEventsFullReplace(
   const envDiag = getSupabaseEnvDiagnostics();
 
   logSupabase(
-    `persistEventsFullReplace start isSupabaseConfigured=${isSupabaseConfigured()} hasUrl=${envDiag.hasUrl} hasAnonKey=${envDiag.hasAnonKey} hasServiceRole=${envDiag.hasServiceRole}`,
+    `persistEventsFullReplace start isSupabaseConfigured=${isSupabaseConfigured()} hasUrl=${envDiag.hasUrl} hasAnonKey=${envDiag.hasAnonKey} hasServiceRole=${envDiag.hasServiceRole} serviceRoleJwtRole=${peekSupabaseKeyJwtRole(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "") ?? "n/a"}`,
     {
       urlPreview: envDiag.urlPreview,
       anonKeyPreview: envDiag.anonKeyPreview,
@@ -367,8 +381,11 @@ export async function persistEventsFullReplace(
       };
     }
 
+    const ser = serializeSupabaseError(syncResult.error);
+    const detail = formatSupabaseErrorForThrow(ser);
+
     throw new Error(
-      `Falha ao persistir eventos no Supabase (${syncResult.phase}). Verifique RLS e SUPABASE_SERVICE_ROLE_KEY.`,
+      `Falha ao persistir eventos no Supabase (fase=${syncResult.phase}). ${detail}. Se vir RLS ou permission denied, confirme que SUPABASE_SERVICE_ROLE_KEY é a secret service_role (não a anon) no painel do Supabase e na Vercel.`,
     );
   }
 

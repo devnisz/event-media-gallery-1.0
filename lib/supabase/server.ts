@@ -10,6 +10,34 @@ import {
   logSupabase,
 } from "@/lib/supabase/config";
 
+/** Lê o claim `role` do JWT Supabase (sem validar assinatura). Útil para detectar anon no lugar de service_role. */
+export function peekSupabaseKeyJwtRole(key: string): string | undefined {
+  const t = key.trim();
+  if (!t.startsWith("eyJ")) {
+    return undefined;
+  }
+
+  try {
+    const B = globalThis.Buffer;
+    if (!B) {
+      return undefined;
+    }
+
+    const part = t.split(".")[1];
+    if (!part) {
+      return undefined;
+    }
+
+    const payload = JSON.parse(B.from(part, "base64url").toString("utf8")) as {
+      role?: string;
+    };
+
+    return typeof payload.role === "string" ? payload.role : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getSupabaseServerKeyMode(): "service" | "anon" | "none" {
   if (!isSupabaseConfigured()) {
     return "none";
@@ -37,6 +65,14 @@ export function createServiceRoleSupabase(): SupabaseClient | null {
 
   if (!url?.trim() || !service) {
     return null;
+  }
+
+  const jwtRole = peekSupabaseKeyJwtRole(service);
+
+  if (jwtRole && jwtRole !== "service_role") {
+    logSupabase(
+      `SUPABASE_SERVICE_ROLE_KEY tem JWT role="${jwtRole}" (esperado "service_role"). Usar a secret service_role em Supabase → Project Settings → API. Se estiver a usar a chave anon aqui, o upsert falha nas políticas RLS.`,
+    );
   }
 
   return createClient(url.trim(), service, {
