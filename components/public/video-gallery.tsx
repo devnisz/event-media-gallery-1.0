@@ -97,18 +97,16 @@ export function VideoGallery({
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
-  const [mobileTwoCols, setMobileTwoCols] = useState(false);
-
-  useEffect(() => {
-    try {
-      const v = window.localStorage.getItem("gallery-mobile-two-cols");
-      if (v === "1") {
-        setMobileTwoCols(true);
-      }
-    } catch {
-      /* ignore */
+  const [mobileTwoCols, setMobileTwoCols] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
     }
-  }, []);
+    try {
+      return window.localStorage.getItem("gallery-mobile-two-cols") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     try {
@@ -245,7 +243,9 @@ export function VideoGallery({
       </header>
 
       {videos.length > 0 ? (
-        <div className="flex flex-col gap-4">
+        <div
+          className={`flex flex-col ${mobileTwoCols ? "gap-2 md:gap-4" : "gap-4"}`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 md:hidden">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
               Vista no celular
@@ -283,8 +283,8 @@ export function VideoGallery({
           </div>
 
           <div
-            className={`grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-              mobileTwoCols ? "grid-cols-2" : "grid-cols-1"
+            className={`grid min-w-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              mobileTwoCols ? "grid-cols-2 gap-2 md:gap-6" : "grid-cols-1 gap-6"
             }`}
           >
           {videos.map((video, index) => (
@@ -294,6 +294,7 @@ export function VideoGallery({
               index={index}
               isRemoving={removingIds.has(video.id)}
               onDeleted={handleDeleted}
+              compactMobileTwoCol={mobileTwoCols}
             />
           ))}
           </div>
