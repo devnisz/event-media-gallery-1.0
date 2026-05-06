@@ -65,6 +65,7 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
         </header>
 
         <VideoGallery
+          key={event.slug}
           initialVideos={eventVideos}
           eventSlug={event.slug}
           eventName={event.name}

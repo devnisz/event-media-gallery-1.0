@@ -39,7 +39,7 @@ function realtimeRowMatchesEvent(
       ? row.event_id.trim().toLowerCase()
       : "";
 
-      return Boolean(rowEventId && rowEventId === targetId);
+  return rowEventId.length > 0 && rowEventId === targetId;
 }
 
 export function VideoGallery({
@@ -50,10 +50,6 @@ export function VideoGallery({
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    setVideos(initialVideos);
-  }, [initialVideos]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
