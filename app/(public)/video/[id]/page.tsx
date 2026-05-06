@@ -95,7 +95,7 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
               href={routes.home}
               className="inline-flex min-h-14 items-center rounded-full border border-white/10 bg-black/35 px-6 text-base font-semibold text-white/78 backdrop-blur-2xl transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/35 active:scale-95"
             >
-              Home
+              Início
             </Link>
           </div>
           <div className="hidden rounded-full border border-white/10 bg-black/35 px-5 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white/55 backdrop-blur-2xl sm:block">

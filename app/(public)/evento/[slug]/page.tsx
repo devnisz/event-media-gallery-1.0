@@ -47,7 +47,7 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
               href={routes.home}
               className="inline-flex min-h-14 items-center rounded-full border border-white/12 bg-black/35 px-7 text-base font-semibold text-white backdrop-blur-xl transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/35 active:scale-[0.98]"
             >
-              ← Voltar aos eventos
+              ← Início
             </Link>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-200">

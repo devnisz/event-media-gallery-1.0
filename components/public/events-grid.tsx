@@ -1,3 +1,7 @@
+/**
+ * Grid público de eventos — não utilizado na home (landing SaaS).
+ * Mantido para evoluções (ex.: vitrine opt-in) ou ferramentas internas.
+ */
 import Link from "next/link";
 import { routes } from "@/lib/routes";
 import { EventCard, type EventTile } from "./event-card";

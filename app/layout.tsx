@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Galerias de eventos",
   description:
-    "Experiência premium para revisitar e compartilhar os melhores momentos de cada celebração.",
+    "Galerias privadas por evento: contratantes gerem no painel; convidados acedem pelo link ou QR code partilhado.",
 };
 
 export default function RootLayout({

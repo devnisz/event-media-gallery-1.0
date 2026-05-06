@@ -11,39 +11,28 @@
  * no bundle; `SUPABASE_*` sem prefixo não é enviado ao cliente pelo Next.js.
  */
 
-function firstNonEmptyTrimmed(
-  ...keys: readonly string[]
-): string | undefined {
-  for (const key of keys) {
-    const v = process.env[key]?.trim();
-
-    if (v) {
-      return v;
-    }
-  }
-
-  return undefined;
-}
-
 /**
- * URL do projeto Supabase, lida no momento da chamada (sem cache em módulo).
- * Ordem: NEXT_PUBLIC_* depois espelho só-servidor (runtime na Vercel).
+ * **Browser:** só `NEXT_PUBLIC_*` é exposto no bundle; o Next exige acesso
+ * **estático** a `process.env.NEXT_PUBLIC_…` para injetar o valor. Usar
+ * `process.env[nomeDinâmico]` quebra o login e o Realtime no cliente.
+ *
+ * **Servidor:** também lê `SUPABASE_URL` e `SUPABASE_ANON_KEY` (sem prefixo),
+ * úteis na Vercel quando só estão definidas no runtime do Node.
  */
 export function getSupabaseUrlAtRuntime(): string | undefined {
-  return firstNonEmptyTrimmed(
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "SUPABASE_URL",
-  );
+  const nextPublic = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (nextPublic) {
+    return nextPublic;
+  }
+  return process.env.SUPABASE_URL?.trim() || undefined;
 }
 
-/**
- * Chave anon, lida no momento da chamada (sem cache em módulo).
- */
 export function getSupabaseAnonKeyAtRuntime(): string | undefined {
-  return firstNonEmptyTrimmed(
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_ANON_KEY",
-  );
+  const nextPublic = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (nextPublic) {
+    return nextPublic;
+  }
+  return process.env.SUPABASE_ANON_KEY?.trim() || undefined;
 }
 
 /**
