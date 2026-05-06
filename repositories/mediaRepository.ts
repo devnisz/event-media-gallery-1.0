@@ -3,7 +3,7 @@
  */
 import type { GalleryMediaRecord } from "@/types/media";
 import {
-  createServerSupabase,
+  createServiceRoleSupabase,
   getSupabaseServerKeyMode,
 } from "@/lib/supabase/server";
 import {
@@ -564,7 +564,7 @@ export async function readPersistedMediaRawForEventSlug(
     return readPersistedMediaRawForEventSlugFromJson(slug, resolvedEventId);
   }
 
-  const client = createServerSupabase();
+  const client = createServiceRoleSupabase();
 
   if (!client) {
     if (isVercelDeployment() && isSupabaseConfigured()) {
@@ -637,7 +637,7 @@ export async function readPersistedMediaRaw(): Promise<unknown[]> {
     return readVideosJsonRaw();
   }
 
-  const client = createServerSupabase();
+  const client = createServiceRoleSupabase();
 
   if (!client) {
     logFrontendMedia(
@@ -682,7 +682,7 @@ export async function replaceAllMediaFromGalleryRecords(
     return;
   }
 
-  const client = createServerSupabase();
+  const client = createServiceRoleSupabase();
 
   if (!client) {
     if (shouldPersistLegacyJsonFiles()) {

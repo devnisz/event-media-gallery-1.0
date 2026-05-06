@@ -3,7 +3,7 @@
  */
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
-  createServerSupabase,
+  createServiceRoleSupabase,
   getSupabaseServerKeyMode,
 } from "@/lib/supabase/server";
 import {
@@ -218,7 +218,7 @@ export async function readEventsLooseForHydration(): Promise<StoredEventLoose[]>
     return (await readEventsFromStorage()) as StoredEventLoose[];
   }
 
-  const client = createServerSupabase();
+  const client = createServiceRoleSupabase();
 
   if (!client) {
     logMigration("events read → JSON (cliente Supabase nulo)");
@@ -299,9 +299,9 @@ export async function persistEventsFullReplace(
   }
 
   const keyMode = getSupabaseServerKeyMode();
-  const client = createServerSupabase();
+  const client = createServiceRoleSupabase();
 
-  logSupabase(`createServerSupabase efetivo keyMode=${keyMode} clienteCriado=${Boolean(client)}`);
+  logSupabase(`createServiceRoleSupabase keyMode=${keyMode} clienteCriado=${Boolean(client)}`);
 
   if (!client) {
     if (shouldPersistLegacyJsonFiles()) {
@@ -326,7 +326,7 @@ export async function persistEventsFullReplace(
       "persistEventsFullReplace: cliente Supabase nulo e JSON desativado — verifique chaves no servidor",
     );
     throw new Error(
-      "Supabase não inicializado no servidor. Na Vercel defina SUPABASE_URL (ou NEXT_PUBLIC_SUPABASE_URL) e SUPABASE_SERVICE_ROLE_KEY.",
+      "Supabase (service role) não inicializado. Na Vercel defina SUPABASE_SERVICE_ROLE_KEY com o segredo do painel Supabase (Settings → API). A chave anon não permite upserts com as políticas RLS atuais.",
     );
   }
 

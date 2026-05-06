@@ -20,6 +20,37 @@ export function getSupabaseServerKeyMode(): "service" | "anon" | "none" {
   return service && service.length > 0 ? "service" : "anon";
 }
 
+/**
+ * Cliente Supabase com **única** a chave `SUPABASE_SERVICE_ROLE_KEY`.
+ * Usar em repositórios e jobs internos (upserts, sync, leituras agregadoras).
+ * Bypassa RLS — necessário porque estes caminhos não têm `auth.uid()` de utilizador.
+ *
+ * **Nunca** enviar esta chave ao browser.
+ */
+export function createServiceRoleSupabase(): SupabaseClient | null {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const url = getSupabaseUrlAtRuntime();
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  if (!url?.trim() || !service) {
+    return null;
+  }
+
+  return createClient(url.trim(), service, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+/**
+ * Cliente com service role se existir; caso contrário **anon** (pode ser bloqueado por RLS em writes).
+ * Preferir `createServiceRoleSupabase()` para operações de persistência da grelha eventos/mídia.
+ */
 export function createServerSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured()) {
     return null;
@@ -45,7 +76,7 @@ export function createServerSupabase(): SupabaseClient | null {
 
   if (!service || service.length === 0) {
     logSupabase(
-      "SUPABASE_SERVICE_ROLE_KEY ausente — usando ANON no servidor; para SELECT em `media` com RLS restrito, use a service role ou políticas públicas de leitura.",
+      "SUPABASE_SERVICE_ROLE_KEY ausente — usando ANON no servidor; writes na grelha com RLS devem usar service role (ver createServiceRoleSupabase).",
     );
   }
 
