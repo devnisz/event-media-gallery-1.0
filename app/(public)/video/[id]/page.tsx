@@ -5,40 +5,12 @@ import { AmbientBackground } from "@/components/public/ambient-background";
 import { DownloadButton } from "@/components/public/download-button";
 import { QrCode } from "@/components/public/qr-code";
 import { VideoPlayer } from "@/components/public/video-player";
+import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName";
 import { routes } from "@/lib/routes";
 import { safeDecodeURIComponentSegment } from "@/lib/utils/safe-decode-uri";
-import type { EventMedia } from "@/types/media";
 import { getVideoById } from "@/services/videoService";
 
 export const dynamic = "force-dynamic";
-
-function suggestedDownloadFileName(media: EventMedia): string {
-  const base =
-    media.title
-      .replace(/[/\\?%*:|"<>]/g, "-")
-      .replace(/\s+/g, " ")
-      .trim() || "midia";
-
-  if (media.mediaType === "gif") {
-    return `${base}.gif`;
-  }
-
-  if (media.mediaType === "image") {
-    const ft = String(media.fileType ?? "").toLowerCase();
-
-    if (ft.includes("png")) {
-      return `${base}.png`;
-    }
-
-    if (ft.includes("webp")) {
-      return `${base}.webp`;
-    }
-
-    return `${base}.jpg`;
-  }
-
-  return `${base}.mp4`;
-}
 
 type VideoPageProps = {
   params: Promise<{
@@ -126,7 +98,7 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
             </p>
             <div className="mt-8 flex flex-col gap-4">
               <DownloadButton
-                href={video.downloadUrl}
+                href={routes.mediaDownload(video.id)}
                 label={downloadLabel}
                 fileName={suggestedDownloadFileName(video)}
               />
