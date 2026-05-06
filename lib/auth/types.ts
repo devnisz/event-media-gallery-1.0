@@ -1,6 +1,6 @@
 /**
- * Contratos futuros (sem implementação de login).
- * Mantém papéis e permissões centralizados para middleware e UI admin.
+ * Contratos de papéis (claims customizados / futuras orgs).
+ * Autenticação base: Supabase Auth (`auth.users` + sessão em cookies).
  */
 
 export type UserId = string;

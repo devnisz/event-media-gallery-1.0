@@ -1,14 +1,22 @@
 import { revalidatePath } from "next/cache";
 import { createEventRecordWithPersistence } from "@/services/eventService";
+import { getRouteHandlerUser } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   try {
+    const userOrRes = await getRouteHandlerUser();
+
+    if (userOrRes instanceof Response) {
+      return userOrRes;
+    }
+
     const body = (await request.json()) as { name?: string };
     const name = typeof body.name === "string" ? body.name.trim() : "";
 
     console.log("[EVENT_CREATE] POST recebido", {
       nameLength: name.length,
       hasName: Boolean(name),
+      ownerUserIdTail: userOrRes.id.slice(-8),
     });
 
     if (!name) {
@@ -18,7 +26,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { event, persistence } = await createEventRecordWithPersistence(name);
+    const { event, persistence } = await createEventRecordWithPersistence(
+      name,
+      { ownerUserId: userOrRes.id },
+    );
 
     console.log("[EVENT_CREATE] sucesso", {
       eventId: event.id,
@@ -31,7 +42,7 @@ export async function POST(request: Request) {
     });
 
     revalidatePath("/");
-    revalidatePath("/admin");
+    revalidatePath("/dashboard");
     revalidatePath(`/evento/${event.slug}`);
 
     return Response.json({ ok: true, event, persistence });

@@ -38,6 +38,9 @@ export function hydrateAssignTokens(
         coverImage: e.coverImage ?? "",
         videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
         uploadToken: trimmedExisting,
+        ...(e.ownerUserId?.trim()
+          ? { ownerUserId: e.ownerUserId.trim() }
+          : {}),
       };
     }
 
@@ -54,6 +57,9 @@ export function hydrateAssignTokens(
       coverImage: e.coverImage ?? "",
       videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
       uploadToken,
+      ...(e.ownerUserId?.trim()
+        ? { ownerUserId: e.ownerUserId.trim() }
+        : {}),
     };
   });
 

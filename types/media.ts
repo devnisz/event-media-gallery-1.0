@@ -10,6 +10,8 @@ export type GalleryMediaRecord = {
   id: string;
   eventId: string;
   eventSlug: string;
+  /** Espelha `events.owner_user_id` quando conhecido (ingestão / sync). */
+  ownerUserId?: string;
   name: string;
   /** URL principal do arquivo (histórico: `videoUrl`). */
   url: string;

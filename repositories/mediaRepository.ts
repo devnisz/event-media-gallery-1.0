@@ -16,6 +16,7 @@ import {
   readVideosJsonRaw,
   writeVideosToStorage,
 } from "@/services/storageService";
+import { readEventsLooseForHydration } from "@/repositories/eventRepository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Linha bruta do PostgREST (snake_case; colunas opcionais conforme inserts externos). */
@@ -242,6 +243,16 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     o.orderIndex = orderIdx;
   }
 
+  const ownerRaw = row.owner_user_id ?? row.ownerUserId;
+  const ownerStr =
+    typeof ownerRaw === "string" && ownerRaw.trim()
+      ? ownerRaw.trim()
+      : "";
+
+  if (ownerStr) {
+    o.ownerUserId = ownerStr;
+  }
+
   return o;
 }
 
@@ -268,6 +279,7 @@ function galleryRecordToRow(
     uploaded_at: m.uploadedAt ?? null,
     legacy_timestamp: m.timestamp ?? null,
     order_index: hasManualOrderIndex(m) ? m.orderIndex! : null,
+    owner_user_id: m.ownerUserId?.trim() ? m.ownerUserId.trim() : null,
   };
 
   return row;
@@ -308,6 +320,10 @@ function buildLegacyJsonRowsFromGallery(
 
     if (hasManualOrderIndex(m)) {
       row.orderIndex = m.orderIndex;
+    }
+
+    if (m.ownerUserId?.trim()) {
+      row.ownerUserId = m.ownerUserId.trim();
     }
 
     return row;
@@ -483,6 +499,13 @@ async function syncMediaToSupabase(
 ): Promise<void> {
   const keep = new Set(mediaList.map((m) => m.id));
 
+  const eventsLoose = await readEventsLooseForHydration();
+  const ownerByEventId = new Map<string, string | null>();
+
+  for (const ev of eventsLoose) {
+    ownerByEventId.set(ev.id, ev.ownerUserId?.trim() ?? null);
+  }
+
   const { data: existing, error: selErr } = await client
     .from("media")
     .select("id");
@@ -504,7 +527,15 @@ async function syncMediaToSupabase(
     }
   }
 
-  const rows = mediaList.map(galleryRecordToRow);
+  const rows = mediaList.map((m) => {
+    const row = galleryRecordToRow(m);
+    const inherited = ownerByEventId.get(m.eventId) ?? null;
+    const explicit = m.ownerUserId?.trim() ? m.ownerUserId.trim() : null;
+
+    row.owner_user_id = explicit ?? inherited ?? null;
+
+    return row;
+  });
 
   if (rows.length === 0) {
     return;

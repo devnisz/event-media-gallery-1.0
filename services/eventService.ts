@@ -13,6 +13,20 @@ export async function readEvents(): Promise<GalleryEventRecord[]> {
   return listPersistedEventsHydrated();
 }
 
+/**
+ * Eventos visíveis no painel para um usuário autenticado.
+ * Legado sem `ownerUserId`: visível a qualquer logado (migração gradual).
+ */
+export async function readDashboardEvents(
+  userId: string,
+): Promise<GalleryEventRecord[]> {
+  const all = await listPersistedEventsHydrated();
+
+  return all.filter(
+    (e) => !e.ownerUserId?.trim() || e.ownerUserId === userId,
+  );
+}
+
 export async function writeEvents(
   events: GalleryEventRecord[],
 ): Promise<PersistEventsOutcome> {
@@ -38,6 +52,7 @@ export async function getEventById(
 
 export async function createEventRecordWithPersistence(
   name: string,
+  options?: { ownerUserId?: string },
 ): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
   const trimmed = name.trim();
 
@@ -51,6 +66,8 @@ export async function createEventRecordWithPersistence(
   const baseSlug = slugify(trimmed);
   const slug = ensureUniqueSlug(baseSlug, takenSlugs);
 
+  const ownerUserId = options?.ownerUserId?.trim();
+
   const record: GalleryEventRecord = {
     id: generateEventId(),
     name: trimmed,
@@ -59,6 +76,7 @@ export async function createEventRecordWithPersistence(
     createdAt: new Date().toISOString(),
     coverImage: "",
     videosCount: 0,
+    ...(ownerUserId ? { ownerUserId } : {}),
   };
 
   events.push(record);

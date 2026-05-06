@@ -39,7 +39,7 @@ export default async function HomePage() {
           </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <Link
-              href={routes.admin}
+              href={routes.dashboard}
               className="inline-flex min-h-14 items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-10 text-base font-black text-slate-950 shadow-[0_18px_70px_rgba(251,191,36,0.32)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/40 active:scale-[0.98]"
             >
               Painel · criar eventos

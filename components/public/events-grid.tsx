@@ -29,7 +29,7 @@ export function EventsGrid({ events }: { events: EventTile[] }) {
             </p>
           </div>
           <Link
-            href={routes.admin}
+            href={routes.dashboard}
             className="inline-flex min-h-[3.75rem] items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-14 text-lg font-black text-slate-950 shadow-[0_24px_90px_rgba(251,191,36,0.35)] transition duration-300 hover:brightness-105 active:scale-[0.97]"
           >
             Abrir painel admin

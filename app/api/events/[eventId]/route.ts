@@ -3,6 +3,9 @@ import {
   deleteEventAndRelatedAssets,
   EventNotFoundDeletionError,
 } from "@/services/eventDeletionService";
+import { getRouteHandlerUser } from "@/lib/auth/session";
+import { assertUserCanMutateEvent, DashboardAccessError } from "@/lib/auth/dashboard-access";
+import { getEventById } from "@/services/eventService";
 
 export const runtime = "nodejs";
 
@@ -11,16 +14,34 @@ export async function DELETE(
   context: { params: Promise<{ eventId: string }> },
 ) {
   try {
+    const userOrRes = await getRouteHandlerUser();
+
+    if (userOrRes instanceof Response) {
+      return userOrRes;
+    }
+
     const { eventId } = await context.params;
 
     if (!eventId?.trim()) {
       return Response.json({ error: "eventId inválido." }, { status: 400 });
     }
 
+    const event = await getEventById(eventId.trim());
+
+    try {
+      assertUserCanMutateEvent(userOrRes.id, event);
+    } catch (err) {
+      if (err instanceof DashboardAccessError) {
+        return Response.json({ error: err.message }, { status: err.status });
+      }
+
+      throw err;
+    }
+
     const report = await deleteEventAndRelatedAssets(eventId.trim());
 
     revalidatePath("/");
-    revalidatePath("/admin");
+    revalidatePath("/dashboard");
     revalidatePath(`/evento/${report.eventSlug}`);
 
     return Response.json({ ok: true, report });

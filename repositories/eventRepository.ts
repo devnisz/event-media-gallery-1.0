@@ -30,6 +30,7 @@ type EventRow = {
   created_at: string;
   cover_image: string | null;
   videos_count: number | null;
+  owner_user_id: string | null;
 };
 
 export type PersistEventsOutcome = {
@@ -85,6 +86,9 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     uploadToken: row.upload_token,
     coverImage: row.cover_image ?? "",
     videosCount: row.videos_count ?? 0,
+    ...(row.owner_user_id
+      ? { ownerUserId: row.owner_user_id }
+      : {}),
   };
 }
 
@@ -97,6 +101,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     created_at: e.createdAt,
     cover_image: e.coverImage ?? "",
     videos_count: e.videosCount ?? 0,
+    owner_user_id: e.ownerUserId?.trim() ? e.ownerUserId.trim() : null,
   };
 }
 

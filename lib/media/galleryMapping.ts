@@ -23,6 +23,8 @@ export type RawMediaRecord = {
   eventSlug?: string;
   event_id?: string;
   event_slug?: string;
+  ownerUserId?: string;
+  owner_user_id?: string;
   createdAt?: unknown;
   created_at?: unknown;
   uploadedAt?: unknown;
@@ -170,6 +172,10 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     ""
   ).trim();
 
+  const ownerUserIdRaw =
+    raw.ownerUserId?.trim() ||
+    (typeof raw.owner_user_id === "string" ? raw.owner_user_id.trim() : "");
+
   return {
     id: raw.id,
     eventId,
@@ -186,6 +192,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     orderIndex:
       parseFiniteOrderIndex(raw.orderIndex) ??
       parseFiniteOrderIndex(raw.order_index),
+    ...(ownerUserIdRaw ? { ownerUserId: ownerUserIdRaw } : {}),
   };
 }
 

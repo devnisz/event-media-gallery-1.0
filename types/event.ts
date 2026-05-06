@@ -7,6 +7,8 @@ export type GalleryEventRecord = {
   createdAt: string;
   coverImage: string;
   videosCount: number;
+  /** Dono SaaS (Supabase Auth). Legado pode estar ausente. */
+  ownerUserId?: string;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

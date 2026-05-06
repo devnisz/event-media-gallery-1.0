@@ -1,35 +1,25 @@
 "use client";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-
-let supabaseClient: SupabaseClient | null = null;
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  getSupabaseAnonKeyAtRuntime,
+  getSupabaseUrlAtRuntime,
+} from "@/lib/supabase/config";
 
 /**
- * Cliente Supabase no browser (singleton). Sem env público → null (não lança).
+ * Cliente browser com sessão em cookies (pareado com `middleware` + `@supabase/ssr`).
  */
 export function createBrowserSupabase(): SupabaseClient | null {
-  if (supabaseClient) {
-    return supabaseClient;
-  }
+  const url = getSupabaseUrlAtRuntime();
+  const anon = getSupabaseAnonKeyAtRuntime();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-
-  if (!url || !anon) {
+  if (!url?.trim() || !anon?.trim()) {
     console.warn(
-      "[REALTIME] createBrowserSupabase: URL ou anon ausentes (NEXT_PUBLIC_*)",
+      "[Supabase] URL ou chave anon ausentes; defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.",
     );
     return null;
   }
 
-  supabaseClient = createClient(url, anon, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
-  console.log("[REALTIME] createBrowserSupabase: cliente instanciado (singleton)");
-
-  return supabaseClient;
+  return createBrowserClient(url.trim(), anon.trim());
 }

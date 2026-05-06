@@ -1,49 +1,21 @@
--- Galeria: schema PostgreSQL (Supabase)
--- Executar no SQL Editor do projeto Supabase ou via CLI.
+-- Fase 1 SaaS: ownership + preparação RLS (galeria pública continua legível).
+-- Aplicar no SQL Editor do Supabase ou via CLI após backup.
 
 -- ---------------------------------------------------------------------------
--- events
+-- Colunas de propriedade (nullable = migração gradual)
 -- ---------------------------------------------------------------------------
-create table if not exists public.events (
-  id text primary key,
-  slug text not null unique,
-  name text not null,
-  upload_token text not null,
-  created_at timestamptz not null default now(),
-  cover_image text not null default '',
-  videos_count integer not null default 0,
-  owner_user_id uuid references auth.users (id) on delete set null
-);
+alter table public.events
+  add column if not exists owner_user_id uuid references auth.users (id) on delete set null;
 
-create index if not exists events_slug_idx on public.events (slug);
+alter table public.media
+  add column if not exists owner_user_id uuid references auth.users (id) on delete set null;
+
 create index if not exists events_owner_user_id_idx on public.events (owner_user_id);
-
--- ---------------------------------------------------------------------------
--- media (vídeo, imagem, GIF — modelo unificado)
--- ---------------------------------------------------------------------------
-create table if not exists public.media (
-  id text primary key,
-  event_id text not null references public.events (id) on delete cascade,
-  event_slug text not null,
-  name text not null default 'Mídia',
-  media_type text not null,
-  file_type text not null,
-  url text not null,
-  thumbnail_url text,
-  qr_code text not null,
-  created_at timestamptz not null default now(),
-  uploaded_at timestamptz,
-  legacy_timestamp text,
-  order_index integer,
-  owner_user_id uuid references auth.users (id) on delete set null
-);
-
-create index if not exists media_event_id_idx on public.media (event_id);
-create index if not exists media_event_slug_idx on public.media (event_slug);
 create index if not exists media_owner_user_id_idx on public.media (owner_user_id);
 
 -- ---------------------------------------------------------------------------
--- Row Level Security (Fase 1 — leitura pública; mutação por dono com JWT)
+-- RLS: substitui políticas "dev_all" por leitura pública + escrita por dono
+-- (service_role do Next continua ignorando RLS para jobs server-side).
 -- ---------------------------------------------------------------------------
 alter table public.events enable row level security;
 alter table public.media enable row level security;
