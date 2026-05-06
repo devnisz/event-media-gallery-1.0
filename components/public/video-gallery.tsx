@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
@@ -14,16 +14,63 @@ type VideoGalleryProps = {
   eventId?: string;
 };
 
+/** Normaliza ID, URL (copia de aliases comuns do Supabase) para passar em isMediaLike / mapeamento. */
+function normalizeRealtimeInsert(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") {
+    return raw;
+  }
+
+  const o = { ...(raw as Record<string, unknown>) };
+
+  if (typeof o.id === "number" && Number.isFinite(o.id)) {
+    o.id = String(Math.trunc(o.id));
+  }
+  if (typeof o.id === "string") {
+    o.id = o.id.trim();
+  }
+
+  const urlKeys = [
+    "url",
+    "video_url",
+    "videoUrl",
+    "public_url",
+    "file_url",
+    "playback_url",
+    "src",
+  ] as const;
+
+  let primary = "";
+  for (const k of urlKeys) {
+    const v = o[k];
+    if (typeof v === "string" && v.trim()) {
+      primary = v.trim();
+      break;
+    }
+  }
+  if (primary && (typeof o.url !== "string" || !String(o.url).trim())) {
+    o.url = primary;
+  }
+
+  return o;
+}
+
+function normalizedString(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim().toLowerCase();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.trunc(value)).toLowerCase();
+  }
+  return "";
+}
+
 function realtimeRowMatchesEvent(
   row: Record<string, unknown>,
   slug: string,
   resolvedEventId?: string,
 ): boolean {
   const targetSlug = slug.trim().toLowerCase();
-  const rowSlug =
-    typeof row.event_slug === "string"
-      ? row.event_slug.trim().toLowerCase()
-      : "";
+  const rowSlug = normalizedString(row.event_slug);
 
   if (rowSlug.length > 0 && rowSlug === targetSlug) {
     return true;
@@ -34,10 +81,7 @@ function realtimeRowMatchesEvent(
     return false;
   }
 
-  const rowEventId =
-    typeof row.event_id === "string"
-      ? row.event_id.trim().toLowerCase()
-      : "";
+  const rowEventId = normalizedString(row.event_id);
 
   if (rowEventId.length === 0) {
     return false;
@@ -53,34 +97,49 @@ export function VideoGallery({
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const [mobileTwoCols, setMobileTwoCols] = useState(false);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[gallery] env público Supabase:", {
-        hasUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
-        hasAnon: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()),
-      });
+    try {
+      const v = window.localStorage.getItem("gallery-mobile-two-cols");
+      if (v === "1") {
+        setMobileTwoCols(true);
+      }
+    } catch {
+      /* ignore */
     }
   }, []);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[gallery] realtime: inicializando subscription");
+    try {
+      window.localStorage.setItem(
+        "gallery-mobile-two-cols",
+        mobileTwoCols ? "1" : "0",
+      );
+    } catch {
+      /* ignore */
     }
+  }, [mobileTwoCols]);
 
+  const ctxRef = useRef({ eventSlug, eventId, eventName });
+
+  useEffect(() => {
+    ctxRef.current = { eventSlug, eventId, eventName };
+  }, [eventId, eventName, eventSlug]);
+
+  useEffect(() => {
     const supabase = createBrowserSupabase();
 
     if (!supabase) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn(
-          "[gallery] realtime indisponível: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY ausentes",
-        );
-      }
+      console.warn("[REALTIME] sem cliente — subscription não iniciada");
       return;
     }
 
+    const instanceTag = `${eventSlug}:${eventId ?? ""}`;
+    const channelName = `gallery_media:${instanceTag}`;
+
     const channel = supabase
-      .channel("media_changes")
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -89,40 +148,55 @@ export function VideoGallery({
           table: "media",
         },
         (payload) => {
+          console.log("[REALTIME] evento recebido", payload);
+          const { eventSlug: es, eventId: eid, eventName: en } = ctxRef.current;
           const row = payload.new as Record<string, unknown>;
 
-          if (!realtimeRowMatchesEvent(row, eventSlug, eventId)) {
+          if (!realtimeRowMatchesEvent(row, es, eid)) {
+            console.log("[REALTIME] linha ignorada (outro evento)", {
+              rowSlug: row.event_slug,
+              rowEventId: row.event_id,
+              gallerySlug: es,
+              galleryEventId: eid,
+            });
             return;
           }
 
-          if (process.env.NODE_ENV === "development") {
-            console.log("[gallery] insert em media (evento atual)");
-          }
-
-          const media = tryRealtimeRowToEventMedia(
-            payload.new,
-            eventName,
-            0,
-          );
+          const normalized = normalizeRealtimeInsert(payload.new);
+          const media = tryRealtimeRowToEventMedia(normalized, en, 0);
 
           if (!media) {
+            console.log(
+              "[REALTIME] payload.new não virou EventMedia (id/url?) — após normalize",
+              normalized,
+            );
             return;
           }
 
           setVideos((prev) => {
             if (prev.some((v) => v.id === media.id)) {
+              console.log("[REALTIME] duplicado ignorado", media.id);
               return prev;
             }
+            console.log("[REALTIME] vídeo adicionado", media.id);
             return [media, ...prev];
           });
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log("[REALTIME] subscription status", status, err ?? "");
+        if (status === "SUBSCRIBED") {
+          console.log("[REALTIME] conectado");
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[REALTIME] falha no canal", status, err);
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [eventId, eventName, eventSlug]);
+  }, [eventId, eventSlug]);
 
   const visibleVideoCount = useMemo(
     () => videos.length - removingIds.size,
@@ -171,7 +245,48 @@ export function VideoGallery({
       </header>
 
       {videos.length > 0 ? (
-        <div className="grid gap-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 md:hidden">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+              Vista no celular
+            </span>
+            <div
+              className="inline-flex rounded-full border border-white/15 bg-black/30 p-1"
+              role="group"
+              aria-label="Número de colunas no celular"
+            >
+              <button
+                type="button"
+                aria-pressed={!mobileTwoCols}
+                onClick={() => setMobileTwoCols(false)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  !mobileTwoCols
+                    ? "bg-white text-slate-950 shadow"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                1 coluna
+              </button>
+              <button
+                type="button"
+                aria-pressed={mobileTwoCols}
+                onClick={() => setMobileTwoCols(true)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  mobileTwoCols
+                    ? "bg-white text-slate-950 shadow"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                2 colunas
+              </button>
+            </div>
+          </div>
+
+          <div
+            className={`grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              mobileTwoCols ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
           {videos.map((video, index) => (
             <VideoCard
               key={video.id}
@@ -181,6 +296,7 @@ export function VideoGallery({
               onDeleted={handleDeleted}
             />
           ))}
+          </div>
         </div>
       ) : (
         <div className="p-10 text-center">

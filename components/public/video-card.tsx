@@ -91,7 +91,7 @@ export function VideoCard({
 
   return (
     <article
-      className={`group relative animate-rise overflow-hidden rounded-[2.35rem] border border-white/10 bg-white/[0.06] p-3 shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl transition duration-500 hover:-translate-y-2 hover:border-white/25 hover:bg-white/[0.1] ${
+      className={`group relative min-w-0 animate-rise overflow-hidden rounded-[2.35rem] border border-white/10 bg-white/[0.06] p-3 shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl transition duration-500 hover:-translate-y-2 hover:border-white/25 hover:bg-white/[0.1] ${
         isRemoving
           ? "scale-95 opacity-0 blur-sm"
           : "scale-100 opacity-100 blur-0"

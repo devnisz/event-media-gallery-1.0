@@ -15,19 +15,10 @@ export function createBrowserSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Supabase browser]", {
-      hasUrl: Boolean(url),
-      hasAnon: Boolean(anon),
-    });
-  }
-
   if (!url || !anon) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "[Supabase browser] defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY",
-      );
-    }
+    console.warn(
+      "[REALTIME] createBrowserSupabase: URL ou anon ausentes (NEXT_PUBLIC_*)",
+    );
     return null;
   }
 
@@ -37,6 +28,8 @@ export function createBrowserSupabase(): SupabaseClient | null {
       autoRefreshToken: false,
     },
   });
+
+  console.log("[REALTIME] createBrowserSupabase: cliente instanciado (singleton)");
 
   return supabaseClient;
 }
