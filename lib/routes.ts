@@ -3,6 +3,8 @@ export const routes = {
   home: "/",
   /** Painel autenticado (antes `/admin`). */
   dashboard: "/dashboard",
+  /** Painel Master Admin SaaS. */
+  admin: "/admin",
   login: "/login",
   event: (slug: string) => `/evento/${encodeURIComponent(slug)}`,
   video: (id: string) => `/video/${encodeURIComponent(id)}`,

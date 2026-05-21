@@ -17,18 +17,8 @@ export async function middleware(request: NextRequest) {
   const anon = getSupabaseAnonKeyAtRuntime();
   const pathname = request.nextUrl.pathname;
 
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    const target = new URL(request.url);
-    target.pathname =
-      pathname === "/admin"
-        ? "/dashboard"
-        : `/dashboard${pathname.slice("/admin".length)}`;
-
-    return NextResponse.redirect(target);
-  }
-
   if (!url?.trim() || !anon?.trim()) {
-    if (pathname.startsWith("/dashboard")) {
+    if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
       return NextResponse.redirect(
         new URL("/login?error=config", request.url),
       );
@@ -62,7 +52,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (pathname.startsWith("/dashboard")) {
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
     if (!user) {
       const login = new URL("/login", request.url);
       login.searchParams.set(
@@ -88,7 +78,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Atualiza sessão Supabase e protege `/dashboard`.
+     * Atualiza sessão Supabase e protege `/dashboard` e `/admin`.
      * Ignora estáticos do Next e assets.
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
