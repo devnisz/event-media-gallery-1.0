@@ -6,6 +6,7 @@ import {
   updateUserProfileAction,
   type UpdateUserProfileState,
 } from "@/lib/admin/actions";
+import { getRoleLabel, getStatusLabel } from "@/lib/admin/labels";
 import { ADMIN_ROLES, USER_STATUSES } from "@/lib/auth/profile-options";
 
 type UserProfileManagementFormProps = {
@@ -55,20 +56,20 @@ export function UserProfileManagementForm({
 
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-200">
-          Gerenciamento
+          Gerenciamento do usuário
         </p>
         <h2 className="mt-2 text-xl font-black tracking-tight">
-          Role e status
+          Perfil e situação
         </h2>
         <p className="mt-2 text-sm leading-6 text-white/50">
-          Alterações são salvas no servidor e validadas contra a regra do último
-          master_admin ativo.
+          Alterações são salvas no servidor e validadas para manter pelo menos
+          um administrador ativo.
         </p>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <label className="text-sm font-semibold text-white/75">
-          Role
+          Perfil
           <select
             name="role"
             defaultValue={currentRole}
@@ -76,14 +77,14 @@ export function UserProfileManagementForm({
           >
             {ADMIN_ROLES.map((role) => (
               <option key={role} value={role}>
-                {role}
+                {getRoleLabel(role)}
               </option>
             ))}
           </select>
         </label>
 
         <label className="text-sm font-semibold text-white/75">
-          Status
+          Situação
           <select
             name="status"
             defaultValue={currentStatus === "suspended" ? "suspended" : "active"}
@@ -91,7 +92,7 @@ export function UserProfileManagementForm({
           >
             {USER_STATUSES.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {getStatusLabel(status)}
               </option>
             ))}
           </select>

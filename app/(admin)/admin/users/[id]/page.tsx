@@ -22,7 +22,7 @@ export default async function AdminUserDetailPage({
           href={routes.admin}
           className="text-sm font-semibold text-white/50 hover:text-white"
         >
-          Voltar ao Master Admin
+          Voltar ao painel administrativo
         </Link>
         <p className="mt-8 text-xs font-semibold uppercase tracking-[0.35em] text-amber-200">
           Usuário
@@ -33,7 +33,7 @@ export default async function AdminUserDetailPage({
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
-              Role
+              Perfil
             </p>
             <div className="mt-3">
               <RoleBadge role={detail.user.role} />
@@ -41,7 +41,7 @@ export default async function AdminUserDetailPage({
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
-              Status
+              Situação
             </p>
             <div className="mt-3">
               <StatusBadge status={detail.user.status} />
@@ -80,7 +80,7 @@ export default async function AdminUserDetailPage({
             Eventos do usuário
           </h2>
           <p className="mt-1 text-sm text-white/45">
-            Consumo agrupado por evento com base em owner_user_id.
+            Consumo agrupado por evento com base no proprietário do evento.
           </p>
         </div>
 

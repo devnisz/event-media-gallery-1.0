@@ -7,8 +7,8 @@ import { getMasterAdminAccess } from "@/lib/auth/admin";
 import { routes } from "@/lib/routes";
 
 export const metadata: Metadata = {
-  title: "Master Admin · Galeria",
-  description: "Painel Master Admin para métricas e usuários do SaaS.",
+  title: "Painel Administrativo · Galeria",
+  description: "Painel administrativo para métricas e usuários da plataforma.",
 };
 
 function AccessDenied({ reason }: { reason: string }) {
@@ -19,7 +19,7 @@ function AccessDenied({ reason }: { reason: string }) {
           Acesso negado
         </p>
         <h1 className="mt-3 text-3xl font-black tracking-tight">
-          Área exclusiva para Master Admin
+          Área exclusiva para administradores
         </h1>
         <p className="mt-4 text-sm leading-6 text-white/65">{reason}</p>
         <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -27,7 +27,7 @@ function AccessDenied({ reason }: { reason: string }) {
             href={routes.dashboard}
             className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-white/80 transition hover:border-white/30 hover:text-white"
           >
-            Voltar ao dashboard
+            Voltar ao painel
           </Link>
           <LogoutButton />
         </div>
@@ -54,7 +54,7 @@ export default async function AdminLayout({
     <AdminShell userEmail={label}>
       <nav className="mb-10 flex flex-wrap gap-4 text-sm font-semibold text-white/55">
         <Link href={routes.dashboard} className="hover:text-white">
-          Voltar ao dashboard
+          Voltar ao painel
         </Link>
         <Link href={routes.home} className="hover:text-white">
           Galeria pública

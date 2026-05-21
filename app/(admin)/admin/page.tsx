@@ -33,14 +33,14 @@ export default async function AdminHomePage() {
     <main className="space-y-10">
       <section>
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-200">
-          Master Admin
+          Administração
         </p>
         <h1 className="mt-3 text-4xl font-black tracking-tight">
-          Visão geral do SaaS
+          Visão geral da plataforma
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-white/55">
-          Métricas lidas no servidor com Service Role. A área do cliente,
-          watcher e galeria pública continuam separados deste painel.
+          Métricas consolidadas no servidor. A área do cliente, o watcher e a
+          galeria pública continuam separados deste painel.
         </p>
       </section>
 
@@ -56,8 +56,8 @@ export default async function AdminHomePage() {
           )}
           hint={
             overview.storageSizeAvailable
-              ? "Soma de media.file_size_bytes."
-              : "Rode o SQL da Fase 1 para habilitar a métrica."
+              ? "Soma dos tamanhos registrados nas mídias."
+              : "Métrica indisponível até registrar tamanho das mídias."
           }
         />
       </section>

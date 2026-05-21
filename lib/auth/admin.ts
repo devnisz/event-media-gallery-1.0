@@ -64,7 +64,7 @@ export async function getMasterAdminAccess(
   if (!data || data.role !== "master_admin" || data.status !== "active") {
     return {
       ok: false,
-      reason: "Acesso restrito a usuários master_admin ativos.",
+      reason: "Acesso restrito a administradores ativos.",
     };
   }
 

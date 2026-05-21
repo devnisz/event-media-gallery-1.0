@@ -1,3 +1,5 @@
+import { getRoleLabel, getStatusLabel } from "@/lib/admin/labels";
+
 type BadgeTone = "amber" | "emerald" | "rose" | "slate" | "violet";
 
 const toneClass: Record<BadgeTone, string> = {
@@ -26,11 +28,11 @@ export function RoleBadge({ role }: { role: string }) {
         ? "violet"
         : "slate";
 
-  return <Badge label={role} tone={tone} />;
+  return <Badge label={getRoleLabel(role)} tone={tone} />;
 }
 
 export function StatusBadge({ status }: { status: string }) {
   const tone: BadgeTone = status === "suspended" ? "rose" : "emerald";
 
-  return <Badge label={status} tone={tone} />;
+  return <Badge label={getStatusLabel(status)} tone={tone} />;
 }

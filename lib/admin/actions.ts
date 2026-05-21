@@ -70,11 +70,11 @@ export async function updateUserProfileAction(
   }
 
   if (!isAdminRole(role)) {
-    return initialErrorState("Role inválida.");
+    return initialErrorState("Perfil inválido.");
   }
 
   if (!isUserStatus(status)) {
-    return initialErrorState("Status inválido.");
+    return initialErrorState("Situação inválida.");
   }
 
   const service = createServiceRoleSupabaseResult();
@@ -105,12 +105,12 @@ export async function updateUserProfileAction(
 
       if (!hasBackupMaster) {
         return initialErrorState(
-          "Não é permitido remover ou suspender o último master_admin ativo.",
+          "Não é permitido remover ou suspender o último administrador ativo.",
         );
       }
     } catch {
       return initialErrorState(
-        "Não foi possível validar a regra do último master_admin.",
+        "Não foi possível validar a regra do último administrador ativo.",
       );
     }
   }
@@ -146,6 +146,6 @@ export async function updateUserProfileAction(
 
   return {
     status: "success",
-    message: "Usuário atualizado com sucesso.",
+    message: "Perfil do usuário atualizado com sucesso.",
   };
 }

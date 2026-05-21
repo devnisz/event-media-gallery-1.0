@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { AdminUserSummary } from "@/lib/admin/queries";
 import { formatDateTime, formatStorage } from "@/lib/admin/format";
+import { getRoleLabel, getStatusLabel } from "@/lib/admin/labels";
 import { RoleBadge, StatusBadge } from "@/components/admin/admin-badges";
 
 type AdminUsersTableProps = {
@@ -23,7 +24,14 @@ export function AdminUsersTable({
     }
 
     return users.filter((user) => {
-      const haystack = [user.email, user.name, user.role, user.status]
+      const haystack = [
+        user.email,
+        user.name,
+        user.role,
+        user.status,
+        getRoleLabel(user.role),
+        getStatusLabel(user.status),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -38,7 +46,7 @@ export function AdminUsersTable({
         <div>
           <h2 className="text-xl font-black tracking-tight">Usuários</h2>
           <p className="mt-1 text-sm text-white/45">
-            Clique em um usuário para ver eventos e gerenciar perfil.
+            Clique em um usuário para ver eventos e gerenciar o perfil.
           </p>
         </div>
         <label className="w-full max-w-sm text-sm font-semibold text-white/65">
@@ -57,8 +65,8 @@ export function AdminUsersTable({
           <thead className="bg-white/[0.03] text-xs uppercase tracking-[0.18em] text-white/45">
             <tr>
               <th className="px-6 py-4 font-bold">E-mail</th>
-              <th className="px-6 py-4 font-bold">Role</th>
-              <th className="px-6 py-4 font-bold">Status</th>
+              <th className="px-6 py-4 font-bold">Perfil</th>
+              <th className="px-6 py-4 font-bold">Situação</th>
               <th className="px-6 py-4 font-bold">Eventos</th>
               <th className="px-6 py-4 font-bold">Mídias</th>
               <th className="px-6 py-4 font-bold">Armazenamento</th>
