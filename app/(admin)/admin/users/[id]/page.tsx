@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { RoleBadge, StatusBadge } from "@/components/admin/admin-badges";
+import { UserProfileManagementForm } from "@/components/admin/user-profile-management-form";
 import { getAdminUserDetail } from "@/lib/admin/queries";
 import { formatDateTime, formatStorage } from "@/lib/admin/format";
 import { routes } from "@/lib/routes";
@@ -33,13 +35,17 @@ export default async function AdminUserDetailPage({
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
               Role
             </p>
-            <p className="mt-3 text-lg font-black">{detail.user.role}</p>
+            <div className="mt-3">
+              <RoleBadge role={detail.user.role} />
+            </div>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
               Status
             </p>
-            <p className="mt-3 text-lg font-black">{detail.user.status}</p>
+            <div className="mt-3">
+              <StatusBadge status={detail.user.status} />
+            </div>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
@@ -60,6 +66,13 @@ export default async function AdminUserDetailPage({
           </div>
         </div>
       </section>
+
+      <UserProfileManagementForm
+        userId={detail.user.id}
+        email={detail.user.email}
+        currentRole={detail.user.role}
+        currentStatus={detail.user.status}
+      />
 
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
         <div className="border-b border-white/10 px-6 py-5">

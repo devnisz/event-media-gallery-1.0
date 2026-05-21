@@ -1,6 +1,6 @@
-import Link from "next/link";
+import { AdminUsersTable } from "@/components/admin/admin-users-table";
 import { getAdminOverview } from "@/lib/admin/queries";
-import { formatDateTime, formatStorage } from "@/lib/admin/format";
+import { formatStorage } from "@/lib/admin/format";
 
 export const dynamic = "force-dynamic";
 
@@ -62,60 +62,10 @@ export default async function AdminHomePage() {
         />
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
-        <div className="border-b border-white/10 px-6 py-5">
-          <h2 className="text-xl font-black tracking-tight">Usuários</h2>
-          <p className="mt-1 text-sm text-white/45">
-            Clique em um usuário para ver eventos e consumo por evento.
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-            <thead className="bg-white/[0.03] text-xs uppercase tracking-[0.18em] text-white/45">
-              <tr>
-                <th className="px-6 py-4 font-bold">E-mail</th>
-                <th className="px-6 py-4 font-bold">Role</th>
-                <th className="px-6 py-4 font-bold">Status</th>
-                <th className="px-6 py-4 font-bold">Eventos</th>
-                <th className="px-6 py-4 font-bold">Mídias</th>
-                <th className="px-6 py-4 font-bold">Armazenamento</th>
-                <th className="px-6 py-4 font-bold">Último upload</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {overview.users.map((user) => (
-                <tr key={user.id} className="transition hover:bg-white/[0.04]">
-                  <td className="px-6 py-4">
-                    <Link
-                      href={`/admin/users/${encodeURIComponent(user.id)}`}
-                      className="font-bold text-amber-100 hover:text-amber-200"
-                    >
-                      {user.email}
-                    </Link>
-                    {user.name ? (
-                      <p className="mt-1 text-xs text-white/40">{user.name}</p>
-                    ) : null}
-                  </td>
-                  <td className="px-6 py-4 text-white/70">{user.role}</td>
-                  <td className="px-6 py-4 text-white/70">{user.status}</td>
-                  <td className="px-6 py-4 text-white/70">{user.eventCount}</td>
-                  <td className="px-6 py-4 text-white/70">{user.mediaCount}</td>
-                  <td className="px-6 py-4 text-white/70">
-                    {formatStorage(
-                      user.storageBytes,
-                      overview.storageSizeAvailable,
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-white/70">
-                    {formatDateTime(user.lastUploadAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <AdminUsersTable
+        users={overview.users}
+        storageSizeAvailable={overview.storageSizeAvailable}
+      />
     </main>
   );
 }

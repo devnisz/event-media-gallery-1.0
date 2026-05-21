@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createAuthServerSupabase } from "@/lib/supabase/auth-server";
+import { isUserSuspended } from "@/lib/auth/admin";
 
 export async function requireSessionUser(): Promise<User> {
   const supabase = await createAuthServerSupabase();
@@ -17,6 +18,10 @@ export async function requireSessionUser(): Promise<User> {
     redirect("/login");
   }
 
+  if (await isUserSuspended(user.id)) {
+    redirect("/login?error=suspended");
+  }
+
   return user;
 }
 
@@ -31,7 +36,11 @@ export async function getOptionalSessionUser(): Promise<User | null> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return user ?? null;
+  if (!user || (await isUserSuspended(user.id))) {
+    return null;
+  }
+
+  return user;
 }
 
 /**
@@ -53,6 +62,10 @@ export async function getRouteHandlerUser(): Promise<User | Response> {
 
   if (!user) {
     return Response.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  if (await isUserSuspended(user.id)) {
+    return Response.json({ error: "Usuário suspenso." }, { status: 403 });
   }
 
   return user;

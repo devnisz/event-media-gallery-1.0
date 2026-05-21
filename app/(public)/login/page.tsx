@@ -16,6 +16,7 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const configError = sp.error === "config";
+  const authError = sp.error === "suspended" ? "suspended" : undefined;
 
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-5 py-16 text-white">
@@ -32,7 +33,7 @@ export default async function LoginPage({
             <p className="text-sm text-white/50">Carregando formulário…</p>
           }
         >
-          <LoginForm configError={configError} />
+          <LoginForm configError={configError} authError={authError} />
         </Suspense>
       </div>
     </main>

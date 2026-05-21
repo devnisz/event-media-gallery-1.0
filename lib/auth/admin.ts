@@ -2,13 +2,14 @@ import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createAuthServerSupabase } from "@/lib/supabase/auth-server";
 import { createServiceRoleSupabaseResult } from "@/lib/supabase/server";
+import type { AdminRole, UserStatus } from "@/lib/auth/profile-options";
 
 export type AdminProfile = {
   id: string;
   email: string | null;
   name: string | null;
-  role: "master_admin" | "customer" | "operator" | string;
-  status: "active" | "inactive" | "suspended" | string;
+  role: AdminRole | string;
+  status: UserStatus | "inactive" | string;
 };
 
 export type MasterAdminSession = {
@@ -80,4 +81,30 @@ export async function getMasterAdminAccess(
       },
     },
   };
+}
+
+export async function getUserProfileStatus(
+  userId: string,
+): Promise<string | null> {
+  const service = createServiceRoleSupabaseResult();
+
+  if (!service.ok) {
+    return null;
+  }
+
+  const { data, error } = await service.client
+    .from("profiles")
+    .select("status")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return null;
+  }
+
+  return typeof data?.status === "string" ? data.status : null;
+}
+
+export async function isUserSuspended(userId: string): Promise<boolean> {
+  return (await getUserProfileStatus(userId)) === "suspended";
 }

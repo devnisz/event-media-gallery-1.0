@@ -6,9 +6,10 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 
 type LoginFormProps = {
   configError: boolean;
+  authError?: "suspended";
 };
 
-export function LoginForm({ configError }: LoginFormProps) {
+export function LoginForm({ configError, authError }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
@@ -18,13 +19,17 @@ export function LoginForm({ configError }: LoginFormProps) {
   const configMessage = configError
     ? "Supabase não configurado: defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY."
     : "";
+  const authMessage =
+    authError === "suspended"
+      ? "Este usuário está suspenso. Fale com o administrador para reativar o acesso."
+      : "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const displayError = configMessage || error;
+  const displayError = configMessage || authMessage || error;
 
   async function handleSubmit(e: ReactFormEvent) {
     e.preventDefault();
