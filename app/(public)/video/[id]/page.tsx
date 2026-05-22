@@ -58,7 +58,7 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
     : "Imersão em tela ampla, com carregamento cuidadoso. Em GIFs, o movimento da captura é preservado.";
 
   return (
-    <main className="relative min-h-dvh overflow-hidden px-5 pb-44 pt-6 text-white sm:px-8 lg:px-12">
+    <main className="relative min-h-dvh overflow-hidden px-5 pb-56 pt-6 text-white sm:px-8 lg:px-12">
       <AmbientBackground />
 
       <div className="mx-auto flex min-h-[calc(100dvh-14rem)] w-full max-w-[1800px] flex-col gap-6">
@@ -98,11 +98,6 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
               {bodyCopy}
             </p>
             <div className="mt-8 flex flex-col gap-4">
-              <DownloadButton
-                href={routes.mediaDownload(video.id)}
-                label={downloadLabel}
-                fileName={suggestedDownloadFileName(video)}
-              />
               <Link
                 href={eventHref}
                 className="inline-flex min-h-14 items-center justify-center rounded-full border border-white/15 px-8 text-base font-semibold text-white/82 transition hover:bg-white/10 active:scale-[0.98]"
@@ -122,9 +117,9 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
         </section>
       </div>
 
-      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-slate-950/72 px-5 py-4 backdrop-blur-2xl sm:px-8">
-        <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-5">
-          <div className="hidden md:block">
+      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-slate-950/80 px-4 py-3 shadow-[0_-20px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:px-8 sm:py-4">
+        <div className="mx-auto flex max-w-[1800px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+          <div className="hidden lg:block">
             <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/45">
               Convite especial
             </p>
@@ -133,11 +128,21 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
               galeria.
             </p>
           </div>
-          <QrCode
-            label="Abrir na galeria"
-            value={video.qrUrl}
-            imagePath={video.qrCode}
-          />
+          <div className="flex items-center justify-between gap-3 sm:justify-end">
+            <QrCode
+              label="Abrir na galeria"
+              value={video.qrUrl}
+              imagePath={video.qrCode}
+              compact
+            />
+            <div className="min-w-0 flex-1 sm:w-72 sm:flex-none">
+              <DownloadButton
+                href={routes.mediaDownload(video.id)}
+                label={downloadLabel}
+                fileName={suggestedDownloadFileName(video)}
+              />
+            </div>
+          </div>
         </div>
       </footer>
     </main>

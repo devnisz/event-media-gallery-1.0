@@ -4,13 +4,14 @@ type QrCodeProps = {
   label: string;
   value: string;
   imagePath?: string;
+  compact?: boolean;
 };
 
 function isAbsoluteHttpUrl(s: string): boolean {
   return /^https?:\/\//i.test(s.trim());
 }
 
-export function QrCode({ label, value, imagePath }: QrCodeProps) {
+export function QrCode({ label, value, imagePath, compact = false }: QrCodeProps) {
   const src = imagePath?.trim() ?? "";
   const hasImage = src.length > 0;
   const useRemoteImg = hasImage && isAbsoluteHttpUrl(src);
@@ -18,7 +19,11 @@ export function QrCode({ label, value, imagePath }: QrCodeProps) {
   const useNextImage = hasImage && !useRemoteImg && src.startsWith("/");
 
   return (
-    <div className="flex items-center gap-5 rounded-[1.75rem] border border-white/10 bg-black/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
+    <div
+      className={`flex items-center gap-4 rounded-[1.75rem] border border-white/10 bg-black/70 shadow-2xl shadow-black/40 backdrop-blur-2xl ${
+        compact ? "p-3" : "gap-5 p-4"
+      }`}
+    >
       {hasImage ? (
         useRemoteImg || !useNextImage ? (
           // URLs absolutas (ex.: R2) ou paths não-public: evita `Image` a falhar no build/SSR
@@ -28,7 +33,7 @@ export function QrCode({ label, value, imagePath }: QrCodeProps) {
             alt={`QR Code para ${label}`}
             width={112}
             height={112}
-            className="size-28 rounded-2xl bg-white p-2 object-contain"
+            className={`${compact ? "size-20 sm:size-24" : "size-28"} rounded-2xl bg-white p-2 object-contain`}
           />
         ) : (
           <Image
@@ -36,12 +41,12 @@ export function QrCode({ label, value, imagePath }: QrCodeProps) {
             alt={`QR Code para ${label}`}
             width={112}
             height={112}
-            className="size-28 rounded-2xl bg-white p-2"
+            className={`${compact ? "size-20 sm:size-24" : "size-28"} rounded-2xl bg-white p-2`}
           />
         )
       ) : (
         <div
-          className="flex size-28 flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-white/5 p-3 text-center"
+          className={`flex ${compact ? "size-20 sm:size-24" : "size-28"} flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-white/5 p-3 text-center`}
           role="img"
           aria-label="QR Code indisponível"
         >
@@ -50,7 +55,7 @@ export function QrCode({ label, value, imagePath }: QrCodeProps) {
           </span>
         </div>
       )}
-      <div className="hidden sm:block">
+      <div className={compact ? "hidden lg:block" : "hidden sm:block"}>
         <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-200">
           QR Code
         </p>
