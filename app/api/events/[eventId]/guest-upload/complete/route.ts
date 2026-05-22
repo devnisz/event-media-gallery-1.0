@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import type { GalleryMediaRecord } from "@/types/media";
 import { getEventById } from "@/services/eventService";
 import { appendGalleryMediaRecord } from "@/services/mediaService";
+import { generateAndStoreMediaQrCode } from "@/lib/media/qr-code";
 import {
   ALLOWED_GUEST_UPLOAD_TYPES,
   cleanGuestUploadName,
@@ -87,6 +88,14 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
+    let qrCode = "";
+
+    try {
+      qrCode = await generateAndStoreMediaQrCode(mediaId);
+    } catch (error) {
+      console.error("[GUEST_UPLOAD_COMPLETE] QR Code falhou", error);
+    }
+
     const fallbackName =
       typeInfo.mediaType === "video"
         ? "Vídeo enviado por convidado"
@@ -98,7 +107,7 @@ export async function POST(
       ownerUserId: event.ownerUserId,
       name: cleanGuestUploadName(fileName) || fallbackName,
       url: publicUrl,
-      qrCode: "",
+      qrCode,
       mediaType: typeInfo.mediaType,
       fileType,
       mediaSource: "guest",

@@ -161,3 +161,50 @@ export async function createGuestUploadSignedPutUrl({
     }),
   };
 }
+
+export async function storePublicAssetObject({
+  bytes,
+  contentType,
+  key,
+}: {
+  bytes: Buffer;
+  contentType: string;
+  key: string;
+}): Promise<string> {
+  const normalizedKey = key.replace(/^\/+|\/+$/g, "");
+  const r2 = createGuestUploadR2Client();
+
+  if (r2) {
+    await r2.client.send(
+      new PutObjectCommand({
+        Bucket: r2.bucket,
+        Key: normalizedKey,
+        Body: bytes,
+        ContentType: contentType,
+      }),
+    );
+
+    return publicUrlForGuestUploadKey({
+      publicBaseUrl: r2.publicBaseUrl,
+      key: normalizedKey,
+    });
+  }
+
+  if (isVercelDeployment()) {
+    throw new Error(
+      "Storage de upload publico nao configurado. Defina R2_PUBLIC_BASE_URL e credenciais R2.",
+    );
+  }
+
+  const targetPath = path.join(galleryPublicPath(), normalizedKey);
+  const relative = path.relative(galleryPublicPath(), targetPath);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Caminho de asset inválido.");
+  }
+
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, bytes);
+
+  return `/${normalizedKey.replace(/\\/g, "/")}`;
+}

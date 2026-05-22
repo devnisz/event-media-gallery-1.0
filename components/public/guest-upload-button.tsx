@@ -86,15 +86,18 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
     url,
     blob,
     contentType,
+    label,
     onProgress,
   }: {
     url: string;
     blob: Blob;
     contentType: string;
+    label: string;
     onProgress?: (progress: number) => void;
   }): Promise<void> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      xhr.timeout = 10 * 60 * 1000;
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -108,10 +111,17 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
           return;
         }
 
-        reject(new Error(`Falha no envio para o storage (${xhr.status}).`));
+        reject(new Error(`Falha no envio de ${label} para o storage (${xhr.status}).`));
       };
 
-      xhr.onerror = () => reject(new Error("Falha de rede ao enviar arquivo."));
+      xhr.onerror = () =>
+        reject(
+          new Error(
+            `Falha de rede/CORS ao enviar ${label} para o R2. Verifique a política CORS do bucket para este domínio.`,
+          ),
+        );
+      xhr.ontimeout = () =>
+        reject(new Error(`Tempo esgotado ao enviar ${label}. Tente uma rede Wi-Fi ou arquivo menor.`));
       xhr.open("PUT", url);
       xhr.setRequestHeader("Content-Type", contentType);
       xhr.send(blob);
@@ -157,6 +167,7 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
         url: signPayload.upload.uploadUrl,
         blob: file,
         contentType: file.type,
+        label: "arquivo",
         onProgress: setProgress,
       });
 
@@ -166,6 +177,7 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
           url: signPayload.thumbnail.uploadUrl,
           blob: thumbnail,
           contentType: thumbnail.type,
+          label: "miniatura",
         });
       }
 
