@@ -7,6 +7,7 @@ type EventGallerySettingsFormProps = {
   eventId: string;
   initialAllowPublicDelete: boolean;
   initialRequireDeletePin: boolean;
+  initialAllowGuestUpload: boolean;
   hasDeletePin: boolean;
 };
 
@@ -18,6 +19,7 @@ export function EventGallerySettingsForm({
   eventId,
   initialAllowPublicDelete,
   initialRequireDeletePin,
+  initialAllowGuestUpload,
   hasDeletePin,
 }: EventGallerySettingsFormProps) {
   const router = useRouter();
@@ -26,6 +28,9 @@ export function EventGallerySettingsForm({
   );
   const [requireDeletePin, setRequireDeletePin] = useState(
     initialAllowPublicDelete && initialRequireDeletePin,
+  );
+  const [allowGuestUpload, setAllowGuestUpload] = useState(
+    initialAllowGuestUpload,
   );
   const [deletePin, setDeletePin] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +64,7 @@ export function EventGallerySettingsForm({
           allowPublicDelete,
           requireDeletePin: effectiveRequirePin,
           deletePin: trimmedPin || undefined,
+          allowGuestUpload,
         }),
       });
       const payload = (await response.json()) as { error?: string };
@@ -97,6 +103,30 @@ export function EventGallerySettingsForm({
       </div>
 
       <div className="mt-6 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
+            Uploads dos convidados
+          </p>
+          <label className="mt-4 flex items-start gap-4">
+            <input
+              type="checkbox"
+              checked={allowGuestUpload}
+              disabled={isSaving}
+              onChange={(event) => setAllowGuestUpload(event.target.checked)}
+              className="mt-1 size-5 accent-amber-300"
+            />
+            <span>
+              <span className="block font-bold">
+                Permitir uploads públicos dos convidados
+              </span>
+              <span className="mt-1 block text-sm leading-6 text-white/50">
+                Quando ligado, a galeria pública exibe um botão para convidados
+                enviarem fotos e vídeos sem login.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <label className="flex items-start gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
           <input
             type="checkbox"

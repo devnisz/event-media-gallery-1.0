@@ -49,6 +49,7 @@ export async function PATCH(
       allowPublicDelete?: unknown;
       requireDeletePin?: unknown;
       deletePin?: unknown;
+      allowGuestUpload?: unknown;
     };
 
     if (
@@ -66,6 +67,10 @@ export async function PATCH(
       requireDeletePin: body.requireDeletePin,
       deletePin:
         typeof body.deletePin === "string" ? body.deletePin : undefined,
+      allowGuestUpload:
+        typeof body.allowGuestUpload === "boolean"
+          ? body.allowGuestUpload
+          : undefined,
     }).catch((err: unknown) => {
       const message =
         err instanceof Error
@@ -91,6 +96,7 @@ export async function PATCH(
         id: updated.id,
         allowPublicDelete: updated.allowPublicDelete,
         requireDeletePin: updated.requireDeletePin,
+        allowGuestUpload: updated.allowGuestUpload,
       },
     });
   } catch (error) {

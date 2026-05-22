@@ -14,6 +14,7 @@ export type EventGalleryDeleteSettingsInput = {
   allowPublicDelete: boolean;
   requireDeletePin: boolean;
   deletePin?: string;
+  allowGuestUpload?: boolean;
 };
 
 export async function readEvents(): Promise<GalleryEventRecord[]> {
@@ -85,6 +86,7 @@ export async function createEventRecordWithPersistence(
     videosCount: 0,
     allowPublicDelete: false,
     requireDeletePin: false,
+    allowGuestUpload: false,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -114,6 +116,10 @@ export async function updateEventGalleryDeleteSettings(
   const allowPublicDelete = settings.allowPublicDelete === true;
   const requireDeletePin =
     allowPublicDelete && settings.requireDeletePin === true;
+  const allowGuestUpload =
+    typeof settings.allowGuestUpload === "boolean"
+      ? settings.allowGuestUpload
+      : events[idx].allowGuestUpload === true;
   const trimmedPin = settings.deletePin?.trim() ?? "";
   let deletePinHash = events[idx].deletePinHash?.trim();
 
@@ -133,6 +139,7 @@ export async function updateEventGalleryDeleteSettings(
     ...events[idx],
     allowPublicDelete,
     requireDeletePin,
+    allowGuestUpload,
     ...(deletePinHash ? { deletePinHash } : { deletePinHash: undefined }),
   };
 

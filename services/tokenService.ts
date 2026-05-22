@@ -32,6 +32,7 @@ export function hydrateAssignTokens(
     const gallerySettings = {
       allowPublicDelete: e.allowPublicDelete === true,
       requireDeletePin: e.requireDeletePin === true,
+      allowGuestUpload: e.allowGuestUpload === true,
       ...(deletePinHash ? { deletePinHash } : {}),
     };
 

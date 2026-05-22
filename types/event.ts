@@ -15,6 +15,8 @@ export type GalleryEventRecord = {
   requireDeletePin: boolean;
   /** Hash com salt do PIN. Nunca expor ao client publico. */
   deletePinHash?: string;
+  /** Permite upload publico sem login por convidados. */
+  allowGuestUpload: boolean;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

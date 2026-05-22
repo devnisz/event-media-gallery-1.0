@@ -38,6 +38,7 @@ type EventRow = {
   allow_public_delete?: boolean | null;
   require_delete_pin?: boolean | null;
   delete_pin_hash?: string | null;
+  allow_guest_upload?: boolean | null;
 };
 
 export type PersistEventsOutcome = {
@@ -118,6 +119,7 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     videosCount: row.videos_count ?? 0,
     allowPublicDelete: optionalBoolean(row.allow_public_delete),
     requireDeletePin: optionalBoolean(row.require_delete_pin),
+    allowGuestUpload: optionalBoolean(row.allow_guest_upload),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -138,6 +140,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     allow_public_delete: e.allowPublicDelete,
     require_delete_pin: e.requireDeletePin,
     delete_pin_hash: e.deletePinHash?.trim() ? e.deletePinHash.trim() : null,
+    allow_guest_upload: e.allowGuestUpload,
   };
 }
 

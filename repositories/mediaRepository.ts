@@ -209,6 +209,8 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     coerceOptionalString(row.src);
   const mediaType = coerceOptionalString(row.media_type);
   const fileType = coerceOptionalString(row.file_type);
+  const mediaSource =
+    coerceOptionalString(row.media_source) === "guest" ? "guest" : "operator";
   const thumbnailUrl =
     coerceOptionalString(row.thumbnail_url) ||
     coerceOptionalString(row.thumbnailUrl);
@@ -226,6 +228,7 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     qrCode,
     mediaType,
     fileType,
+    mediaSource,
   };
 
   const createdAt =
@@ -328,6 +331,7 @@ function galleryRecordToRow(
     legacy_timestamp: m.timestamp ?? null,
     order_index: hasManualOrderIndex(m) ? m.orderIndex! : null,
     owner_user_id: m.ownerUserId?.trim() ? m.ownerUserId.trim() : null,
+    media_source: m.mediaSource,
   };
 
   if (m.isHidden !== undefined) {
@@ -363,6 +367,7 @@ function buildLegacyJsonRowsFromGallery(
       qrCode: m.qrCode,
       mediaType: m.mediaType,
       fileType: m.fileType,
+      mediaSource: m.mediaSource,
     };
 
     if (m.thumbnailUrl) {

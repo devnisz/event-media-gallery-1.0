@@ -4,6 +4,7 @@
  */
 
 export type MediaKind = "video" | "image" | "gif";
+export type MediaSource = "operator" | "guest";
 
 /** Registro já normalizado em memória após parse de `videos.json`. */
 export type GalleryMediaRecord = {
@@ -19,6 +20,8 @@ export type GalleryMediaRecord = {
   thumbnailUrl?: string;
   mediaType: MediaKind;
   fileType: string;
+  /** Origem da midia: watcher/operador oficial ou convidado publico. */
+  mediaSource: MediaSource;
   createdAt?: string;
   /** Data de upload alternativa (JSON / futuros adapters). */
   uploadedAt?: string;

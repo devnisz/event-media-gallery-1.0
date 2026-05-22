@@ -75,6 +75,7 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
           eventId={event.id}
           allowPublicDelete={event.allowPublicDelete}
           requireDeletePin={event.allowPublicDelete && event.requireDeletePin}
+          allowGuestUpload={event.allowGuestUpload}
         />
       </section>
     </main>

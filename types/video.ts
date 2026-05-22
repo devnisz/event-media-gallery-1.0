@@ -8,6 +8,7 @@ export type {
   EventMedia,
   GalleryMediaRecord,
   MediaKind,
+  MediaSource,
 } from "./media";
 
 export type { GalleryMediaRecord as GalleryVideoRecord } from "./media";

@@ -42,6 +42,8 @@ export type RawMediaRecord = {
   is_hidden?: unknown;
   isFavorite?: unknown;
   is_favorite?: unknown;
+  mediaSource?: unknown;
+  media_source?: unknown;
   deletedAt?: unknown;
   deleted_at?: unknown;
   deletedBy?: unknown;
@@ -123,6 +125,14 @@ function coerceBooleanField(raw: unknown): boolean | undefined {
   return undefined;
 }
 
+function coerceMediaSource(raw: unknown): GalleryMediaRecord["mediaSource"] {
+  return raw === "guest" ? "guest" : "operator";
+}
+
+function normalizeLocalGuestUploadUrl(url: string): string {
+  return url.startsWith("/guest-uploads/") ? `/api${url}` : url;
+}
+
 function legacyStringDate(raw: unknown): string | undefined {
   if (typeof raw === "string" && raw.trim()) {
     return raw.trim();
@@ -158,7 +168,7 @@ export function isMediaLike(item: unknown): item is RawMediaRecord {
 }
 
 export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
-  const url = (
+  const url = normalizeLocalGuestUploadUrl((
     raw.url ??
     raw.videoUrl ??
     raw.video_url ??
@@ -167,7 +177,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     raw.playback_url ??
     raw.src ??
     ""
-  ).trim();
+  ).trim());
   const thumbnailUrlRaw = (
     raw.thumbnailUrl ??
     raw.thumbnail ??
@@ -218,6 +228,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     (typeof raw.deleted_by === "string" ? raw.deleted_by.trim() : "");
   const isHidden = coerceBooleanField(raw.isHidden ?? raw.is_hidden);
   const isFavorite = coerceBooleanField(raw.isFavorite ?? raw.is_favorite);
+  const mediaSource = coerceMediaSource(raw.mediaSource ?? raw.media_source);
 
   return {
     id: raw.id,
@@ -229,6 +240,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     thumbnailUrl,
     mediaType,
     fileType,
+    mediaSource,
     createdAt,
     uploadedAt,
     timestamp,

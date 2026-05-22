@@ -191,6 +191,7 @@ async function migrateLegacyAssociations(
       videosCount: 0,
       allowPublicDelete: false,
       requireDeletePin: false,
+      allowGuestUpload: false,
     };
     events.push(legacy);
     await writeEvents(events);
@@ -570,6 +571,18 @@ export async function updateGalleryMediaState(
   await reconcileEventCountsFromMediaList(next);
 
   return nextItem;
+}
+
+export async function appendGalleryMediaRecord(
+  media: GalleryMediaRecord,
+): Promise<GalleryMediaRecord> {
+  const galleryMedia = await loadGalleryVideosForMutation();
+  const next = sortGalleryMediaRecords([...galleryMedia, media]);
+
+  await replaceGalleryMediaRecordsOnDisk(next);
+  await reconcileEventCountsFromMediaList(next);
+
+  return media;
 }
 
 export async function softDeleteGalleryMedia(

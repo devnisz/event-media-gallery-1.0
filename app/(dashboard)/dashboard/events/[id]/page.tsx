@@ -112,6 +112,7 @@ export default async function DashboardEventPage({
         eventId={detail.event.id}
         initialAllowPublicDelete={detail.event.allowPublicDelete}
         initialRequireDeletePin={detail.event.requireDeletePin}
+        initialAllowGuestUpload={detail.event.allowGuestUpload}
         hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
       />
 

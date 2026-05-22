@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
+import { GuestUploadButton } from "./guest-upload-button";
 import { VideoCard } from "./video-card";
 
 type VideoGalleryProps = {
@@ -14,6 +15,7 @@ type VideoGalleryProps = {
   eventId?: string;
   allowPublicDelete: boolean;
   requireDeletePin: boolean;
+  allowGuestUpload: boolean;
 };
 
 /** Normaliza ID, URL (copia de aliases comuns do Supabase) para passar em isMediaLike / mapeamento. */
@@ -98,6 +100,7 @@ export function VideoGallery({
   eventId,
   allowPublicDelete,
   requireDeletePin,
+  allowGuestUpload,
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
@@ -244,6 +247,9 @@ export function VideoGallery({
             <span className="block text-sm text-white/50">touch</span>
           </div>
         </div>
+        {allowGuestUpload && eventId ? (
+          <GuestUploadButton eventId={eventId} />
+        ) : null}
       </header>
 
       {videos.length > 0 ? (
