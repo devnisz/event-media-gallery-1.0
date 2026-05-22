@@ -9,6 +9,7 @@ export {
   enrichEventsWithCovers,
   getEventVideos,
   getEventVideosForEventSlug,
+  getDashboardMediaForEvent,
   getGalleryVideos,
   getMediaById,
   getPrimaryMediaUrl,
@@ -19,7 +20,9 @@ export {
   readGalleryVideosRaw,
   reconcileAllEventCounts,
   replaceGalleryMediaRecordsOnDisk,
+  softDeleteGalleryMedia,
   sortGalleryMediaRecords,
   unlinkGalleryPublicAsset,
+  updateGalleryMediaState,
   type UnlinkGalleryAssetResult,
 } from "./mediaService";

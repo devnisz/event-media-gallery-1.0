@@ -33,6 +33,14 @@ export type RawMediaRecord = {
   legacy_timestamp?: unknown;
   orderIndex?: unknown;
   order_index?: unknown;
+  isHidden?: unknown;
+  is_hidden?: unknown;
+  isFavorite?: unknown;
+  is_favorite?: unknown;
+  deletedAt?: unknown;
+  deleted_at?: unknown;
+  deletedBy?: unknown;
+  deleted_by?: unknown;
   mediaType?: string;
   /** Alias snake_case (Supabase). */
   media_type?: string;
@@ -84,6 +92,26 @@ function coerceDateField(raw: unknown): string | undefined {
 
     if (Number.isFinite(parsed)) {
       return new Date(parsed).toISOString();
+    }
+  }
+
+  return undefined;
+}
+
+function coerceBooleanField(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") {
+    return raw;
+  }
+
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toLowerCase();
+
+    if (["true", "1", "yes", "sim"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "nao", "não"].includes(normalized)) {
+      return false;
     }
   }
 
@@ -160,6 +188,11 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     coerceDateField(raw.legacy_timestamp) ??
     legacyStringDate(raw.timestamp) ??
     legacyStringDate(raw.legacy_timestamp);
+  const deletedAt =
+    coerceDateField(raw.deletedAt) ??
+    coerceDateField(raw.deleted_at) ??
+    legacyStringDate(raw.deletedAt) ??
+    legacyStringDate(raw.deleted_at);
 
   const eventId =
     raw.eventId?.trim() ?? raw.event_id?.trim() ?? "";
@@ -175,6 +208,11 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
   const ownerUserIdRaw =
     raw.ownerUserId?.trim() ||
     (typeof raw.owner_user_id === "string" ? raw.owner_user_id.trim() : "");
+  const deletedByRaw =
+    (typeof raw.deletedBy === "string" ? raw.deletedBy.trim() : "") ||
+    (typeof raw.deleted_by === "string" ? raw.deleted_by.trim() : "");
+  const isHidden = coerceBooleanField(raw.isHidden ?? raw.is_hidden);
+  const isFavorite = coerceBooleanField(raw.isFavorite ?? raw.is_favorite);
 
   return {
     id: raw.id,
@@ -189,6 +227,10 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     createdAt,
     uploadedAt,
     timestamp,
+    ...(isHidden !== undefined ? { isHidden } : {}),
+    ...(isFavorite !== undefined ? { isFavorite } : {}),
+    ...(deletedAt ? { deletedAt } : {}),
+    ...(deletedByRaw ? { deletedBy: deletedByRaw } : {}),
     orderIndex:
       parseFiniteOrderIndex(raw.orderIndex) ??
       parseFiniteOrderIndex(raw.order_index),
@@ -237,6 +279,9 @@ export function toEventMedia(
     qrCode: qrCode || undefined,
     thumbnail: thumb,
     thumbnailUrl: thumb,
+    isHidden: record.isHidden,
+    isFavorite: record.isFavorite,
+    deletedAt: record.deletedAt,
   };
 }
 

@@ -41,5 +41,12 @@ export function assertUserCanMutateMediaForEvent(
     throw new DashboardAccessError(404, "Mídia não encontrada.");
   }
 
+  if (media.ownerUserId && media.ownerUserId !== userId) {
+    throw new DashboardAccessError(
+      403,
+      "Sem permissão para alterar esta mídia.",
+    );
+  }
+
   assertUserCanMutateEvent(userId, event);
 }

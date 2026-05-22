@@ -24,6 +24,13 @@ export type GalleryMediaRecord = {
   uploadedAt?: string;
   /** Instantâneo numérico ou ISO normalizado na leitura. */
   timestamp?: string;
+  /** Não aparece na galeria pública, mas segue disponível no painel do cliente. */
+  isHidden?: boolean;
+  /** Destaque visual no painel do cliente. */
+  isFavorite?: boolean;
+  /** Soft-delete: remove da experiência do app sem apagar o objeto no R2. */
+  deletedAt?: string;
+  deletedBy?: string;
   /**
    * Ordem manual futura (menor = mais à esquerda / topo).
    * Quando presente, precede a ordenação por data.
@@ -54,4 +61,7 @@ export type EventMedia = {
   qrCode?: string;
   thumbnail?: string;
   thumbnailUrl?: string;
+  isHidden?: boolean;
+  isFavorite?: boolean;
+  deletedAt?: string;
 };

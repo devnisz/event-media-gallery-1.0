@@ -3,6 +3,7 @@ export const routes = {
   home: "/",
   /** Painel autenticado (antes `/admin`). */
   dashboard: "/dashboard",
+  dashboardEvent: (id: string) => `/dashboard/events/${encodeURIComponent(id)}`,
   /** Painel administrativo da plataforma. */
   admin: "/admin",
   login: "/login",

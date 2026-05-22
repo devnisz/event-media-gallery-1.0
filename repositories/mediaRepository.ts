@@ -153,6 +153,26 @@ function optionalFiniteNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+function optionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["true", "1", "yes", "sim"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "nao", "não"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return undefined;
+}
+
 function coerceRowStringId(row: SupabaseMediaRow): string {
   const v = row.id;
 
@@ -229,6 +249,32 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     o.uploadedAt = uploadedAt;
   }
 
+  const isHidden = optionalBoolean(row.is_hidden ?? row.isHidden);
+  if (isHidden !== undefined) {
+    o.isHidden = isHidden;
+  }
+
+  const isFavorite = optionalBoolean(row.is_favorite ?? row.isFavorite);
+  if (isFavorite !== undefined) {
+    o.isFavorite = isFavorite;
+  }
+
+  const deletedAt =
+    optionalIsoDate(row.deleted_at) ??
+    optionalIsoDate(row.deletedAt);
+
+  if (deletedAt) {
+    o.deletedAt = deletedAt;
+  }
+
+  const deletedBy =
+    coerceOptionalString(row.deleted_by) ||
+    coerceOptionalString(row.deletedBy);
+
+  if (deletedBy) {
+    o.deletedBy = deletedBy;
+  }
+
   const legacyTs =
     optionalIsoDate(row.legacy_timestamp) ??
     optionalIsoDate(row.timestamp);
@@ -284,6 +330,22 @@ function galleryRecordToRow(
     owner_user_id: m.ownerUserId?.trim() ? m.ownerUserId.trim() : null,
   };
 
+  if (m.isHidden !== undefined) {
+    row.is_hidden = m.isHidden;
+  }
+
+  if (m.isFavorite !== undefined) {
+    row.is_favorite = m.isFavorite;
+  }
+
+  if (m.deletedAt !== undefined) {
+    row.deleted_at = m.deletedAt || null;
+  }
+
+  if (m.deletedBy !== undefined) {
+    row.deleted_by = m.deletedBy?.trim() || null;
+  }
+
   return row;
 }
 
@@ -326,6 +388,22 @@ function buildLegacyJsonRowsFromGallery(
 
     if (m.ownerUserId?.trim()) {
       row.ownerUserId = m.ownerUserId.trim();
+    }
+
+    if (m.isHidden !== undefined) {
+      row.isHidden = m.isHidden;
+    }
+
+    if (m.isFavorite !== undefined) {
+      row.isFavorite = m.isFavorite;
+    }
+
+    if (m.deletedAt) {
+      row.deletedAt = m.deletedAt;
+    }
+
+    if (m.deletedBy?.trim()) {
+      row.deletedBy = m.deletedBy.trim();
     }
 
     return row;

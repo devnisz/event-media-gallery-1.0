@@ -75,6 +75,14 @@ function hasManualOrderIndex(record: GalleryMediaRecord): boolean {
   return typeof record.orderIndex === "number" && Number.isFinite(record.orderIndex);
 }
 
+export function isMediaSoftDeleted(record: GalleryMediaRecord): boolean {
+  return Boolean(record.deletedAt?.trim());
+}
+
+export function isMediaVisiblePublicly(record: GalleryMediaRecord): boolean {
+  return !isMediaSoftDeleted(record) && !record.isHidden;
+}
+
 /**
  * Comparador estável para a galeria: ordem manual (`orderIndex` ASC) primeiro;
  * depois data DESC (mais recente no topo); empate por `id` ASC.
@@ -208,7 +216,7 @@ async function reconcileEventCountsFromMediaList(
   const counts = new Map<string, number>();
 
   for (const v of mediaList) {
-    if (!v.eventId.trim()) {
+    if (!v.eventId.trim() || isMediaSoftDeleted(v)) {
       continue;
     }
 
@@ -242,7 +250,9 @@ export async function readGalleryVideosRaw(): Promise<GalleryMediaRecord[]> {
   await migrateLegacyAssociations(mediaList);
   await reconcileEventCountsFromMediaList(mediaList);
 
-  const sorted = sortGalleryMediaRecords(mediaList);
+  const sorted = sortGalleryMediaRecords(
+    mediaList.filter((item) => !isMediaSoftDeleted(item)),
+  );
 
   logFrontendMedia("readGalleryVideosRaw → lista final ordenada", {
     total: sorted.length,
@@ -262,6 +272,18 @@ export async function loadGalleryVideosForMutation(): Promise<
   await migrateLegacyAssociations(mediaList);
 
   return sortGalleryMediaRecords(mediaList);
+}
+
+export async function getDashboardMediaForEvent(
+  eventId: string,
+): Promise<GalleryMediaRecord[]> {
+  const mediaList = await loadGalleryVideosForMutation();
+
+  return sortGalleryMediaRecords(
+    mediaList.filter(
+      (item) => item.eventId === eventId && !isMediaSoftDeleted(item),
+    ),
+  ).sort((a, b) => Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite)));
 }
 
 /** @deprecated usar `readGalleryMediaRaw` quando padronizar nomes */
@@ -303,7 +325,10 @@ export async function getEventVideosForEventSlug(
   console.log("[FRONTEND_MEDIA]", parsed);
 
   const filtered = sortGalleryMediaRecords(
-    parsed.filter(isMediaLike).map(toGalleryRecord),
+    parsed
+      .filter(isMediaLike)
+      .map(toGalleryRecord)
+      .filter(isMediaVisiblePublicly),
   );
 
   logFrontendMedia("getEventVideosForEventSlug", {
@@ -326,7 +351,7 @@ export async function getEventVideosForEventSlug(
 }
 
 export async function getEventVideos(): Promise<EventMedia[]> {
-  const galleryMedia = await readGalleryVideosRaw();
+  const galleryMedia = (await readGalleryVideosRaw()).filter(isMediaVisiblePublicly);
 
   console.log("[FRONTEND_MEDIA]", {
     hook: "getEventVideos",
@@ -352,7 +377,7 @@ export async function getEventVideos(): Promise<EventMedia[]> {
 
 export async function getMediaById(id: string): Promise<EventMedia | undefined> {
   const galleryMedia = await readGalleryVideosRaw();
-  const item = galleryMedia.find((v) => v.id === id);
+  const item = galleryMedia.find((v) => v.id === id && isMediaVisiblePublicly(v));
 
   if (!item) {
     return undefined;
@@ -483,6 +508,47 @@ export async function deleteGalleryMedia(id: string) {
   await reconcileEventCountsFromMediaList(remaining);
 
   return item;
+}
+
+export type MediaStatePatch = {
+  isHidden?: boolean;
+  isFavorite?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
+};
+
+export async function updateGalleryMediaState(
+  id: string,
+  patch: MediaStatePatch,
+): Promise<GalleryMediaRecord | null> {
+  const galleryMedia = await loadGalleryVideosForMutation();
+  const index = galleryMedia.findIndex((m) => m.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const nextItem: GalleryMediaRecord = {
+    ...galleryMedia[index],
+    ...patch,
+  };
+  const next = [...galleryMedia];
+  next[index] = nextItem;
+
+  await replaceGalleryMediaRecordsOnDisk(sortGalleryMediaRecords(next));
+  await reconcileEventCountsFromMediaList(next);
+
+  return nextItem;
+}
+
+export async function softDeleteGalleryMedia(
+  id: string,
+  deletedBy: string,
+): Promise<GalleryMediaRecord | null> {
+  return updateGalleryMediaState(id, {
+    deletedAt: new Date().toISOString(),
+    deletedBy,
+  });
 }
 
 /** Alias estável para APIs legadas chamadas “video”. */

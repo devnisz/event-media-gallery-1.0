@@ -1,22 +1,17 @@
-import { AdminEventsDashboard } from "@/components/admin/admin-events-dashboard";
+import { DashboardEventsOverview } from "@/components/dashboard/dashboard-events-overview";
 import { requireSessionUser } from "@/lib/auth/session";
-import { readDashboardEvents } from "@/services/eventService";
+import { getDashboardEventSummaries } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardHomePage() {
   const user = await requireSessionUser();
-  const events = await readDashboardEvents(user.id);
-
-  const sorted = [...events].sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  const events = await getDashboardEventSummaries(user.id);
 
   return (
-    <AdminEventsDashboard
-      key={sorted.map((e) => e.id).join("|")}
-      initialEvents={sorted}
+    <DashboardEventsOverview
+      key={events.map((event) => event.id).join("|")}
+      initialEvents={events}
     />
   );
 }
