@@ -12,6 +12,8 @@ type VideoGalleryProps = {
   eventSlug: string;
   eventName: string;
   eventId?: string;
+  allowPublicDelete: boolean;
+  requireDeletePin: boolean;
 };
 
 /** Normaliza ID, URL (copia de aliases comuns do Supabase) para passar em isMediaLike / mapeamento. */
@@ -94,6 +96,8 @@ export function VideoGallery({
   eventSlug,
   eventName,
   eventId,
+  allowPublicDelete,
+  requireDeletePin,
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
@@ -295,6 +299,8 @@ export function VideoGallery({
               isRemoving={removingIds.has(video.id)}
               onDeleted={handleDeleted}
               compactMobileTwoCol={mobileTwoCols}
+              allowPublicDelete={allowPublicDelete}
+              requireDeletePin={requireDeletePin}
             />
           ))}
           </div>

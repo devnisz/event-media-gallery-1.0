@@ -1,0 +1,186 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+type EventGallerySettingsFormProps = {
+  eventId: string;
+  initialAllowPublicDelete: boolean;
+  initialRequireDeletePin: boolean;
+  hasDeletePin: boolean;
+};
+
+function isValidPin(pin: string): boolean {
+  return /^\d{4,8}$/.test(pin.trim());
+}
+
+export function EventGallerySettingsForm({
+  eventId,
+  initialAllowPublicDelete,
+  initialRequireDeletePin,
+  hasDeletePin,
+}: EventGallerySettingsFormProps) {
+  const router = useRouter();
+  const [allowPublicDelete, setAllowPublicDelete] = useState(
+    initialAllowPublicDelete,
+  );
+  const [requireDeletePin, setRequireDeletePin] = useState(
+    initialAllowPublicDelete && initialRequireDeletePin,
+  );
+  const [deletePin, setDeletePin] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function saveSettings() {
+    const effectiveRequirePin = allowPublicDelete && requireDeletePin;
+    const trimmedPin = deletePin.trim();
+
+    setMessage("");
+    setError("");
+
+    if (effectiveRequirePin && !hasDeletePin && !trimmedPin) {
+      setError("Informe um PIN de 4 a 8 dígitos.");
+      return;
+    }
+
+    if (trimmedPin && !isValidPin(trimmedPin)) {
+      setError("O PIN deve ter de 4 a 8 dígitos.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(eventId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          allowPublicDelete,
+          requireDeletePin: effectiveRequirePin,
+          deletePin: trimmedPin || undefined,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Não foi possível salvar.");
+      }
+
+      setDeletePin("");
+      setMessage("Configurações da galeria salvas.");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível salvar as configurações.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-200">
+          Configurações da galeria
+        </p>
+        <h2 className="text-2xl font-black tracking-tight">
+          Exclusão pública de mídias
+        </h2>
+        <p className="max-w-3xl text-sm leading-6 text-white/50">
+          Controle se visitantes podem remover mídias da galeria pública. A
+          exclusão continua sendo soft-delete e validada no servidor.
+        </p>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        <label className="flex items-start gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <input
+            type="checkbox"
+            checked={allowPublicDelete}
+            disabled={isSaving}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setAllowPublicDelete(checked);
+
+              if (!checked) {
+                setRequireDeletePin(false);
+              }
+            }}
+            className="mt-1 size-5 accent-amber-300"
+          />
+          <span>
+            <span className="block font-bold">
+              Permitir exclusão pública de mídias
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-white/50">
+              Quando desligado, o botão público some e a API pública bloqueia a
+              operação.
+            </span>
+          </span>
+        </label>
+
+        {allowPublicDelete ? (
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <label className="flex items-start gap-4">
+              <input
+                type="checkbox"
+                checked={requireDeletePin}
+                disabled={isSaving}
+                onChange={(event) => setRequireDeletePin(event.target.checked)}
+                className="mt-1 size-5 accent-amber-300"
+              />
+              <span>
+                <span className="block font-bold">Exigir PIN para exclusão</span>
+                <span className="mt-1 block text-sm leading-6 text-white/50">
+                  Visitantes precisarão informar um PIN de 4 a 8 dígitos.
+                </span>
+              </span>
+            </label>
+
+            {requireDeletePin ? (
+              <label className="block">
+                <span className="text-sm font-semibold text-white/70">
+                  Definir ou alterar PIN
+                </span>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  minLength={4}
+                  maxLength={8}
+                  value={deletePin}
+                  disabled={isSaving}
+                  onChange={(event) => setDeletePin(event.target.value)}
+                  placeholder={
+                    hasDeletePin
+                      ? "Deixe em branco para manter o PIN atual"
+                      : "4 a 8 dígitos"
+                  }
+                  className="mt-2 min-h-12 w-full max-w-sm rounded-2xl border border-white/12 bg-black/35 px-4 text-white outline-none placeholder:text-white/35 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/20 disabled:opacity-60"
+                />
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {error ? <p className="mt-4 text-sm font-semibold text-red-300">{error}</p> : null}
+      {message ? (
+        <p className="mt-4 text-sm font-semibold text-emerald-300">{message}</p>
+      ) : null}
+
+      <button
+        type="button"
+        disabled={isSaving}
+        onClick={() => void saveSettings()}
+        className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-white px-7 text-sm font-black text-slate-950 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isSaving ? "Salvando..." : "Salvar configurações"}
+      </button>
+    </section>
+  );
+}

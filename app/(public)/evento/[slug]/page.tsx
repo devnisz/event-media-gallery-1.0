@@ -34,7 +34,10 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
     notFound();
   }
 
-  const eventVideos = await getEventVideosForEventSlug(slug, event.id);
+  const eventVideos = await getEventVideosForEventSlug(slug, event.id, {
+    allowPublicDelete: event.allowPublicDelete,
+    requireDeletePin: event.allowPublicDelete && event.requireDeletePin,
+  });
 
   return (
     <main className="relative min-h-dvh overflow-hidden px-5 py-8 text-white sm:px-8 lg:px-12 2xl:px-20">
@@ -70,6 +73,8 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
           eventSlug={event.slug}
           eventName={event.name}
           eventId={event.id}
+          allowPublicDelete={event.allowPublicDelete}
+          requireDeletePin={event.allowPublicDelete && event.requireDeletePin}
         />
       </section>
     </main>

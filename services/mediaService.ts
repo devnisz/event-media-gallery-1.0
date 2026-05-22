@@ -14,6 +14,7 @@ import {
   isMediaLike,
   toEventMedia,
   toGalleryRecord,
+  type PublicDeleteSettings,
 } from "@/lib/media/galleryMapping";
 import { ensureUniqueSlug } from "@/utils/slug";
 import { getSupabaseServerKeyMode } from "@/lib/supabase/server";
@@ -188,6 +189,8 @@ async function migrateLegacyAssociations(
       createdAt: new Date().toISOString(),
       coverImage: "",
       videosCount: 0,
+      allowPublicDelete: false,
+      requireDeletePin: false,
     };
     events.push(legacy);
     await writeEvents(events);
@@ -309,6 +312,17 @@ async function resolveEventNameMap(): Promise<Map<string, string>> {
   return map;
 }
 
+function getPublicDeleteSettings(
+  event: GalleryEventRecord | undefined,
+): PublicDeleteSettings {
+  const allowPublicDelete = event?.allowPublicDelete === true;
+
+  return {
+    allowPublicDelete,
+    requireDeletePin: allowPublicDelete && event?.requireDeletePin === true,
+  };
+}
+
 function normalizeSlugPart(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -316,6 +330,7 @@ function normalizeSlugPart(value: string): string {
 export async function getEventVideosForEventSlug(
   eventSlug: string,
   resolvedEventId?: string,
+  publicDeleteSettings?: PublicDeleteSettings,
 ): Promise<EventMedia[]> {
   const parsed = await readPersistedMediaRawForEventSlug(
     eventSlug,
@@ -346,7 +361,7 @@ export async function getEventVideosForEventSlug(
     nameMap.get(eventSlug) ?? nameMap.get(filtered[0].eventId) ?? "Evento";
 
   return filtered.map((item, index) =>
-    toEventMedia(item, eventName, index),
+    toEventMedia(item, eventName, index, publicDeleteSettings),
   );
 }
 
@@ -363,15 +378,28 @@ export async function getEventVideos(): Promise<EventMedia[]> {
     return [];
   }
 
-  const nameMap = await resolveEventNameMap();
+  const events = await readEvents();
+  const nameMap = new Map<string, string>();
+  const settingsMap = new Map<string, PublicDeleteSettings>();
+
+  for (const event of events) {
+    nameMap.set(event.id, event.name);
+    nameMap.set(event.slug, event.name);
+    const settings = getPublicDeleteSettings(event);
+    settingsMap.set(event.id, settings);
+    settingsMap.set(event.slug, settings);
+  }
 
   return galleryMedia.map((item, index) => {
     const eventName =
       nameMap.get(item.eventId) ??
       nameMap.get(item.eventSlug) ??
       "Evento";
+    const settings =
+      settingsMap.get(item.eventId) ??
+      settingsMap.get(item.eventSlug);
 
-    return toEventMedia(item, eventName, index);
+    return toEventMedia(item, eventName, index, settings);
   });
 }
 
@@ -383,15 +411,18 @@ export async function getMediaById(id: string): Promise<EventMedia | undefined> 
     return undefined;
   }
 
-  const nameMap = await resolveEventNameMap();
+  const events = await readEvents();
+  const event =
+    events.find((candidate) => candidate.id === item.eventId) ??
+    events.find((candidate) => candidate.slug === item.eventSlug);
   const eventName =
-    nameMap.get(item.eventId) ??
-    nameMap.get(item.eventSlug) ??
+    event?.name ??
     "Evento";
+  const settings = getPublicDeleteSettings(event);
 
   const index = galleryMedia.indexOf(item);
 
-  return toEventMedia(item, eventName, Math.max(0, index));
+  return toEventMedia(item, eventName, Math.max(0, index), settings);
 }
 
 /** Compat: leitor / totem ainda importam este nome */

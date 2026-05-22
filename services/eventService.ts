@@ -8,6 +8,13 @@ import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import { listPersistedEventsHydrated } from "@/services/tokenService";
 import type { PersistEventsOutcome } from "@/repositories/eventRepository";
 import { persistEventsFullReplace } from "@/repositories/eventRepository";
+import { hashDeletePin, isValidDeletePin } from "@/lib/security/delete-pin";
+
+export type EventGalleryDeleteSettingsInput = {
+  allowPublicDelete: boolean;
+  requireDeletePin: boolean;
+  deletePin?: string;
+};
 
 export async function readEvents(): Promise<GalleryEventRecord[]> {
   return listPersistedEventsHydrated();
@@ -76,6 +83,8 @@ export async function createEventRecordWithPersistence(
     createdAt: new Date().toISOString(),
     coverImage: "",
     videosCount: 0,
+    allowPublicDelete: false,
+    requireDeletePin: false,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -89,6 +98,48 @@ export async function createEventRecord(name: string): Promise<GalleryEventRecor
   const { event } = await createEventRecordWithPersistence(name);
 
   return event;
+}
+
+export async function updateEventGalleryDeleteSettings(
+  eventId: string,
+  settings: EventGalleryDeleteSettingsInput,
+): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
+  const events = await readEvents();
+  const idx = events.findIndex((e) => e.id === eventId);
+
+  if (idx === -1) {
+    throw new Error("Evento não encontrado.");
+  }
+
+  const allowPublicDelete = settings.allowPublicDelete === true;
+  const requireDeletePin =
+    allowPublicDelete && settings.requireDeletePin === true;
+  const trimmedPin = settings.deletePin?.trim() ?? "";
+  let deletePinHash = events[idx].deletePinHash?.trim();
+
+  if (trimmedPin) {
+    if (!isValidDeletePin(trimmedPin)) {
+      throw new Error("O PIN deve ter de 4 a 8 dígitos.");
+    }
+
+    deletePinHash = hashDeletePin(trimmedPin);
+  }
+
+  if (requireDeletePin && !deletePinHash) {
+    throw new Error("Informe um PIN de 4 a 8 dígitos para exigir PIN.");
+  }
+
+  const event: GalleryEventRecord = {
+    ...events[idx],
+    allowPublicDelete,
+    requireDeletePin,
+    ...(deletePinHash ? { deletePinHash } : { deletePinHash: undefined }),
+  };
+
+  events[idx] = event;
+  const persistence = await writeEvents(events);
+
+  return { event, persistence };
 }
 
 export async function adjustEventVideosCount(

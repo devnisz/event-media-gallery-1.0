@@ -35,6 +35,9 @@ type EventRow = {
   cover_image: string | null;
   videos_count: number | null;
   owner_user_id: string | null;
+  allow_public_delete?: boolean | null;
+  require_delete_pin?: boolean | null;
+  delete_pin_hash?: string | null;
 };
 
 export type PersistEventsOutcome = {
@@ -94,7 +97,17 @@ function formatSupabaseErrorForThrow(
   return parts.join(" | ");
 }
 
+function optionalBoolean(value: unknown): boolean {
+  return typeof value === "boolean" ? value : false;
+}
+
+function optionalTrimmedString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function rowToLoose(row: EventRow): StoredEventLoose {
+  const deletePinHash = optionalTrimmedString(row.delete_pin_hash);
+
   return {
     id: row.id,
     name: row.name,
@@ -103,6 +116,9 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     uploadToken: row.upload_token,
     coverImage: row.cover_image ?? "",
     videosCount: row.videos_count ?? 0,
+    allowPublicDelete: optionalBoolean(row.allow_public_delete),
+    requireDeletePin: optionalBoolean(row.require_delete_pin),
+    ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
       : {}),
@@ -119,6 +135,9 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     cover_image: e.coverImage ?? "",
     videos_count: e.videosCount ?? 0,
     owner_user_id: e.ownerUserId?.trim() ? e.ownerUserId.trim() : null,
+    allow_public_delete: e.allowPublicDelete,
+    require_delete_pin: e.requireDeletePin,
+    delete_pin_hash: e.deletePinHash?.trim() ? e.deletePinHash.trim() : null,
   };
 }
 

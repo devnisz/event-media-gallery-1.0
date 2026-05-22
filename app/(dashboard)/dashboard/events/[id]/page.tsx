@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-button";
 import { EventCover } from "@/components/dashboard/event-cover";
+import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
 import { QrCode } from "@/components/public/qr-code";
 import { getDashboardEventDetail } from "@/lib/dashboard/queries";
@@ -106,6 +107,13 @@ export default async function DashboardEventPage({
           </div>
         </div>
       </section>
+
+      <EventGallerySettingsForm
+        eventId={detail.event.id}
+        initialAllowPublicDelete={detail.event.allowPublicDelete}
+        initialRequireDeletePin={detail.event.requireDeletePin}
+        hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
+      />
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
         <h2 className="text-2xl font-black tracking-tight">Uploads recentes</h2>

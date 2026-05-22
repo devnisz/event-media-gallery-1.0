@@ -64,4 +64,6 @@ export type EventMedia = {
   isHidden?: boolean;
   isFavorite?: boolean;
   deletedAt?: string;
+  allowPublicDelete: boolean;
+  requireDeletePin: boolean;
 };

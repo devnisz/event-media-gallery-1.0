@@ -2,6 +2,11 @@ import type { EventMedia, GalleryMediaRecord } from "@/types/media";
 import { inferFileType, inferMediaKind } from "@/utils/mediaInference";
 import { buildPublicPageUrl } from "@/lib/media/publicPageUrl";
 
+export type PublicDeleteSettings = {
+  allowPublicDelete: boolean;
+  requireDeletePin: boolean;
+};
+
 export type RawMediaRecord = {
   id: string;
   name?: string;
@@ -254,6 +259,10 @@ export function toEventMedia(
   record: GalleryMediaRecord,
   eventName: string,
   index: number,
+  publicDeleteSettings: PublicDeleteSettings = {
+    allowPublicDelete: false,
+    requireDeletePin: false,
+  },
 ): EventMedia {
   const pageUrl = buildPublicPageUrl(`/video/${encodeURIComponent(record.id)}`);
   const thumb = record.thumbnailUrl;
@@ -282,6 +291,8 @@ export function toEventMedia(
     isHidden: record.isHidden,
     isFavorite: record.isFavorite,
     deletedAt: record.deletedAt,
+    allowPublicDelete: publicDeleteSettings.allowPublicDelete,
+    requireDeletePin: publicDeleteSettings.requireDeletePin,
   };
 }
 

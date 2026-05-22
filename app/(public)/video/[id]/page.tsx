@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { AmbientBackground } from "@/components/public/ambient-background";
 import { DownloadButton } from "@/components/public/download-button";
+import { PublicMediaDeleteButton } from "@/components/public/public-media-delete-button";
 import { QrCode } from "@/components/public/qr-code";
 import { VideoPlayer } from "@/components/public/video-player";
 import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName";
@@ -108,6 +109,14 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
               >
                 Ver todas as mídias do evento
               </Link>
+              {video.allowPublicDelete ? (
+                <PublicMediaDeleteButton
+                  mediaId={video.id}
+                  title={video.title}
+                  eventHref={eventHref}
+                  requireDeletePin={video.requireDeletePin}
+                />
+              ) : null}
             </div>
           </aside>
         </section>

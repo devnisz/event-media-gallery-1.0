@@ -28,6 +28,12 @@ export function hydrateAssignTokens(
 
   const next: GalleryEventRecord[] = events.map((e) => {
     const trimmedExisting = e.uploadToken?.trim();
+    const deletePinHash = e.deletePinHash?.trim();
+    const gallerySettings = {
+      allowPublicDelete: e.allowPublicDelete === true,
+      requireDeletePin: e.requireDeletePin === true,
+      ...(deletePinHash ? { deletePinHash } : {}),
+    };
 
     if (trimmedExisting) {
       return {
@@ -38,6 +44,7 @@ export function hydrateAssignTokens(
         coverImage: e.coverImage ?? "",
         videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
         uploadToken: trimmedExisting,
+        ...gallerySettings,
         ...(e.ownerUserId?.trim()
           ? { ownerUserId: e.ownerUserId.trim() }
           : {}),
@@ -57,6 +64,7 @@ export function hydrateAssignTokens(
       coverImage: e.coverImage ?? "",
       videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
       uploadToken,
+      ...gallerySettings,
       ...(e.ownerUserId?.trim()
         ? { ownerUserId: e.ownerUserId.trim() }
         : {}),
