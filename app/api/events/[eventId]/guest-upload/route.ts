@@ -143,6 +143,11 @@ export async function POST(request: Request, context: GuestUploadContext) {
     return Response.json({ ok: true, media: record }, { status: 201 });
   } catch (error) {
     console.error("[GUEST_UPLOAD] erro", error);
+    const message = error instanceof Error ? error.message : "";
+
+    if (message.includes("Storage de upload publico nao configurado")) {
+      return Response.json({ error: message }, { status: 500 });
+    }
 
     return Response.json(
       { error: "Não foi possível enviar o arquivo." },

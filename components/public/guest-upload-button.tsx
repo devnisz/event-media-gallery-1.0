@@ -105,7 +105,12 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
 
       if (xhr.status < 200 || xhr.status >= 300) {
         setState("error");
-        setMessage(payload.error ?? "Não foi possível enviar o arquivo.");
+        setMessage(
+          payload.error ??
+            (xhr.status === 413
+              ? "Arquivo muito grande para o limite do servidor."
+              : "Não foi possível enviar o arquivo."),
+        );
         return;
       }
 

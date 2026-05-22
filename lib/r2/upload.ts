@@ -18,7 +18,10 @@ function cleanSegment(value: string): string {
 function publicBaseUrl(): string {
   return (
     process.env.R2_PUBLIC_BASE_URL?.trim() ||
+    process.env.R2_PUBLIC_URL?.trim() ||
+    process.env.R2_BUCKET_PUBLIC_URL?.trim() ||
     process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.trim() ||
     ""
   ).replace(/\/+$/g, "");
 }
