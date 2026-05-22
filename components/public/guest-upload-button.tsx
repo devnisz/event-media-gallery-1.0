@@ -9,6 +9,19 @@ type GuestUploadButtonProps = {
 
 type UploadState = "idle" | "uploading" | "success" | "error";
 
+type SignResponse = {
+  error?: string;
+  mediaId?: string;
+  upload?: {
+    uploadUrl: string;
+    publicUrl: string;
+  };
+  thumbnail?: {
+    uploadUrl: string;
+    publicUrl: string;
+  };
+};
+
 function captureVideoThumbnail(file: File): Promise<Blob | null> {
   return new Promise((resolve) => {
     if (!file.type.startsWith("video/")) {
@@ -69,64 +82,127 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
 
-  async function uploadFile(file: File) {
-    const formData = new FormData();
-    const xhr = new XMLHttpRequest();
+  function putToSignedUrl({
+    url,
+    blob,
+    contentType,
+    onProgress,
+  }: {
+    url: string;
+    blob: Blob;
+    contentType: string;
+    onProgress?: (progress: number) => void;
+  }): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-    formData.append("file", file);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          onProgress?.(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+          return;
+        }
+
+        reject(new Error(`Falha no envio para o storage (${xhr.status}).`));
+      };
+
+      xhr.onerror = () => reject(new Error("Falha de rede ao enviar arquivo."));
+      xhr.open("PUT", url);
+      xhr.setRequestHeader("Content-Type", contentType);
+      xhr.send(blob);
+    });
+  }
+
+  async function uploadFile(file: File) {
     setState("uploading");
     setProgress(0);
     setMessage(file.type.startsWith("video/") ? "Gerando miniatura..." : "");
 
     const thumbnail = await captureVideoThumbnail(file);
 
-    if (thumbnail) {
-      formData.append("thumbnail", thumbnail, "thumbnail.jpg");
-    }
+    try {
+      setMessage("Preparando upload...");
+      const signResponse = await fetch(
+        `/api/events/${encodeURIComponent(eventId)}/guest-upload/sign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileType: file.type,
+            fileSize: file.size,
+            hasThumbnail: Boolean(thumbnail),
+            thumbnailType: thumbnail?.type,
+            thumbnailSize: thumbnail?.size,
+          }),
+        },
+      );
+      const signPayload = (await signResponse.json()) as SignResponse;
 
-    setMessage("");
-
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) {
-        return;
-      }
-
-      setProgress(Math.round((event.loaded / event.total) * 100));
-    };
-
-    xhr.onload = () => {
-      let payload: { error?: string } = {};
-
-      try {
-        payload = JSON.parse(xhr.responseText) as { error?: string };
-      } catch {
-        payload = {};
-      }
-
-      if (xhr.status < 200 || xhr.status >= 300) {
-        setState("error");
-        setMessage(
-          payload.error ??
-            (xhr.status === 413
+      if (!signResponse.ok || !signPayload.mediaId || !signPayload.upload) {
+        throw new Error(
+          signPayload.error ??
+            (signResponse.status === 413
               ? "Arquivo muito grande para o limite do servidor."
-              : "Não foi possível enviar o arquivo."),
+              : "Não foi possível preparar o upload."),
         );
-        return;
+      }
+
+      setMessage("Enviando arquivo...");
+      await putToSignedUrl({
+        url: signPayload.upload.uploadUrl,
+        blob: file,
+        contentType: file.type,
+        onProgress: setProgress,
+      });
+
+      if (thumbnail && signPayload.thumbnail) {
+        setMessage("Enviando miniatura...");
+        await putToSignedUrl({
+          url: signPayload.thumbnail.uploadUrl,
+          blob: thumbnail,
+          contentType: thumbnail.type,
+        });
+      }
+
+      setMessage("Finalizando upload...");
+      const completeResponse = await fetch(
+        `/api/events/${encodeURIComponent(eventId)}/guest-upload/complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mediaId: signPayload.mediaId,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            publicUrl: signPayload.upload.publicUrl,
+            thumbnailUrl: signPayload.thumbnail?.publicUrl,
+          }),
+        },
+      );
+      const completePayload = (await completeResponse.json()) as { error?: string };
+
+      if (!completeResponse.ok) {
+        throw new Error(
+          completePayload.error ?? "Não foi possível finalizar o upload.",
+        );
       }
 
       setState("success");
       setProgress(100);
       setMessage("Upload recebido. A galeria será atualizada.");
       router.refresh();
-    };
-
-    xhr.onerror = () => {
+    } catch (error) {
       setState("error");
-      setMessage("Falha de rede ao enviar o arquivo.");
-    };
-
-    xhr.open("POST", `/api/events/${encodeURIComponent(eventId)}/guest-upload`);
-    xhr.send(formData);
+      setMessage(
+        error instanceof Error ? error.message : "Não foi possível enviar o arquivo.",
+      );
+    }
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {

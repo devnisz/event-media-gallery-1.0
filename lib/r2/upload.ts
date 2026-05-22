@@ -1,4 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { galleryPublicPath } from "@/lib/paths";
@@ -11,7 +12,7 @@ function createR2Endpoint(accountId: string) {
   return `https://${accountId}.r2.cloudflarestorage.com`;
 }
 
-function cleanSegment(value: string): string {
+export function cleanR2Segment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
 }
 
@@ -26,7 +27,7 @@ function publicBaseUrl(): string {
   ).replace(/\/+$/g, "");
 }
 
-function createUploadClient():
+export function createGuestUploadR2Client():
   | { client: S3Client; bucket: string; keyPrefix: string; publicBaseUrl: string }
   | null {
   const accountId = process.env.R2_ACCOUNT_ID?.trim();
@@ -69,9 +70,9 @@ export async function storeGuestUploadObject({
   mediaId: string;
   extension: string;
 }): Promise<string> {
-  const eventSegment = cleanSegment(eventId);
-  const fileName = `${cleanSegment(mediaId)}.${cleanSegment(extension)}`;
-  const r2 = createUploadClient();
+  const eventSegment = cleanR2Segment(eventId);
+  const fileName = `${cleanR2Segment(mediaId)}.${cleanR2Segment(extension)}`;
+  const r2 = createGuestUploadR2Client();
 
   if (r2) {
     const key = `${r2.keyPrefix}/guest/${eventSegment}/${fileName}`;
@@ -101,4 +102,62 @@ export async function storeGuestUploadObject({
   await writeFile(path.join(targetDir, fileName), bytes);
 
   return `/api/${relativeDir.replace(/\\/g, "/")}/${fileName}`;
+}
+
+export function buildGuestUploadKey({
+  keyPrefix,
+  eventId,
+  mediaId,
+  extension,
+}: {
+  keyPrefix: string;
+  eventId: string;
+  mediaId: string;
+  extension: string;
+}): string {
+  return `${keyPrefix}/guest/${cleanR2Segment(eventId)}/${cleanR2Segment(mediaId)}.${cleanR2Segment(extension)}`;
+}
+
+export function publicUrlForGuestUploadKey({
+  publicBaseUrl,
+  key,
+}: {
+  publicBaseUrl: string;
+  key: string;
+}): string {
+  return `${publicBaseUrl.replace(/\/+$/g, "")}/${key}`;
+}
+
+export async function createGuestUploadSignedPutUrl({
+  key,
+  contentType,
+}: {
+  key: string;
+  contentType: string;
+}): Promise<{ uploadUrl: string; publicUrl: string }> {
+  const r2 = createGuestUploadR2Client();
+
+  if (!r2) {
+    throw new Error(
+      "Storage de upload publico nao configurado. Defina R2_PUBLIC_BASE_URL e credenciais R2.",
+    );
+  }
+
+  const uploadUrl = await getSignedUrl(
+    r2.client as unknown as Parameters<typeof getSignedUrl>[0],
+    new PutObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+      ContentType: contentType,
+    }),
+    { expiresIn: 300 },
+  );
+
+  return {
+    uploadUrl,
+    publicUrl: publicUrlForGuestUploadKey({
+      publicBaseUrl: r2.publicBaseUrl,
+      key,
+    }),
+  };
 }

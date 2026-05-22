@@ -1,20 +1,16 @@
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import type { GalleryMediaRecord } from "@/types/media";
 import { getEventById } from "@/services/eventService";
 import { appendGalleryMediaRecord } from "@/services/mediaService";
-import { storeGuestUploadObject } from "@/lib/r2/upload";
 import {
-  ALLOWED_GUEST_THUMBNAIL_TYPES,
   ALLOWED_GUEST_UPLOAD_TYPES,
   cleanGuestUploadName,
   MAX_GUEST_UPLOAD_BYTES,
-  MAX_THUMBNAIL_BYTES,
 } from "@/lib/guest-upload/validation";
 
 export const runtime = "nodejs";
 
-type GuestUploadContext = {
+type GuestUploadCompleteContext = {
   params: Promise<{ eventId: string }>;
 };
 
@@ -26,7 +22,10 @@ function revalidateEventPaths(eventId: string, eventSlug: string, mediaId: strin
   revalidatePath(`/video/${encodeURIComponent(mediaId)}`);
 }
 
-export async function POST(request: Request, context: GuestUploadContext) {
+export async function POST(
+  request: Request,
+  context: GuestUploadCompleteContext,
+) {
   try {
     const { eventId } = await context.params;
     const event = await getEventById(eventId.trim());
@@ -42,15 +41,32 @@ export async function POST(request: Request, context: GuestUploadContext) {
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file");
-    const thumbnail = formData.get("thumbnail");
+    const body = (await request.json()) as {
+      mediaId?: unknown;
+      fileName?: unknown;
+      fileType?: unknown;
+      fileSize?: unknown;
+      publicUrl?: unknown;
+      thumbnailUrl?: unknown;
+    };
+    const mediaId = typeof body.mediaId === "string" ? body.mediaId.trim() : "";
+    const fileName = typeof body.fileName === "string" ? body.fileName : "";
+    const fileType = typeof body.fileType === "string" ? body.fileType : "";
+    const fileSize =
+      typeof body.fileSize === "number" && Number.isFinite(body.fileSize)
+        ? body.fileSize
+        : 0;
+    const publicUrl =
+      typeof body.publicUrl === "string" ? body.publicUrl.trim() : "";
+    const thumbnailUrl =
+      typeof body.thumbnailUrl === "string" && body.thumbnailUrl.trim()
+        ? body.thumbnailUrl.trim()
+        : undefined;
+    const typeInfo = ALLOWED_GUEST_UPLOAD_TYPES[fileType];
 
-    if (!(file instanceof File)) {
-      return Response.json({ error: "Arquivo não enviado." }, { status: 400 });
+    if (!/^guest_[a-f0-9]{18}$/.test(mediaId)) {
+      return Response.json({ error: "Upload inválido." }, { status: 400 });
     }
-
-    const typeInfo = ALLOWED_GUEST_UPLOAD_TYPES[file.type];
 
     if (!typeInfo) {
       return Response.json(
@@ -59,43 +75,18 @@ export async function POST(request: Request, context: GuestUploadContext) {
       );
     }
 
-    if (file.size <= 0 || file.size > MAX_GUEST_UPLOAD_BYTES) {
+    if (fileSize <= 0 || fileSize > MAX_GUEST_UPLOAD_BYTES) {
       return Response.json(
         { error: "Arquivo maior que o limite de 100 MB." },
         { status: 413 },
       );
     }
 
-    const mediaId = `guest_${randomUUID().replace(/-/g, "").slice(0, 18)}`;
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const now = new Date().toISOString();
-    const url = await storeGuestUploadObject({
-      bytes,
-      contentType: file.type,
-      eventId: event.id,
-      mediaId,
-      extension: typeInfo.extension,
-    });
-    let thumbnailUrl: string | undefined =
-      typeInfo.mediaType === "video" ? undefined : url;
-
-    if (typeInfo.mediaType === "video" && thumbnail instanceof File) {
-      const thumbnailExtension = ALLOWED_GUEST_THUMBNAIL_TYPES[thumbnail.type];
-
-      if (
-        thumbnailExtension &&
-        thumbnail.size > 0 &&
-        thumbnail.size <= MAX_THUMBNAIL_BYTES
-      ) {
-        thumbnailUrl = await storeGuestUploadObject({
-          bytes: Buffer.from(await thumbnail.arrayBuffer()),
-          contentType: thumbnail.type,
-          eventId: event.id,
-          mediaId: `${mediaId}_thumb`,
-          extension: thumbnailExtension,
-        });
-      }
+    if (!publicUrl.startsWith("https://")) {
+      return Response.json({ error: "URL pública inválida." }, { status: 400 });
     }
+
+    const now = new Date().toISOString();
     const fallbackName =
       typeInfo.mediaType === "video"
         ? "Vídeo enviado por convidado"
@@ -105,13 +96,13 @@ export async function POST(request: Request, context: GuestUploadContext) {
       eventId: event.id,
       eventSlug: event.slug,
       ownerUserId: event.ownerUserId,
-      name: cleanGuestUploadName(file.name) || fallbackName,
-      url,
+      name: cleanGuestUploadName(fileName) || fallbackName,
+      url: publicUrl,
       qrCode: "",
       mediaType: typeInfo.mediaType,
-      fileType: file.type,
+      fileType,
       mediaSource: "guest",
-      thumbnailUrl,
+      thumbnailUrl: thumbnailUrl ?? (typeInfo.mediaType === "video" ? undefined : publicUrl),
       createdAt: now,
       uploadedAt: now,
       isHidden: false,
@@ -123,15 +114,10 @@ export async function POST(request: Request, context: GuestUploadContext) {
 
     return Response.json({ ok: true, media: record }, { status: 201 });
   } catch (error) {
-    console.error("[GUEST_UPLOAD] erro", error);
-    const message = error instanceof Error ? error.message : "";
-
-    if (message.includes("Storage de upload publico nao configurado")) {
-      return Response.json({ error: message }, { status: 500 });
-    }
+    console.error("[GUEST_UPLOAD_COMPLETE] erro", error);
 
     return Response.json(
-      { error: "Não foi possível enviar o arquivo." },
+      { error: "Não foi possível finalizar o upload." },
       { status: 500 },
     );
   }
