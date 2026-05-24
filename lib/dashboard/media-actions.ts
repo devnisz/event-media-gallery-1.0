@@ -16,6 +16,8 @@ export type DashboardMediaActionResult =
   | { ok: true; media: GalleryMediaRecord }
   | { ok: false; status: number; error: string };
 
+export type DashboardMediaResolveResult = DashboardMediaActionResult;
+
 async function resolveMutableMedia(userId: string, mediaId: string) {
   const mediaList = await loadGalleryVideosForMutation();
   const media = mediaList.find((item) => item.id === mediaId);
@@ -68,6 +70,13 @@ export async function updateDashboardMediaState(
 
 export function isValidReviewStatus(value: unknown): value is MediaReviewStatus {
   return value === "approved" || value === "pending" || value === "rejected";
+}
+
+export async function resolveDashboardMediaForPreview(
+  userId: string,
+  mediaId: string,
+): Promise<DashboardMediaResolveResult> {
+  return resolveMutableMedia(userId, mediaId);
 }
 
 export async function softDeleteDashboardMedia(

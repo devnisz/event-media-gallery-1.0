@@ -29,6 +29,10 @@ function mediaPreview(media: GalleryMediaRecord): string | undefined {
   );
 }
 
+function moderationPreviewUrl(mediaId: string): string {
+  return `/api/media/${encodeURIComponent(mediaId)}/moderation-preview`;
+}
+
 export function PendingGuestUploads({
   initialUploads,
 }: PendingGuestUploadsProps) {
@@ -147,7 +151,19 @@ export function PendingGuestUploads({
                 className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-black/25 p-4 sm:grid-cols-[8rem_minmax(0,1fr)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-900">
-                  {preview ? (
+                  {item.mediaType === "video" ? (
+                    <video
+                      src={moderationPreviewUrl(item.id)}
+                      poster={preview}
+                      controls
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="absolute inset-0 h-full w-full bg-black object-contain"
+                    >
+                      Seu navegador não suporta preview de vídeo.
+                    </video>
+                  ) : preview ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={preview}
