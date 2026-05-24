@@ -21,6 +21,7 @@ export type DashboardEventDetail = {
   publicUrl: string;
   media: GalleryMediaRecord[];
   recentUploads: GalleryMediaRecord[];
+  pendingGuestUploads: GalleryMediaRecord[];
   mediaCount: number;
   favoriteCount: number;
   hiddenCount: number;
@@ -113,6 +114,9 @@ export async function getDashboardEventDetail(
     publicUrl: buildPublicPageUrl(publicPath),
     media: sortedMedia,
     recentUploads: sortedMedia.slice(0, 6),
+    pendingGuestUploads: sortedMedia.filter(
+      (item) => item.mediaSource === "guest" && item.reviewStatus === "pending",
+    ),
     mediaCount: sortedMedia.length,
     favoriteCount: sortedMedia.filter((item) => item.isFavorite).length,
     hiddenCount: sortedMedia.filter((item) => item.isHidden).length,

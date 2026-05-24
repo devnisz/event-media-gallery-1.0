@@ -44,6 +44,8 @@ export type RawMediaRecord = {
   is_favorite?: unknown;
   mediaSource?: unknown;
   media_source?: unknown;
+  reviewStatus?: unknown;
+  review_status?: unknown;
   deletedAt?: unknown;
   deleted_at?: unknown;
   deletedBy?: unknown;
@@ -127,6 +129,10 @@ function coerceBooleanField(raw: unknown): boolean | undefined {
 
 function coerceMediaSource(raw: unknown): GalleryMediaRecord["mediaSource"] {
   return raw === "guest" ? "guest" : "operator";
+}
+
+function coerceReviewStatus(raw: unknown): GalleryMediaRecord["reviewStatus"] {
+  return raw === "pending" || raw === "rejected" ? raw : "approved";
 }
 
 function normalizeLocalGuestUploadUrl(url: string): string {
@@ -229,6 +235,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
   const isHidden = coerceBooleanField(raw.isHidden ?? raw.is_hidden);
   const isFavorite = coerceBooleanField(raw.isFavorite ?? raw.is_favorite);
   const mediaSource = coerceMediaSource(raw.mediaSource ?? raw.media_source);
+  const reviewStatus = coerceReviewStatus(raw.reviewStatus ?? raw.review_status);
 
   return {
     id: raw.id,
@@ -241,6 +248,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     mediaType,
     fileType,
     mediaSource,
+    reviewStatus,
     createdAt,
     uploadedAt,
     timestamp,
@@ -303,6 +311,7 @@ export function toEventMedia(
     isHidden: record.isHidden,
     isFavorite: record.isFavorite,
     deletedAt: record.deletedAt,
+    reviewStatus: record.reviewStatus,
     allowPublicDelete: publicDeleteSettings.allowPublicDelete,
     requireDeletePin: publicDeleteSettings.requireDeletePin,
   };

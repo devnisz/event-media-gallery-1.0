@@ -50,6 +50,7 @@ export async function PATCH(
       requireDeletePin?: unknown;
       deletePin?: unknown;
       allowGuestUpload?: unknown;
+      requireGuestUploadApproval?: unknown;
     };
 
     if (
@@ -70,6 +71,10 @@ export async function PATCH(
       allowGuestUpload:
         typeof body.allowGuestUpload === "boolean"
           ? body.allowGuestUpload
+          : undefined,
+      requireGuestUploadApproval:
+        typeof body.requireGuestUploadApproval === "boolean"
+          ? body.requireGuestUploadApproval
           : undefined,
     }).catch((err: unknown) => {
       const message =
@@ -97,6 +102,7 @@ export async function PATCH(
         allowPublicDelete: updated.allowPublicDelete,
         requireDeletePin: updated.requireDeletePin,
         allowGuestUpload: updated.allowGuestUpload,
+        requireGuestUploadApproval: updated.requireGuestUploadApproval,
       },
     });
   } catch (error) {

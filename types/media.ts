@@ -5,6 +5,7 @@
 
 export type MediaKind = "video" | "image" | "gif";
 export type MediaSource = "operator" | "guest";
+export type MediaReviewStatus = "approved" | "pending" | "rejected";
 
 /** Registro já normalizado em memória após parse de `videos.json`. */
 export type GalleryMediaRecord = {
@@ -22,6 +23,8 @@ export type GalleryMediaRecord = {
   fileType: string;
   /** Origem da midia: watcher/operador oficial ou convidado publico. */
   mediaSource: MediaSource;
+  /** Estado de moderacao: apenas approved aparece publicamente. */
+  reviewStatus: MediaReviewStatus;
   createdAt?: string;
   /** Data de upload alternativa (JSON / futuros adapters). */
   uploadedAt?: string;
@@ -67,6 +70,7 @@ export type EventMedia = {
   isHidden?: boolean;
   isFavorite?: boolean;
   deletedAt?: string;
+  reviewStatus?: MediaReviewStatus;
   allowPublicDelete: boolean;
   requireDeletePin: boolean;
 };

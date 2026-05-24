@@ -1,4 +1,4 @@
-import type { GalleryMediaRecord } from "@/types/media";
+import type { GalleryMediaRecord, MediaReviewStatus } from "@/types/media";
 import { getEventById } from "@/services/eventService";
 import {
   isMediaSoftDeleted,
@@ -45,7 +45,7 @@ async function resolveMutableMedia(userId: string, mediaId: string) {
 export async function updateDashboardMediaState(
   userId: string,
   mediaId: string,
-  patch: Pick<MediaStatePatch, "isHidden" | "isFavorite">,
+  patch: Pick<MediaStatePatch, "isHidden" | "isFavorite" | "reviewStatus">,
 ): Promise<DashboardMediaActionResult> {
   const resolved = await resolveMutableMedia(userId, mediaId);
 
@@ -64,6 +64,10 @@ export async function updateDashboardMediaState(
   }
 
   return { ok: true, media };
+}
+
+export function isValidReviewStatus(value: unknown): value is MediaReviewStatus {
+  return value === "approved" || value === "pending" || value === "rejected";
 }
 
 export async function softDeleteDashboardMedia(

@@ -7,7 +7,11 @@ import {
   replaceAllMediaFromGalleryRecords,
 } from "@/repositories/mediaRepository";
 import type { GalleryEventRecord } from "@/types/event";
-import type { EventMedia, GalleryMediaRecord } from "@/types/media";
+import type {
+  EventMedia,
+  GalleryMediaRecord,
+  MediaReviewStatus,
+} from "@/types/media";
 import { galleryPublicPath } from "@/lib/paths";
 import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import {
@@ -81,7 +85,11 @@ export function isMediaSoftDeleted(record: GalleryMediaRecord): boolean {
 }
 
 export function isMediaVisiblePublicly(record: GalleryMediaRecord): boolean {
-  return !isMediaSoftDeleted(record) && !record.isHidden;
+  return (
+    !isMediaSoftDeleted(record) &&
+    !record.isHidden &&
+    record.reviewStatus === "approved"
+  );
 }
 
 /**
@@ -192,6 +200,7 @@ async function migrateLegacyAssociations(
       allowPublicDelete: false,
       requireDeletePin: false,
       allowGuestUpload: false,
+      requireGuestUploadApproval: false,
     };
     events.push(legacy);
     await writeEvents(events);
@@ -545,6 +554,7 @@ export async function deleteGalleryMedia(id: string) {
 export type MediaStatePatch = {
   isHidden?: boolean;
   isFavorite?: boolean;
+  reviewStatus?: MediaReviewStatus;
   deletedAt?: string;
   deletedBy?: string;
 };

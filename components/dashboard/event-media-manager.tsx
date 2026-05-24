@@ -162,6 +162,16 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
                         Oculta
                       </span>
                     ) : null}
+                    {item.reviewStatus !== "approved" ? (
+                      <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-950">
+                        {item.reviewStatus === "pending" ? "Pendente" : "Rejeitada"}
+                      </span>
+                    ) : null}
+                    {item.mediaSource === "guest" ? (
+                      <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-white">
+                        Convidado
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="space-y-4 p-5">

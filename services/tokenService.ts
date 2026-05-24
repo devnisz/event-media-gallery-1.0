@@ -33,6 +33,7 @@ export function hydrateAssignTokens(
       allowPublicDelete: e.allowPublicDelete === true,
       requireDeletePin: e.requireDeletePin === true,
       allowGuestUpload: e.allowGuestUpload === true,
+      requireGuestUploadApproval: e.requireGuestUploadApproval === true,
       ...(deletePinHash ? { deletePinHash } : {}),
     };
 

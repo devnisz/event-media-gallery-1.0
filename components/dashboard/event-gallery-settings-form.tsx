@@ -8,6 +8,7 @@ type EventGallerySettingsFormProps = {
   initialAllowPublicDelete: boolean;
   initialRequireDeletePin: boolean;
   initialAllowGuestUpload: boolean;
+  initialRequireGuestUploadApproval: boolean;
   hasDeletePin: boolean;
 };
 
@@ -20,6 +21,7 @@ export function EventGallerySettingsForm({
   initialAllowPublicDelete,
   initialRequireDeletePin,
   initialAllowGuestUpload,
+  initialRequireGuestUploadApproval,
   hasDeletePin,
 }: EventGallerySettingsFormProps) {
   const router = useRouter();
@@ -31,6 +33,9 @@ export function EventGallerySettingsForm({
   );
   const [allowGuestUpload, setAllowGuestUpload] = useState(
     initialAllowGuestUpload,
+  );
+  const [requireGuestUploadApproval, setRequireGuestUploadApproval] = useState(
+    initialRequireGuestUploadApproval,
   );
   const [deletePin, setDeletePin] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -65,6 +70,7 @@ export function EventGallerySettingsForm({
           requireDeletePin: effectiveRequirePin,
           deletePin: trimmedPin || undefined,
           allowGuestUpload,
+          requireGuestUploadApproval,
         }),
       });
       const payload = (await response.json()) as { error?: string };
@@ -123,6 +129,31 @@ export function EventGallerySettingsForm({
                 Quando ligado, a galeria pública exibe um botão para convidados
                 enviarem fotos e vídeos sem login.
               </span>
+            </span>
+          </label>
+          <label className="mt-4 flex items-start gap-4 rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-4">
+            <input
+              type="checkbox"
+              checked={requireGuestUploadApproval}
+              disabled={isSaving || !allowGuestUpload}
+              onChange={(event) =>
+                setRequireGuestUploadApproval(event.target.checked)
+              }
+              className="mt-1 size-5 accent-amber-300 disabled:opacity-50"
+            />
+            <span>
+              <span className="block font-bold">
+                Aprovar uploads antes de publicar
+              </span>
+              <span className="mt-1 block text-sm leading-6 text-white/50">
+                Quando ligado, fotos e vídeos enviados por convidados ficam
+                pendentes até aprovação no dashboard.
+              </span>
+              {!allowGuestUpload ? (
+                <span className="mt-2 block text-xs font-semibold text-amber-100/70">
+                  Ative uploads públicos dos convidados para usar esta opção.
+                </span>
+              ) : null}
             </span>
           </label>
         </div>

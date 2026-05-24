@@ -111,6 +111,7 @@ export async function POST(request: Request, context: GuestUploadContext) {
       mediaType: typeInfo.mediaType,
       fileType: file.type,
       mediaSource: "guest",
+      reviewStatus: event.requireGuestUploadApproval ? "pending" : "approved",
       thumbnailUrl,
       createdAt: now,
       uploadedAt: now,

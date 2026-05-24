@@ -15,6 +15,7 @@ export type EventGalleryDeleteSettingsInput = {
   requireDeletePin: boolean;
   deletePin?: string;
   allowGuestUpload?: boolean;
+  requireGuestUploadApproval?: boolean;
 };
 
 export async function readEvents(): Promise<GalleryEventRecord[]> {
@@ -87,6 +88,7 @@ export async function createEventRecordWithPersistence(
     allowPublicDelete: false,
     requireDeletePin: false,
     allowGuestUpload: false,
+    requireGuestUploadApproval: false,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -120,6 +122,10 @@ export async function updateEventGalleryDeleteSettings(
     typeof settings.allowGuestUpload === "boolean"
       ? settings.allowGuestUpload
       : events[idx].allowGuestUpload === true;
+  const requireGuestUploadApproval =
+    typeof settings.requireGuestUploadApproval === "boolean"
+      ? settings.requireGuestUploadApproval
+      : events[idx].requireGuestUploadApproval === true;
   const trimmedPin = settings.deletePin?.trim() ?? "";
   let deletePinHash = events[idx].deletePinHash?.trim();
 
@@ -140,6 +146,7 @@ export async function updateEventGalleryDeleteSettings(
     allowPublicDelete,
     requireDeletePin,
     allowGuestUpload,
+    requireGuestUploadApproval,
     ...(deletePinHash ? { deletePinHash } : { deletePinHash: undefined }),
   };
 

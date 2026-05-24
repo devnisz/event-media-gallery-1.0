@@ -173,6 +173,10 @@ function optionalBoolean(value: unknown): boolean | undefined {
   return undefined;
 }
 
+function coerceReviewStatus(value: unknown): GalleryMediaRecord["reviewStatus"] {
+  return value === "pending" || value === "rejected" ? value : "approved";
+}
+
 function coerceRowStringId(row: SupabaseMediaRow): string {
   const v = row.id;
 
@@ -211,6 +215,7 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
   const fileType = coerceOptionalString(row.file_type);
   const mediaSource =
     coerceOptionalString(row.media_source) === "guest" ? "guest" : "operator";
+  const reviewStatus = coerceReviewStatus(row.review_status);
   const thumbnailUrl =
     coerceOptionalString(row.thumbnail_url) ||
     coerceOptionalString(row.thumbnailUrl);
@@ -229,6 +234,7 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     mediaType,
     fileType,
     mediaSource,
+    reviewStatus,
   };
 
   const createdAt =
@@ -332,6 +338,7 @@ function galleryRecordToRow(
     order_index: hasManualOrderIndex(m) ? m.orderIndex! : null,
     owner_user_id: m.ownerUserId?.trim() ? m.ownerUserId.trim() : null,
     media_source: m.mediaSource,
+    review_status: m.reviewStatus,
   };
 
   if (m.isHidden !== undefined) {
@@ -368,6 +375,7 @@ function buildLegacyJsonRowsFromGallery(
       mediaType: m.mediaType,
       fileType: m.fileType,
       mediaSource: m.mediaSource,
+      reviewStatus: m.reviewStatus,
     };
 
     if (m.thumbnailUrl) {

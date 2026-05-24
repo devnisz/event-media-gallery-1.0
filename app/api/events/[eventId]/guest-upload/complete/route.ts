@@ -111,6 +111,7 @@ export async function POST(
       mediaType: typeInfo.mediaType,
       fileType,
       mediaSource: "guest",
+      reviewStatus: event.requireGuestUploadApproval ? "pending" : "approved",
       thumbnailUrl: thumbnailUrl ?? (typeInfo.mediaType === "video" ? undefined : publicUrl),
       createdAt: now,
       uploadedAt: now,

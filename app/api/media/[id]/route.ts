@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import {
+  isValidReviewStatus,
   softDeleteDashboardMedia,
   updateDashboardMediaState,
 } from "@/lib/dashboard/media-actions";
@@ -33,8 +34,13 @@ export async function PATCH(request: Request, context: MediaRouteContext) {
     const body = (await request.json()) as {
       isHidden?: unknown;
       isFavorite?: unknown;
+      reviewStatus?: unknown;
     };
-    const patch: { isHidden?: boolean; isFavorite?: boolean } = {};
+    const patch: {
+      isHidden?: boolean;
+      isFavorite?: boolean;
+      reviewStatus?: "approved" | "pending" | "rejected";
+    } = {};
 
     if (typeof body.isHidden === "boolean") {
       patch.isHidden = body.isHidden;
@@ -42,6 +48,10 @@ export async function PATCH(request: Request, context: MediaRouteContext) {
 
     if (typeof body.isFavorite === "boolean") {
       patch.isFavorite = body.isFavorite;
+    }
+
+    if (isValidReviewStatus(body.reviewStatus)) {
+      patch.reviewStatus = body.reviewStatus;
     }
 
     if (Object.keys(patch).length === 0) {

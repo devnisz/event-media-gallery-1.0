@@ -3,6 +3,7 @@ import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-bu
 import { EventCover } from "@/components/dashboard/event-cover";
 import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
+import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
 import { QrCode } from "@/components/public/qr-code";
 import { getDashboardEventDetail } from "@/lib/dashboard/queries";
 import { routes } from "@/lib/routes";
@@ -113,8 +114,13 @@ export default async function DashboardEventPage({
         initialAllowPublicDelete={detail.event.allowPublicDelete}
         initialRequireDeletePin={detail.event.requireDeletePin}
         initialAllowGuestUpload={detail.event.allowGuestUpload}
+        initialRequireGuestUploadApproval={
+          detail.event.requireGuestUploadApproval
+        }
         hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
       />
+
+      <PendingGuestUploads initialUploads={detail.pendingGuestUploads} />
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
         <h2 className="text-2xl font-black tracking-tight">Uploads recentes</h2>
@@ -132,6 +138,11 @@ export default async function DashboardEventPage({
                   {media.mediaType.toUpperCase()} ·{" "}
                   {formatDate(media.uploadedAt ?? media.createdAt ?? "")}
                 </p>
+                {media.reviewStatus !== "approved" ? (
+                  <span className="mt-3 inline-flex rounded-full bg-amber-300/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-100">
+                    {media.reviewStatus === "pending" ? "Pendente" : "Rejeitada"}
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>

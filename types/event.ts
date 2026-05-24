@@ -17,6 +17,8 @@ export type GalleryEventRecord = {
   deletePinHash?: string;
   /** Permite upload publico sem login por convidados. */
   allowGuestUpload: boolean;
+  /** Quando ligado, uploads guest ficam pendentes ate aprovacao no dashboard. */
+  requireGuestUploadApproval: boolean;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */
