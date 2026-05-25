@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
@@ -93,6 +100,34 @@ function realtimeRowMatchesEvent(
   return rowEventId === targetId;
 }
 
+function realtimeRowIsPubliclyVisible(row: Record<string, unknown>): boolean {
+  return (
+    row.review_status === "approved" &&
+    row.is_hidden !== true &&
+    typeof row.deleted_at !== "string"
+  );
+}
+
+function addOrUpdateRealtimeMedia(
+  setVideos: Dispatch<SetStateAction<EventVideo[]>>,
+  media: EventVideo,
+) {
+  setVideos((prev) => {
+    const index = prev.findIndex((v) => v.id === media.id);
+
+    if (index === -1) {
+      console.log("[REALTIME] mídia adicionada", media.id);
+      return [media, ...prev];
+    }
+
+    const next = [...prev];
+    next[index] = { ...next[index], ...media };
+    console.log("[REALTIME] mídia atualizada", media.id);
+
+    return next;
+  });
+}
+
 export function VideoGallery({
   initialVideos,
   eventSlug,
@@ -167,6 +202,16 @@ export function VideoGallery({
             return;
           }
 
+          if (!realtimeRowIsPubliclyVisible(row)) {
+            console.log("[REALTIME] insert ignorado (não público)", {
+              id: row.id,
+              reviewStatus: row.review_status,
+              isHidden: row.is_hidden,
+              deletedAt: row.deleted_at,
+            });
+            return;
+          }
+
           const normalized = normalizeRealtimeInsert(payload.new);
           const media = tryRealtimeRowToEventMedia(normalized, en, 0);
 
@@ -178,14 +223,58 @@ export function VideoGallery({
             return;
           }
 
-          setVideos((prev) => {
-            if (prev.some((v) => v.id === media.id)) {
-              console.log("[REALTIME] duplicado ignorado", media.id);
-              return prev;
+          addOrUpdateRealtimeMedia(setVideos, media);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "media",
+        },
+        (payload) => {
+          console.log("[REALTIME] update recebido", payload);
+          const { eventSlug: es, eventId: eid, eventName: en } = ctxRef.current;
+          const row = payload.new as Record<string, unknown>;
+
+          if (!realtimeRowMatchesEvent(row, es, eid)) {
+            console.log("[REALTIME] update ignorado (outro evento)", {
+              rowSlug: row.event_slug,
+              rowEventId: row.event_id,
+              gallerySlug: es,
+              galleryEventId: eid,
+            });
+            return;
+          }
+
+          if (!realtimeRowIsPubliclyVisible(row)) {
+            const id = normalizedString(row.id);
+
+            if (id) {
+              setVideos((prev) => prev.filter((v) => v.id !== id));
             }
-            console.log("[REALTIME] vídeo adicionado", media.id);
-            return [media, ...prev];
-          });
+            console.log("[REALTIME] update removeu/ignorou mídia não pública", {
+              id,
+              reviewStatus: row.review_status,
+              isHidden: row.is_hidden,
+              deletedAt: row.deleted_at,
+            });
+            return;
+          }
+
+          const normalized = normalizeRealtimeInsert(payload.new);
+          const media = tryRealtimeRowToEventMedia(normalized, en, 0);
+
+          if (!media) {
+            console.log(
+              "[REALTIME] update não virou EventMedia (id/url?) — após normalize",
+              normalized,
+            );
+            return;
+          }
+
+          addOrUpdateRealtimeMedia(setVideos, media);
         },
       )
       .subscribe((status, err) => {
