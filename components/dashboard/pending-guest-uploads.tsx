@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { GalleryMediaRecord, MediaReviewStatus } from "@/types/media";
 import { AdminToast, type AdminToastState } from "@/components/admin/admin-toast";
+import { isMediaLike, toGalleryRecord } from "@/lib/media/galleryMapping";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 
 type PendingGuestUploadsProps = {
+  eventId: string;
   initialUploads: GalleryMediaRecord[];
 };
 
@@ -33,11 +36,50 @@ function moderationPreviewUrl(mediaId: string): string {
   return `/api/media/${encodeURIComponent(mediaId)}/moderation-preview`;
 }
 
+function mediaTime(media: GalleryMediaRecord): number {
+  const value = media.uploadedAt ?? media.createdAt ?? media.timestamp;
+  const timestamp = value ? Date.parse(value) : NaN;
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortPendingUploads(list: GalleryMediaRecord[]): GalleryMediaRecord[] {
+  return [...list].sort((a, b) => mediaTime(b) - mediaTime(a));
+}
+
+function isPendingGuestUpload(
+  media: GalleryMediaRecord,
+  eventId: string,
+): boolean {
+  return (
+    media.eventId === eventId &&
+    media.mediaSource === "guest" &&
+    media.reviewStatus === "pending" &&
+    !media.deletedAt
+  );
+}
+
+function normalizeRealtimeMediaRow(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") {
+    return raw;
+  }
+
+  const row = { ...(raw as Record<string, unknown>) };
+
+  if (typeof row.id === "number" && Number.isFinite(row.id)) {
+    row.id = String(Math.trunc(row.id));
+  }
+
+  return row;
+}
+
 export function PendingGuestUploads({
+  eventId,
   initialUploads,
 }: PendingGuestUploadsProps) {
   const router = useRouter();
-  const [uploads, setUploads] = useState(initialUploads);
+  const [uploads, setUploads] = useState(() => sortPendingUploads(initialUploads));
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<AdminToastState>(null);
 
@@ -45,6 +87,111 @@ export function PendingGuestUploads({
     setToast({ tone, message });
     window.setTimeout(() => setToast(null), 3400);
   }
+
+  function addOrUpdatePendingUpload(media: GalleryMediaRecord, markNew: boolean) {
+    setUploads((current) => {
+      const index = current.findIndex((item) => item.id === media.id);
+      const next =
+        index === -1
+          ? [media, ...current]
+          : current.map((item) => (item.id === media.id ? media : item));
+
+      return sortPendingUploads(next);
+    });
+
+    if (markNew) {
+      setNewIds((current) => new Set(current).add(media.id));
+      window.setTimeout(() => {
+        setNewIds((current) => {
+          const next = new Set(current);
+          next.delete(media.id);
+          return next;
+        });
+      }, 6000);
+    }
+  }
+
+  function removePendingUpload(id: string) {
+    setUploads((current) => current.filter((item) => item.id !== id));
+    setNewIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    const supabase = createBrowserSupabase();
+
+    if (!supabase) {
+      console.warn("[MODERATION_REALTIME] sem cliente — subscription não iniciada");
+      return;
+    }
+
+    function handleRealtimeRow(raw: unknown, markNew: boolean) {
+      const normalized = normalizeRealtimeMediaRow(raw);
+
+      if (!isMediaLike(normalized)) {
+        console.log("[MODERATION_REALTIME] linha ignorada (payload inválido)", normalized);
+        return;
+      }
+
+      const media = toGalleryRecord(normalized);
+
+      if (isPendingGuestUpload(media, eventId)) {
+        addOrUpdatePendingUpload(media, markNew);
+        return;
+      }
+
+      removePendingUpload(media.id);
+    }
+
+    const channel = supabase
+      .channel(`dashboard_pending_guest_uploads:${eventId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "media",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => handleRealtimeRow(payload.new, true),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "media",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => handleRealtimeRow(payload.new, false),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "media",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          const id = payload.old.id;
+
+          if (typeof id === "string") {
+            removePendingUpload(id);
+          }
+        },
+      )
+      .subscribe((status, error) => {
+        console.log("[MODERATION_REALTIME] subscription status", status, error ?? "");
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [eventId]);
 
   async function setReviewStatus(
     item: GalleryMediaRecord,
@@ -144,11 +291,12 @@ export function PendingGuestUploads({
           {uploads.map((item) => {
             const preview = mediaPreview(item);
             const busy = busyId === item.id;
+            const isNew = newIds.has(item.id);
 
             return (
               <article
                 key={item.id}
-                className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-black/25 p-4 sm:grid-cols-[8rem_minmax(0,1fr)]"
+                className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-black/25 p-4 transition sm:grid-cols-[8rem_minmax(0,1fr)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-900">
                   {item.mediaType === "video" ? (
@@ -178,6 +326,11 @@ export function PendingGuestUploads({
                   <span className="absolute left-2 top-2 rounded-full bg-amber-300 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-slate-950">
                     Pendente
                   </span>
+                  {isNew ? (
+                    <span className="absolute right-2 top-2 rounded-full bg-emerald-400 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-slate-950">
+                      Novo upload
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="min-w-0 space-y-3">
