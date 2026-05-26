@@ -108,3 +108,69 @@ export async function getUserProfileStatus(
 export async function isUserSuspended(userId: string): Promise<boolean> {
   return (await getUserProfileStatus(userId)) === "suspended";
 }
+
+/** Valida master_admin ativo em Route Handlers (sem redirect). */
+export async function assertMasterAdminForApi(): Promise<
+  MasterAdminSession | Response
+> {
+  const auth = await createAuthServerSupabase();
+
+  if (!auth) {
+    return Response.json(
+      { error: "Autenticação não configurada (Supabase URL/anon)." },
+      { status: 503 },
+    );
+  }
+
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+
+  if (!user) {
+    return Response.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  if (await isUserSuspended(user.id)) {
+    return Response.json({ error: "Usuário suspenso." }, { status: 403 });
+  }
+
+  const service = createServiceRoleSupabaseResult();
+
+  if (!service.ok) {
+    return Response.json({ error: service.reason }, { status: 503 });
+  }
+
+  const { data, error } = await service.client
+    .from("profiles")
+    .select("id,email,name,role,status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    return Response.json(
+      {
+        error:
+          "Não foi possível validar o perfil master_admin. Confirme se o SQL de profiles foi executado.",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (!data || data.role !== "master_admin" || data.status !== "active") {
+    return Response.json(
+      { error: "Acesso restrito a administradores ativos." },
+      { status: 403 },
+    );
+  }
+
+  return {
+    user,
+    profile: {
+      id: String(data.id),
+      email: typeof data.email === "string" ? data.email : null,
+      name: typeof data.name === "string" ? data.name : null,
+      role: String(data.role),
+      status: String(data.status),
+    },
+  };
+}

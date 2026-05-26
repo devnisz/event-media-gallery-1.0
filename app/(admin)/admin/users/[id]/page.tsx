@@ -19,10 +19,10 @@ export default async function AdminUserDetailPage({
     <main className="space-y-10">
       <section>
         <Link
-          href={routes.admin}
+          href={routes.adminUsers}
           className="text-sm font-semibold text-white/50 hover:text-white"
         >
-          Voltar ao painel administrativo
+          Voltar aos usuários
         </Link>
         <p className="mt-8 text-xs font-semibold uppercase tracking-[0.35em] text-amber-200">
           Usuário

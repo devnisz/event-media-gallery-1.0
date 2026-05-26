@@ -59,6 +59,12 @@ export default async function AdminLayout({
         <Link href={routes.home} className="hover:text-white">
           Galeria pública
         </Link>
+        <Link href={routes.admin} className="hover:text-white">
+          Visão geral
+        </Link>
+        <Link href={routes.adminUsers} className="hover:text-white">
+          Usuários
+        </Link>
       </nav>
       {children}
     </AdminShell>

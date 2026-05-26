@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { AdminUsersTable } from "@/components/admin/admin-users-table";
 import { getAdminOverview } from "@/lib/admin/queries";
 import { formatStorage } from "@/lib/admin/format";
-
+import { routes } from "@/lib/routes";
 export const dynamic = "force-dynamic";
 
 function StatCard({
@@ -62,10 +63,27 @@ export default async function AdminHomePage() {
         />
       </section>
 
-      <AdminUsersTable
-        users={overview.users}
-        storageSizeAvailable={overview.storageSizeAvailable}
-      />
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black tracking-tight">Usuários recentes</h2>
+            <p className="mt-1 text-sm text-white/45">
+              Resumo da plataforma. Gerencie contas na área dedicada.
+            </p>
+          </div>
+          <Link
+            href={routes.adminUsers}
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 px-5 text-sm font-bold text-white/80 transition hover:bg-white/10"
+          >
+            Gerenciar usuários
+          </Link>
+        </div>
+
+        <AdminUsersTable
+          users={overview.users}
+          storageSizeAvailable={overview.storageSizeAvailable}
+        />
+      </section>
     </main>
   );
 }
