@@ -19,6 +19,8 @@ export type GalleryEventRecord = {
   allowGuestUpload: boolean;
   /** Quando ligado, uploads guest ficam pendentes ate aprovacao no dashboard. */
   requireGuestUploadApproval: boolean;
+  /** Moldura PNG opcional da Cabine de Bolso (URL pública). */
+  frameUrl: string;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

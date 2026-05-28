@@ -20,6 +20,7 @@ import {
   deleteR2ObjectsByKeys,
   tryCreateR2DeletionClient,
 } from "@/lib/r2/removal";
+import { buildPocketBoothFrameKey } from "@/lib/r2/upload";
 
 export class EventNotFoundDeletionError extends Error {
   constructor() {
@@ -114,6 +115,25 @@ export async function deleteEventAndRelatedAssets(
         const msg = err instanceof Error ? err.message : String(err);
         r2Errors.push(`${prefix}: ${msg}`);
         push(`R2 FALHA no prefixo ${prefix}: ${msg}`);
+      }
+    }
+
+    if (event.frameUrl?.trim()) {
+      const frameKey = buildPocketBoothFrameKey(event.id);
+      push(`R2: removendo moldura da Cabine de Bolso "${frameKey}"…`);
+
+      try {
+        const frameDel = await deleteR2ObjectsByKeys(r2.client, r2.bucket, [
+          frameKey,
+        ]);
+
+        r2ObjectsRemoved += frameDel.deleted;
+        r2Errors.push(...frameDel.errors);
+        push(`R2: moldura → ${frameDel.deleted} removido(s).`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        r2Errors.push(`${frameKey}: ${msg}`);
+        push(`R2 FALHA na moldura ${frameKey}: ${msg}`);
       }
     }
   }

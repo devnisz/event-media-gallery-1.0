@@ -201,6 +201,7 @@ async function migrateLegacyAssociations(
       requireDeletePin: false,
       allowGuestUpload: false,
       requireGuestUploadApproval: false,
+      frameUrl: "",
     };
     events.push(legacy);
     await writeEvents(events);

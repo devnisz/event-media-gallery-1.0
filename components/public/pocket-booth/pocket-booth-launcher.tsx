@@ -6,15 +6,17 @@ import { PocketBoothModal } from "./pocket-booth-modal";
 type PocketBoothLauncherProps = {
   eventId?: string;
   allowGuestUpload: boolean;
+  frameUrl?: string;
 };
 
 /**
- * Cabine de Bolso — captura e publicação via fluxo de upload de convidado.
+ * Cabine de Bolso — captura, moldura e publicação via fluxo de upload de convidado.
  * Componente isolado: remova este import e o uso em `video-gallery.tsx` para desativar.
  */
 export function PocketBoothLauncher({
   eventId,
   allowGuestUpload,
+  frameUrl = "",
 }: PocketBoothLauncherProps) {
   const [open, setOpen] = useState(false);
 
@@ -28,6 +30,7 @@ export function PocketBoothLauncher({
         open={open}
         eventId={eventId}
         allowGuestUpload={allowGuestUpload}
+        frameUrl={frameUrl}
         onClose={() => setOpen(false)}
       />
 

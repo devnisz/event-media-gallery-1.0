@@ -17,6 +17,7 @@ create table if not exists public.events (
   delete_pin_hash text,
   allow_guest_upload boolean not null default false,
   require_guest_upload_approval boolean not null default false,
+  frame_url text not null default '',
   owner_user_id uuid references auth.users (id) on delete set null
 );
 

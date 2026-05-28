@@ -40,6 +40,7 @@ type EventRow = {
   delete_pin_hash?: string | null;
   allow_guest_upload?: boolean | null;
   require_guest_upload_approval?: boolean | null;
+  frame_url?: string | null;
 };
 
 export type PersistEventsOutcome = {
@@ -122,6 +123,7 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     requireDeletePin: optionalBoolean(row.require_delete_pin),
     allowGuestUpload: optionalBoolean(row.allow_guest_upload),
     requireGuestUploadApproval: optionalBoolean(row.require_guest_upload_approval),
+    frameUrl: optionalTrimmedString(row.frame_url),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -144,6 +146,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     delete_pin_hash: e.deletePinHash?.trim() ? e.deletePinHash.trim() : null,
     allow_guest_upload: e.allowGuestUpload,
     require_guest_upload_approval: e.requireGuestUploadApproval,
+    frame_url: e.frameUrl ?? "",
   };
 }
 

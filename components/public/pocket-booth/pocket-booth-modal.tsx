@@ -9,6 +9,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { uploadGuestMediaFile } from "@/lib/guest-upload/upload-client";
+import { composePhotoWithFrame } from "@/lib/pocket-booth/apply-frame";
 import {
   buildPocketBoothPhotoFile,
   canCapturePhoto,
@@ -42,32 +43,54 @@ const OPTIONS: PocketBoothOption[] = [
   },
 ];
 
-type ModalStep = "menu" | "preview" | "uploading" | "no-camera";
+type ModalStep =
+  | "menu"
+  | "no-camera"
+  | "frame-choice"
+  | "composing"
+  | "final-preview"
+  | "uploading";
 
 type PocketBoothModalProps = {
   open: boolean;
   eventId?: string;
   allowGuestUpload: boolean;
+  frameUrl?: string;
   onClose: () => void;
 };
+
+function revokeObjectUrl(url: string | null) {
+  if (url) {
+    URL.revokeObjectURL(url);
+  }
+}
 
 export function PocketBoothModal({
   open,
   eventId,
   allowGuestUpload,
+  frameUrl = "",
   onClose,
 }: PocketBoothModalProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const previewUrlRef = useRef<string | null>(null);
+  const capturePreviewUrlRef = useRef<string | null>(null);
+  const finalPreviewUrlRef = useRef<string | null>(null);
   const titleId = useId();
   const [step, setStep] = useState<ModalStep>("menu");
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [finalFile, setFinalFile] = useState<File | null>(null);
+  const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [finalPreviewUrl, setFinalPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadMessage, setUploadMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  const officialFrameUrl = frameUrl.trim();
+  const hasOfficialFrame = officialFrameUrl.length > 0;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -85,30 +108,38 @@ export function PocketBoothModal({
   }, [open]);
 
   useEffect(() => {
-    previewUrlRef.current = previewUrl;
+    capturePreviewUrlRef.current = capturePreviewUrl;
+  }, [capturePreviewUrl]);
 
+  useEffect(() => {
+    finalPreviewUrlRef.current = finalPreviewUrl;
+  }, [finalPreviewUrl]);
+
+  useEffect(() => {
     return () => {
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current);
-      }
+      revokeObjectUrl(capturePreviewUrlRef.current);
+      revokeObjectUrl(finalPreviewUrlRef.current);
     };
-  }, [previewUrl]);
+  }, []);
 
   function resetState() {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
+    revokeObjectUrl(capturePreviewUrl);
+    revokeObjectUrl(
+      finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
+    );
 
     setStep("menu");
-    setPendingFile(null);
-    setPreviewUrl(null);
+    setSourceFile(null);
+    setFinalFile(null);
+    setCapturePreviewUrl(null);
+    setFinalPreviewUrl(null);
     setUploadProgress(0);
     setUploadMessage("");
     setErrorMessage("");
   }
 
   function handleClose() {
-    if (step === "uploading") {
+    if (step === "uploading" || step === "composing") {
       return;
     }
 
@@ -154,25 +185,94 @@ export function PocketBoothModal({
       return;
     }
 
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
+    revokeObjectUrl(capturePreviewUrl);
+    revokeObjectUrl(
+      finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
+    );
 
     const normalizedFile = buildPocketBoothPhotoFile(file);
-    const nextPreviewUrl = URL.createObjectURL(normalizedFile);
+    const nextCaptureUrl = URL.createObjectURL(normalizedFile);
 
-    setPendingFile(normalizedFile);
-    setPreviewUrl(nextPreviewUrl);
-    setStep("preview");
+    setSourceFile(normalizedFile);
+    setCapturePreviewUrl(nextCaptureUrl);
+    setFinalFile(null);
+    setFinalPreviewUrl(null);
     setErrorMessage("");
+
+    if (hasOfficialFrame) {
+      setStep("frame-choice");
+      return;
+    }
+
+    setFinalFile(normalizedFile);
+    setFinalPreviewUrl(nextCaptureUrl);
+    setStep("final-preview");
   }
 
-  function handleCancelPreview() {
+  function chooseWithoutFrame() {
+    if (!sourceFile || !capturePreviewUrl) {
+      return;
+    }
+
+    setFinalFile(sourceFile);
+    setFinalPreviewUrl(capturePreviewUrl);
+    setErrorMessage("");
+    setStep("final-preview");
+  }
+
+  async function chooseOfficialFrame() {
+    if (!sourceFile || !hasOfficialFrame) {
+      return;
+    }
+
+    setStep("composing");
+    setErrorMessage("");
+
+    try {
+      const composedFile = await composePhotoWithFrame(
+        sourceFile,
+        officialFrameUrl,
+      );
+
+      revokeObjectUrl(
+        finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
+      );
+
+      const nextFinalUrl = URL.createObjectURL(composedFile);
+      setFinalFile(composedFile);
+      setFinalPreviewUrl(nextFinalUrl);
+      setStep("final-preview");
+    } catch (error) {
+      setStep("frame-choice");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível aplicar a moldura.",
+      );
+    }
+  }
+
+  function handleBackFromFinalPreview() {
+    revokeObjectUrl(
+      finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
+    );
+
+    setFinalFile(null);
+    setFinalPreviewUrl(null);
+    setErrorMessage("");
+
+    if (hasOfficialFrame) {
+      setStep("frame-choice");
+      return;
+    }
+
     resetState();
   }
 
   async function handlePublishPhoto() {
-    if (!pendingFile || !eventId) {
+    const fileToPublish = finalFile ?? sourceFile;
+
+    if (!fileToPublish || !eventId) {
       return;
     }
 
@@ -182,7 +282,7 @@ export function PocketBoothModal({
     setErrorMessage("");
 
     try {
-      await uploadGuestMediaFile(eventId, pendingFile, (update) => {
+      await uploadGuestMediaFile(eventId, fileToPublish, (update) => {
         setUploadProgress(update.progress);
         setUploadMessage(update.message);
       });
@@ -191,7 +291,7 @@ export function PocketBoothModal({
       onClose();
       router.refresh();
     } catch (error) {
-      setStep("preview");
+      setStep("final-preview");
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -199,6 +299,9 @@ export function PocketBoothModal({
       );
     }
   }
+
+  const previewUrl =
+    step === "frame-choice" ? capturePreviewUrl : finalPreviewUrl;
 
   return (
     <>
@@ -217,7 +320,11 @@ export function PocketBoothModal({
         className="w-[min(100%,28rem)] max-w-[calc(100vw-2rem)] rounded-[2rem] border border-white/12 bg-slate-950/95 p-0 text-white shadow-[0_40px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl open:animate-rise"
         onClose={handleClose}
         onClick={(event) => {
-          if (event.target === dialogRef.current && step !== "uploading") {
+          if (
+            event.target === dialogRef.current &&
+            step !== "uploading" &&
+            step !== "composing"
+          ) {
             handleClose();
           }
         }}
@@ -229,7 +336,7 @@ export function PocketBoothModal({
           />
 
           <div className="relative p-6 sm:p-8">
-            {step !== "uploading" ? (
+            {step !== "uploading" && step !== "composing" ? (
               <button
                 type="button"
                 onClick={handleClose}
@@ -311,7 +418,7 @@ export function PocketBoothModal({
               </>
             ) : null}
 
-            {step === "preview" && previewUrl ? (
+            {step === "frame-choice" && previewUrl ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
                   Cabine de Bolso
@@ -323,7 +430,7 @@ export function PocketBoothModal({
                   Prévia da foto
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Confira a captura antes de publicar na galeria do evento.
+                  Escolha se deseja aplicar a moldura oficial do evento.
                 </p>
 
                 <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
@@ -331,6 +438,75 @@ export function PocketBoothModal({
                   <img
                     src={previewUrl}
                     alt="Prévia da foto capturada"
+                    className="max-h-[min(42vh,24rem)] w-full object-contain"
+                  />
+                </div>
+
+                {errorMessage ? (
+                  <p className="mt-4 text-sm font-semibold text-red-200">
+                    {errorMessage}
+                  </p>
+                ) : null}
+
+                <div className="mt-6 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={chooseWithoutFrame}
+                    className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-6 text-sm font-bold text-white/85 transition hover:bg-white/10"
+                  >
+                    Sem moldura
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void chooseOfficialFrame()}
+                    className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-sm font-black text-slate-950 shadow-[0_12px_40px_rgba(251,191,36,0.25)] transition hover:brightness-105 active:scale-[0.98]"
+                  >
+                    Moldura Oficial do Evento
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {step === "composing" ? (
+              <>
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
+                  Cabine de Bolso
+                </p>
+                <h2
+                  id={titleId}
+                  className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
+                >
+                  Aplicando moldura
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-white/45">
+                  Preparando a imagem final no seu dispositivo...
+                </p>
+                <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400" />
+                </div>
+              </>
+            ) : null}
+
+            {step === "final-preview" && previewUrl ? (
+              <>
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
+                  Cabine de Bolso
+                </p>
+                <h2
+                  id={titleId}
+                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
+                >
+                  Resultado final
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-white/45">
+                  Confira a imagem antes de publicar na galeria do evento.
+                </p>
+
+                <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewUrl}
+                    alt="Prévia final da foto"
                     className="max-h-[min(52vh,28rem)] w-full object-contain"
                   />
                 </div>
@@ -344,10 +520,10 @@ export function PocketBoothModal({
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
-                    onClick={handleCancelPreview}
+                    onClick={handleBackFromFinalPreview}
                     className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-white/15 px-6 text-sm font-bold text-white/80 transition hover:bg-white/10"
                   >
-                    Cancelar
+                    Voltar
                   </button>
                   <button
                     type="button"

@@ -46,6 +46,7 @@ export function hydrateAssignTokens(
         coverImage: e.coverImage ?? "",
         videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
         uploadToken: trimmedExisting,
+        frameUrl: e.frameUrl ?? "",
         ...gallerySettings,
         ...(e.ownerUserId?.trim()
           ? { ownerUserId: e.ownerUserId.trim() }
@@ -66,6 +67,7 @@ export function hydrateAssignTokens(
       coverImage: e.coverImage ?? "",
       videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
       uploadToken,
+      frameUrl: e.frameUrl ?? "",
       ...gallerySettings,
       ...(e.ownerUserId?.trim()
         ? { ownerUserId: e.ownerUserId.trim() }

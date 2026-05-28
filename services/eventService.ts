@@ -89,6 +89,7 @@ export async function createEventRecordWithPersistence(
     requireDeletePin: false,
     allowGuestUpload: false,
     requireGuestUploadApproval: false,
+    frameUrl: "",
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -202,4 +203,25 @@ export async function setEventCoverIfEmpty(
 
   events[idx] = { ...events[idx], coverImage: trimmed };
   await writeEvents(events);
+}
+
+export async function updateEventPocketBoothFrameUrl(
+  eventId: string,
+  frameUrl: string,
+): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
+  const events = await readEvents();
+  const idx = events.findIndex((e) => e.id === eventId);
+
+  if (idx === -1) {
+    throw new Error("Evento não encontrado.");
+  }
+
+  events[idx] = {
+    ...events[idx],
+    frameUrl: frameUrl.trim(),
+  };
+
+  const persistence = await writeEvents(events);
+
+  return { event: events[idx], persistence };
 }

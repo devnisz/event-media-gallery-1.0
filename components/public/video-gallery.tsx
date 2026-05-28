@@ -25,6 +25,7 @@ type VideoGalleryProps = {
   allowPublicDelete: boolean;
   requireDeletePin: boolean;
   allowGuestUpload: boolean;
+  frameUrl?: string;
 };
 
 const NEW_MEDIA_GLOW_MS = 8000;
@@ -155,6 +156,7 @@ export function VideoGallery({
   allowPublicDelete,
   requireDeletePin,
   allowGuestUpload,
+  frameUrl = "",
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
   const [newMediaIds, setNewMediaIds] = useState<Set<string>>(new Set());
@@ -378,6 +380,7 @@ export function VideoGallery({
       <PocketBoothLauncher
         eventId={eventId}
         allowGuestUpload={allowGuestUpload}
+        frameUrl={frameUrl}
       />
     </section>
   );
