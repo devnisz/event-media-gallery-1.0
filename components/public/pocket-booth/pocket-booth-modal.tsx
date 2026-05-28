@@ -43,13 +43,7 @@ const OPTIONS: PocketBoothOption[] = [
   },
 ];
 
-type ModalStep =
-  | "menu"
-  | "no-camera"
-  | "frame-choice"
-  | "composing"
-  | "final-preview"
-  | "uploading";
+type ModalStep = "menu" | "no-camera" | "composing" | "final-preview" | "uploading";
 
 type PocketBoothModalProps = {
   open: boolean;
@@ -76,21 +70,34 @@ export function PocketBoothModal({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const capturePreviewUrlRef = useRef<string | null>(null);
-  const finalPreviewUrlRef = useRef<string | null>(null);
+  const composedPreviewUrlRef = useRef<string | null>(null);
   const titleId = useId();
   const [step, setStep] = useState<ModalStep>("menu");
   const [sourceFile, setSourceFile] = useState<File | null>(null);
-  const [finalFile, setFinalFile] = useState<File | null>(null);
+  const [composedFile, setComposedFile] = useState<File | null>(null);
   const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(
     null,
   );
-  const [finalPreviewUrl, setFinalPreviewUrl] = useState<string | null>(null);
+  const [composedPreviewUrl, setComposedPreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [useFramedPreview, setUseFramedPreview] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadMessage, setUploadMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const officialFrameUrl = frameUrl.trim();
   const hasOfficialFrame = officialFrameUrl.length > 0;
+  const showingFramedVersion =
+    hasOfficialFrame && useFramedPreview && Boolean(composedFile);
+
+  const activePreviewUrl = showingFramedVersion
+    ? composedPreviewUrl
+    : capturePreviewUrl;
+
+  const activePublishFile = showingFramedVersion
+    ? composedFile
+    : sourceFile;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -112,27 +119,26 @@ export function PocketBoothModal({
   }, [capturePreviewUrl]);
 
   useEffect(() => {
-    finalPreviewUrlRef.current = finalPreviewUrl;
-  }, [finalPreviewUrl]);
+    composedPreviewUrlRef.current = composedPreviewUrl;
+  }, [composedPreviewUrl]);
 
   useEffect(() => {
     return () => {
       revokeObjectUrl(capturePreviewUrlRef.current);
-      revokeObjectUrl(finalPreviewUrlRef.current);
+      revokeObjectUrl(composedPreviewUrlRef.current);
     };
   }, []);
 
   function resetState() {
     revokeObjectUrl(capturePreviewUrl);
-    revokeObjectUrl(
-      finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
-    );
+    revokeObjectUrl(composedPreviewUrl);
 
     setStep("menu");
     setSourceFile(null);
-    setFinalFile(null);
+    setComposedFile(null);
     setCapturePreviewUrl(null);
-    setFinalPreviewUrl(null);
+    setComposedPreviewUrl(null);
+    setUseFramedPreview(true);
     setUploadProgress(0);
     setUploadMessage("");
     setErrorMessage("");
@@ -176,6 +182,33 @@ export function PocketBoothModal({
     setErrorMessage("Em desenvolvimento");
   }
 
+  async function applyOfficialFrameAutomatically(source: File) {
+    setStep("composing");
+    setErrorMessage("");
+
+    try {
+      const framed = await composePhotoWithFrame(source, officialFrameUrl);
+
+      revokeObjectUrl(composedPreviewUrl);
+
+      setComposedFile(framed);
+      setComposedPreviewUrl(URL.createObjectURL(framed));
+      setUseFramedPreview(true);
+      setStep("final-preview");
+    } catch (error) {
+      setComposedFile(null);
+      revokeObjectUrl(composedPreviewUrl);
+      setComposedPreviewUrl(null);
+      setUseFramedPreview(false);
+      setStep("final-preview");
+      setErrorMessage(
+        error instanceof Error
+          ? `${error.message} Você ainda pode publicar sem moldura.`
+          : "Não foi possível aplicar a moldura. Você ainda pode publicar sem moldura.",
+      );
+    }
+  }
+
   function handleCaptureChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -186,93 +219,28 @@ export function PocketBoothModal({
     }
 
     revokeObjectUrl(capturePreviewUrl);
-    revokeObjectUrl(
-      finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
-    );
+    revokeObjectUrl(composedPreviewUrl);
 
     const normalizedFile = buildPocketBoothPhotoFile(file);
     const nextCaptureUrl = URL.createObjectURL(normalizedFile);
 
     setSourceFile(normalizedFile);
     setCapturePreviewUrl(nextCaptureUrl);
-    setFinalFile(null);
-    setFinalPreviewUrl(null);
+    setComposedFile(null);
+    setComposedPreviewUrl(null);
+    setUseFramedPreview(true);
     setErrorMessage("");
 
     if (hasOfficialFrame) {
-      setStep("frame-choice");
+      void applyOfficialFrameAutomatically(normalizedFile);
       return;
     }
 
-    setFinalFile(normalizedFile);
-    setFinalPreviewUrl(nextCaptureUrl);
     setStep("final-preview");
-  }
-
-  function chooseWithoutFrame() {
-    if (!sourceFile || !capturePreviewUrl) {
-      return;
-    }
-
-    setFinalFile(sourceFile);
-    setFinalPreviewUrl(capturePreviewUrl);
-    setErrorMessage("");
-    setStep("final-preview");
-  }
-
-  async function chooseOfficialFrame() {
-    if (!sourceFile || !hasOfficialFrame) {
-      return;
-    }
-
-    setStep("composing");
-    setErrorMessage("");
-
-    try {
-      const composedFile = await composePhotoWithFrame(
-        sourceFile,
-        officialFrameUrl,
-      );
-
-      revokeObjectUrl(
-        finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
-      );
-
-      const nextFinalUrl = URL.createObjectURL(composedFile);
-      setFinalFile(composedFile);
-      setFinalPreviewUrl(nextFinalUrl);
-      setStep("final-preview");
-    } catch (error) {
-      setStep("frame-choice");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível aplicar a moldura.",
-      );
-    }
-  }
-
-  function handleBackFromFinalPreview() {
-    revokeObjectUrl(
-      finalPreviewUrl !== capturePreviewUrl ? finalPreviewUrl : null,
-    );
-
-    setFinalFile(null);
-    setFinalPreviewUrl(null);
-    setErrorMessage("");
-
-    if (hasOfficialFrame) {
-      setStep("frame-choice");
-      return;
-    }
-
-    resetState();
   }
 
   async function handlePublishPhoto() {
-    const fileToPublish = finalFile ?? sourceFile;
-
-    if (!fileToPublish || !eventId) {
+    if (!activePublishFile || !eventId) {
       return;
     }
 
@@ -282,7 +250,7 @@ export function PocketBoothModal({
     setErrorMessage("");
 
     try {
-      await uploadGuestMediaFile(eventId, fileToPublish, (update) => {
+      await uploadGuestMediaFile(eventId, activePublishFile, (update) => {
         setUploadProgress(update.progress);
         setUploadMessage(update.message);
       });
@@ -299,9 +267,6 @@ export function PocketBoothModal({
       );
     }
   }
-
-  const previewUrl =
-    step === "frame-choice" ? capturePreviewUrl : finalPreviewUrl;
 
   return (
     <>
@@ -418,55 +383,6 @@ export function PocketBoothModal({
               </>
             ) : null}
 
-            {step === "frame-choice" && previewUrl ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  Cabine de Bolso
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  Prévia da foto
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  Escolha se deseja aplicar a moldura oficial do evento.
-                </p>
-
-                <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={previewUrl}
-                    alt="Prévia da foto capturada"
-                    className="max-h-[min(42vh,24rem)] w-full object-contain"
-                  />
-                </div>
-
-                {errorMessage ? (
-                  <p className="mt-4 text-sm font-semibold text-red-200">
-                    {errorMessage}
-                  </p>
-                ) : null}
-
-                <div className="mt-6 grid gap-3">
-                  <button
-                    type="button"
-                    onClick={chooseWithoutFrame}
-                    className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-6 text-sm font-bold text-white/85 transition hover:bg-white/10"
-                  >
-                    Sem moldura
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void chooseOfficialFrame()}
-                    className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-sm font-black text-slate-950 shadow-[0_12px_40px_rgba(251,191,36,0.25)] transition hover:brightness-105 active:scale-[0.98]"
-                  >
-                    Moldura Oficial do Evento
-                  </button>
-                </div>
-              </>
-            ) : null}
-
             {step === "composing" ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
@@ -476,10 +392,10 @@ export function PocketBoothModal({
                   id={titleId}
                   className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  Aplicando moldura
+                  Preparando sua foto
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Preparando a imagem final no seu dispositivo...
+                  Aplicando a identidade visual do evento...
                 </p>
                 <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
                   <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400" />
@@ -487,7 +403,7 @@ export function PocketBoothModal({
               </>
             ) : null}
 
-            {step === "final-preview" && previewUrl ? (
+            {step === "final-preview" && activePreviewUrl ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
                   Cabine de Bolso
@@ -496,17 +412,23 @@ export function PocketBoothModal({
                   id={titleId}
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  Resultado final
+                  {showingFramedVersion ? "Sua foto está pronta" : "Foto original"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Confira a imagem antes de publicar na galeria do evento.
+                  {showingFramedVersion
+                    ? "Revise o resultado com a moldura do evento antes de publicar."
+                    : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
                 </p>
 
                 <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={previewUrl}
-                    alt="Prévia final da foto"
+                    src={activePreviewUrl}
+                    alt={
+                      showingFramedVersion
+                        ? "Prévia final com moldura"
+                        : "Prévia da foto original"
+                    }
                     className="max-h-[min(52vh,28rem)] w-full object-contain"
                   />
                 </div>
@@ -517,21 +439,37 @@ export function PocketBoothModal({
                   </p>
                 ) : null}
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={handleBackFromFinalPreview}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-white/15 px-6 text-sm font-bold text-white/80 transition hover:bg-white/10"
-                  >
-                    Voltar
-                  </button>
+                <div className="mt-6 space-y-3">
                   <button
                     type="button"
                     onClick={() => void handlePublishPhoto()}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-sm font-black text-slate-950 shadow-[0_12px_40px_rgba(251,191,36,0.25)] transition hover:brightness-105 active:scale-[0.98]"
+                    className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98]"
                   >
+                    <span aria-hidden>✅</span>
                     Publicar foto
                   </button>
+
+                  {hasOfficialFrame && composedFile ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUseFramedPreview((current) => !current);
+                        setErrorMessage("");
+                      }}
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-transparent px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
+                    >
+                      <span aria-hidden>{showingFramedVersion ? "◻" : "🖼️"}</span>
+                      {showingFramedVersion ? "Sem moldura" : "Com moldura oficial"}
+                    </button>
+                  ) : !hasOfficialFrame ? (
+                    <button
+                      type="button"
+                      onClick={resetState}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
+                    >
+                      Tirar outra foto
+                    </button>
+                  ) : null}
                 </div>
               </>
             ) : null}
