@@ -40,11 +40,11 @@ export default function HomePage() {
               Galerias ao vivo para eventos
             </p>
             <h1 className="text-balance text-4xl font-black leading-[1.02] tracking-[-0.05em] sm:text-5xl xl:text-6xl">
-              Seu evento.{" "}
+              Seu evento,{" "}
               <span className="bg-gradient-to-r from-amber-200 via-orange-300 to-fuchsia-400 bg-clip-text text-transparent">
-                Ao vivo
+                ao vivo
               </span>{" "}
-              na mão dos convidados.
+              nas mãos dos convidados
             </h1>
             <p className="max-w-lg text-base leading-7 text-white/60 sm:text-lg">
               Vídeos, fotos e experiências compartilhadas em tempo real através

@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { GalleryCompactHeader } from "@/components/public/gallery-compact-header";
+import { PocketBoothLauncher } from "@/components/public/pocket-booth";
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
@@ -373,6 +374,11 @@ export function VideoGallery({
           </div>
         )}
       </div>
+
+      <PocketBoothLauncher
+        eventId={eventId}
+        allowGuestUpload={allowGuestUpload}
+      />
     </section>
   );
 }
