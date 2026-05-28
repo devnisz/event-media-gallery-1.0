@@ -9,6 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 
+import { GalleryCompactHeader } from "@/components/public/gallery-compact-header";
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
@@ -24,6 +25,8 @@ type VideoGalleryProps = {
   requireDeletePin: boolean;
   allowGuestUpload: boolean;
 };
+
+const NEW_MEDIA_GLOW_MS = 8000;
 
 /** Normaliza ID, URL (copia de aliases comuns do Supabase) para passar em isMediaLike / mapeamento. */
 function normalizeRealtimeInsert(raw: unknown): unknown {
@@ -108,21 +111,36 @@ function realtimeRowIsPubliclyVisible(row: Record<string, unknown>): boolean {
   );
 }
 
+function markMediaAsNew(
+  setNewMediaIds: Dispatch<SetStateAction<Set<string>>>,
+  mediaId: string,
+) {
+  setNewMediaIds((current) => new Set(current).add(mediaId));
+
+  window.setTimeout(() => {
+    setNewMediaIds((current) => {
+      const next = new Set(current);
+      next.delete(mediaId);
+      return next;
+    });
+  }, NEW_MEDIA_GLOW_MS);
+}
+
 function addOrUpdateRealtimeMedia(
   setVideos: Dispatch<SetStateAction<EventVideo[]>>,
   media: EventVideo,
+  setNewMediaIds: Dispatch<SetStateAction<Set<string>>>,
 ) {
   setVideos((prev) => {
     const index = prev.findIndex((v) => v.id === media.id);
 
     if (index === -1) {
-      console.log("[REALTIME] mídia adicionada", media.id);
+      markMediaAsNew(setNewMediaIds, media.id);
       return [media, ...prev];
     }
 
     const next = [...prev];
     next[index] = { ...next[index], ...media };
-    console.log("[REALTIME] mídia atualizada", media.id);
 
     return next;
   });
@@ -138,6 +156,7 @@ export function VideoGallery({
   allowGuestUpload,
 }: VideoGalleryProps) {
   const [videos, setVideos] = useState(initialVideos);
+  const [newMediaIds, setNewMediaIds] = useState<Set<string>>(new Set());
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [mobileTwoCols, setMobileTwoCols] = useState(() => {
     if (typeof window === "undefined") {
@@ -171,7 +190,6 @@ export function VideoGallery({
     const supabase = createBrowserSupabase();
 
     if (!supabase) {
-      console.warn("[REALTIME] sem cliente — subscription não iniciada");
       return;
     }
 
@@ -188,27 +206,14 @@ export function VideoGallery({
           table: "media",
         },
         (payload) => {
-          console.log("[REALTIME] evento recebido", payload);
           const { eventSlug: es, eventId: eid, eventName: en } = ctxRef.current;
           const row = payload.new as Record<string, unknown>;
 
           if (!realtimeRowMatchesEvent(row, es, eid)) {
-            console.log("[REALTIME] linha ignorada (outro evento)", {
-              rowSlug: row.event_slug,
-              rowEventId: row.event_id,
-              gallerySlug: es,
-              galleryEventId: eid,
-            });
             return;
           }
 
           if (!realtimeRowIsPubliclyVisible(row)) {
-            console.log("[REALTIME] insert ignorado (não público)", {
-              id: row.id,
-              reviewStatus: row.review_status,
-              isHidden: row.is_hidden,
-              deletedAt: row.deleted_at,
-            });
             return;
           }
 
@@ -216,14 +221,10 @@ export function VideoGallery({
           const media = tryRealtimeRowToEventMedia(normalized, en, 0);
 
           if (!media) {
-            console.log(
-              "[REALTIME] payload.new não virou EventMedia (id/url?) — após normalize",
-              normalized,
-            );
             return;
           }
 
-          addOrUpdateRealtimeMedia(setVideos, media);
+          addOrUpdateRealtimeMedia(setVideos, media, setNewMediaIds);
         },
       )
       .on(
@@ -234,17 +235,10 @@ export function VideoGallery({
           table: "media",
         },
         (payload) => {
-          console.log("[REALTIME] update recebido", payload);
           const { eventSlug: es, eventId: eid, eventName: en } = ctxRef.current;
           const row = payload.new as Record<string, unknown>;
 
           if (!realtimeRowMatchesEvent(row, es, eid)) {
-            console.log("[REALTIME] update ignorado (outro evento)", {
-              rowSlug: row.event_slug,
-              rowEventId: row.event_id,
-              gallerySlug: es,
-              galleryEventId: eid,
-            });
             return;
           }
 
@@ -254,12 +248,6 @@ export function VideoGallery({
             if (id) {
               setVideos((prev) => prev.filter((v) => v.id !== id));
             }
-            console.log("[REALTIME] update removeu/ignorou mídia não pública", {
-              id,
-              reviewStatus: row.review_status,
-              isHidden: row.is_hidden,
-              deletedAt: row.deleted_at,
-            });
             return;
           }
 
@@ -267,25 +255,13 @@ export function VideoGallery({
           const media = tryRealtimeRowToEventMedia(normalized, en, 0);
 
           if (!media) {
-            console.log(
-              "[REALTIME] update não virou EventMedia (id/url?) — após normalize",
-              normalized,
-            );
             return;
           }
 
-          addOrUpdateRealtimeMedia(setVideos, media);
+          addOrUpdateRealtimeMedia(setVideos, media, setNewMediaIds);
         },
       )
-      .subscribe((status, err) => {
-        console.log("[REALTIME] subscription status", status, err ?? "");
-        if (status === "SUBSCRIBED") {
-          console.log("[REALTIME] conectado");
-        }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.warn("[REALTIME] falha no canal", status, err);
-        }
-      });
+      .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
@@ -310,101 +286,93 @@ export function VideoGallery({
     }, 260);
   }
 
+  const guestUploadSlot =
+    allowGuestUpload && eventId ? (
+      <GuestUploadButton eventId={eventId} compact />
+    ) : null;
+
   return (
-    <section className="mx-auto flex w-full max-w-[1900px] flex-col gap-10">
-      <header className="animate-rise flex flex-col justify-between gap-8 rounded-[2.5rem] border border-white/10 bg-white/[0.06] p-7 shadow-[0_28px_90px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:p-10 xl:flex-row xl:items-end">
-        <div className="max-w-5xl">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.36em] text-amber-200">
-            Sua coleção de memórias
-          </p>
-          <h2 className="text-4xl font-black sm:text-6xl xl:text-7xl">
-            Momentos à sua escolha.
-          </h2>
-        </div>
+    <section className="mx-auto flex w-full max-w-[1900px] flex-col">
+      <GalleryCompactHeader
+        eventName={eventName}
+        mediaCount={visibleVideoCount}
+        guestUploadSlot={guestUploadSlot}
+      />
 
-        <div className="grid grid-cols-3 gap-3 text-center sm:min-w-[28rem]">
-          <div className="p-5">
-            <strong className="text-3xl">{visibleVideoCount}</strong>
-            <span className="block text-sm text-white/50">mídias</span>
-          </div>
-          <div className="p-5">
-            <strong className="text-3xl">4K</strong>
-            <span className="block text-sm text-white/50">ready</span>
-          </div>
-          <div className="p-5">
-            <strong className="text-3xl">43 in</strong>
-            <span className="block text-sm text-white/50">touch</span>
-          </div>
-        </div>
-        {allowGuestUpload && eventId ? (
-          <GuestUploadButton eventId={eventId} />
-        ) : null}
-      </header>
+      <div className="px-5 pb-8 pt-4 sm:px-8 lg:px-12 2xl:px-20">
+        {videos.length > 0 ? (
+          <div
+            className={`flex flex-col ${mobileTwoCols ? "gap-2 md:gap-4" : "gap-3 md:gap-4"}`}
+          >
+            <div className="flex flex-wrap items-center justify-end gap-3 md:hidden">
+              <div
+                className="inline-flex rounded-full border border-white/10 bg-black/30 p-0.5"
+                role="group"
+                aria-label="Número de colunas no celular"
+              >
+                <button
+                  type="button"
+                  aria-pressed={!mobileTwoCols}
+                  onClick={() => setMobileTwoCols(false)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    !mobileTwoCols
+                      ? "bg-white text-slate-950 shadow"
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  1 col
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={mobileTwoCols}
+                  onClick={() => setMobileTwoCols(true)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    mobileTwoCols
+                      ? "bg-white text-slate-950 shadow"
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  2 cols
+                </button>
+              </div>
+            </div>
 
-      {videos.length > 0 ? (
-        <div
-          className={`flex flex-col ${mobileTwoCols ? "gap-2 md:gap-4" : "gap-4"}`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 md:hidden">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-              Vista no celular
-            </span>
             <div
-              className="inline-flex rounded-full border border-white/15 bg-black/30 p-1"
-              role="group"
-              aria-label="Número de colunas no celular"
+              className={`grid min-w-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+                mobileTwoCols
+                  ? "grid-cols-2 gap-2 md:gap-5"
+                  : "grid-cols-2 gap-3 sm:gap-4 md:gap-5"
+              }`}
             >
-              <button
-                type="button"
-                aria-pressed={!mobileTwoCols}
-                onClick={() => setMobileTwoCols(false)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  !mobileTwoCols
-                    ? "bg-white text-slate-950 shadow"
-                    : "text-white/70 hover:text-white"
-                }`}
-              >
-                1 coluna
-              </button>
-              <button
-                type="button"
-                aria-pressed={mobileTwoCols}
-                onClick={() => setMobileTwoCols(true)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  mobileTwoCols
-                    ? "bg-white text-slate-950 shadow"
-                    : "text-white/70 hover:text-white"
-                }`}
-              >
-                2 colunas
-              </button>
+              {videos.map((video, index) => (
+                <VideoCard
+                  key={video.id}
+                  video={video}
+                  index={index}
+                  isNew={newMediaIds.has(video.id)}
+                  isRemoving={removingIds.has(video.id)}
+                  onDeleted={handleDeleted}
+                  compactMobileTwoCol={mobileTwoCols}
+                  allowPublicDelete={allowPublicDelete}
+                  requireDeletePin={requireDeletePin}
+                  hideEventLabel
+                />
+              ))}
             </div>
           </div>
-
-          <div
-            className={`grid min-w-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-              mobileTwoCols ? "grid-cols-2 gap-2 md:gap-6" : "grid-cols-1 gap-6"
-            }`}
-          >
-          {videos.map((video, index) => (
-            <VideoCard
-              key={video.id}
-              video={video}
-              index={index}
-              isRemoving={removingIds.has(video.id)}
-              onDeleted={handleDeleted}
-              compactMobileTwoCol={mobileTwoCols}
-              allowPublicDelete={allowPublicDelete}
-              requireDeletePin={requireDeletePin}
-            />
-          ))}
+        ) : (
+          <div className="mx-auto max-w-md py-16 text-center">
+            <div className="mx-auto mb-6 grid size-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.04]">
+              <span className="size-2 rounded-full bg-emerald-400 animate-live-pulse" />
+            </div>
+            <h2 className="text-xl font-black text-white">Galeria ao vivo</h2>
+            <p className="mt-2 text-sm leading-6 text-white/45">
+              As mídias aparecem aqui assim que forem enviadas. Fique nesta
+              página — tudo chega em tempo real.
+            </p>
           </div>
-        </div>
-      ) : (
-        <div className="p-10 text-center">
-          <h2>Nenhuma mídia disponível.</h2>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

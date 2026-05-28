@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 type GuestUploadButtonProps = {
   eventId: string;
+  compact?: boolean;
 };
 
 type UploadState = "idle" | "uploading" | "success" | "error";
@@ -75,7 +76,10 @@ function captureVideoThumbnail(file: File): Promise<Blob | null> {
   });
 }
 
-export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
+export function GuestUploadButton({
+  eventId,
+  compact = false,
+}: GuestUploadButtonProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>("idle");
@@ -231,7 +235,9 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
   const isUploading = state === "uploading";
 
   return (
-    <div className="flex flex-col items-stretch gap-3 sm:items-end">
+    <div
+      className={`flex flex-col ${compact ? "items-end gap-1" : "items-stretch gap-3 sm:items-end"}`}
+    >
       <input
         ref={inputRef}
         type="file"
@@ -244,11 +250,17 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
         type="button"
         disabled={isUploading}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-black text-slate-950 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+        className={`inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400 font-black text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${
+          compact
+            ? "size-10 text-lg sm:min-h-10 sm:px-4 sm:text-xs"
+            : "min-h-12 px-6 text-sm"
+        }`}
+        aria-label={isUploading ? "Enviando mídia" : "Enviar fotos e vídeos"}
+        title={isUploading ? "Enviando..." : "Enviar"}
       >
-        {isUploading ? "Enviando..." : "Enviar fotos e vídeos"}
+        {compact ? (isUploading ? "…" : "+") : isUploading ? "Enviando..." : "Enviar fotos e vídeos"}
       </button>
-      {isUploading ? (
+      {!compact && isUploading ? (
         <div className="h-2 w-full overflow-hidden rounded-full bg-white/10 sm:w-64">
           <div
             className="h-full rounded-full bg-amber-300 transition-all"
@@ -256,7 +268,7 @@ export function GuestUploadButton({ eventId }: GuestUploadButtonProps) {
           />
         </div>
       ) : null}
-      {message ? (
+      {!compact && message ? (
         <p
           className={`max-w-xs text-sm font-semibold ${
             state === "error" ? "text-red-200" : "text-emerald-200"

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { EventVideo } from "@/types/video";
 
 type VideoThumbnailProps = {
@@ -42,6 +45,7 @@ export function VideoThumbnail({
   variant = "landscape",
   fillParent = false,
 }: VideoThumbnailProps) {
+  const [loaded, setLoaded] = useState(false);
   const isVertical = variant === "vertical";
   const layoutClass = fillParent
     ? "h-full min-h-0 w-full"
@@ -65,6 +69,9 @@ export function VideoThumbnail({
     <div
       className={`relative overflow-hidden ${radiusClass} bg-gradient-to-br ${video.accent} ${layoutClass}`}
     >
+      {!loaded && thumb ? (
+        <div className="absolute inset-0 skeleton-shimmer" aria-hidden />
+      ) : null}
       {thumb ? (
         <>
           {isVertical ? (
@@ -81,7 +88,10 @@ export function VideoThumbnail({
             src={thumb}
             alt={`Prévia de ${video.title}`}
             loading="lazy"
-            className={`absolute inset-0 h-full w-full ${imageClass} transition-transform duration-500 group-hover:scale-[1.02]`}
+            onLoad={() => setLoaded(true)}
+            className={`absolute inset-0 h-full w-full ${imageClass} transition-all duration-500 group-hover:scale-[1.03] ${
+              loaded ? "opacity-100" : "opacity-0"
+            }`}
           />
         </>
       ) : (

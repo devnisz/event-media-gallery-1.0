@@ -49,8 +49,145 @@ body {
   }
 }
 
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+  }
+
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+  }
+}
+
+@keyframes glow-new {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(168, 85, 247, 0.55),
+      0 28px 90px rgba(0, 0, 0, 0.34);
+    border-color: rgba(168, 85, 247, 0.65);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(168, 85, 247, 0),
+      0 28px 90px rgba(0, 0, 0, 0.34);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+@keyframes slide-in-media {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes count-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes ring-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .animate-rise {
   animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 7s ease-in-out infinite;
+}
+
+.animate-live-pulse {
+  animation: live-pulse 2.4s ease-in-out infinite;
+}
+
+.animate-glow-new {
+  animation: glow-new 2.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-media {
+  animation: slide-in-media 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-count-pop {
+  animation: count-pop 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-float-soft {
+  animation: float-soft 5s ease-in-out infinite;
+}
+
+.animate-toast-in {
+  animation: toast-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
 }
 
 dialog::backdrop {
@@ -58,6 +195,16 @@ dialog::backdrop {
   backdrop-filter: blur(18px);
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 7s ease-in-out infinite;
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-pulse-glow,
+  .animate-live-pulse,
+  .animate-glow-new,
+  .animate-slide-in-media,
+  .animate-count-pop,
+  .animate-float-soft,
+  .animate-toast-in,
+  .skeleton-shimmer {
+    animation: none !important;
+  }
 }

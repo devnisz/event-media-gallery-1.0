@@ -11,12 +11,14 @@ import { VideoThumbnail } from "./video-thumbnail";
 type VideoCardProps = {
   video: EventVideo;
   index: number;
+  isNew?: boolean;
   isRemoving?: boolean;
   onDeleted?: (id: string) => void;
   /** Vista 2 colunas no celular: espaços, raios e título reduzidos (só abaixo de `md`). */
   compactMobileTwoCol?: boolean;
   allowPublicDelete?: boolean;
   requireDeletePin?: boolean;
+  hideEventLabel?: boolean;
 };
 
 /** Mostra ~10% dos caracteres do título (+ reticências) para caber em grelha compacta. */
@@ -53,11 +55,13 @@ function TrashIcon() {
 export function VideoCard({
   video,
   index,
+  isNew = false,
   isRemoving = false,
   onDeleted,
   compactMobileTwoCol = false,
   allowPublicDelete = false,
   requireDeletePin = false,
+  hideEventLabel = false,
 }: VideoCardProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -143,14 +147,16 @@ export function VideoCard({
 
   return (
     <article
-      className={`group relative min-w-0 animate-rise overflow-hidden rounded-[2.35rem] border border-white/10 bg-white/[0.06] p-3 shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl transition duration-500 hover:-translate-y-2 hover:border-white/25 hover:bg-white/[0.1] ${
+      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl transition duration-500 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.07] hover:shadow-[0_28px_80px_rgba(0,0,0,0.4)] md:rounded-[1.75rem] md:p-2.5 ${
+        isNew ? "animate-slide-in-media animate-glow-new border-fuchsia-400/40" : "animate-rise"
+      } ${
         c ? "max-md:rounded-xl max-md:p-1.5 max-md:shadow-[0_12px_36px_rgba(0,0,0,0.35)] max-md:hover:translate-y-0" : ""
       } ${
         isRemoving
           ? "scale-95 opacity-0 blur-sm"
           : "scale-100 opacity-100 blur-0"
       }`}
-      style={{ animationDelay: `${index * 70}ms` }}
+      style={{ animationDelay: isNew ? undefined : `${index * 50}ms` }}
     >
       {canPublicDelete ? (
         <button
@@ -177,30 +183,37 @@ export function VideoCard({
         }`}
       >
         <div
-          className={`pointer-events-none absolute left-6 top-6 z-10 ${
+          className={`pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-2 ${
             c ? "max-md:left-1.5 max-md:top-1.5" : ""
           }`}
         >
           <MediaBadge kind={video.mediaType} />
+          {isNew ? (
+            <span className="w-fit rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-2 py-0.5 text-[0.55rem] font-black uppercase tracking-wider text-slate-950 shadow-lg">
+              Novo
+            </span>
+          ) : null}
         </div>
         <VideoThumbnail video={video} variant="vertical" />
         <div
-          className={`pointer-events-none absolute inset-x-0 bottom-0 rounded-b-[2rem] bg-gradient-to-t from-black/88 via-black/58 to-transparent px-5 pb-5 pt-24 ${
+          className={`pointer-events-none absolute inset-x-0 bottom-0 rounded-b-[1.5rem] bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-4 pt-16 md:rounded-b-[1.65rem] ${
             c ? "max-md:rounded-b-lg max-md:px-1.5 max-md:pb-1.5 max-md:pt-10" : ""
           }`}
         >
-          <div className={`min-w-0 pr-16 ${c ? "max-md:pr-7" : ""}`}>
-            <p
-              className={`mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-200/85 ${
-                c ? "max-md:mb-0.5 max-md:text-[0.5rem] max-md:tracking-[0.12em]" : ""
-              }`}
-            >
-              {video.event}
-            </p>
+          <div className={`min-w-0 pr-12 ${c ? "max-md:pr-7" : ""}`}>
+            {!hideEventLabel ? (
+              <p
+                className={`mb-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-amber-200/80 ${
+                  c ? "max-md:mb-0.5 max-md:text-[0.5rem] max-md:tracking-[0.12em]" : ""
+                }`}
+              >
+                {video.event}
+              </p>
+            ) : null}
             <h2
-              className={`overflow-hidden text-2xl font-semibold leading-[1.05] tracking-tight text-white [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] md:text-[1.7rem] ${
+              className={`overflow-hidden text-base font-semibold leading-tight tracking-tight text-white [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] md:text-lg ${
                 c
-                  ? "max-md:line-clamp-1 max-md:text-[0.7rem] max-md:font-medium max-md:leading-snug md:text-[1.7rem]"
+                  ? "max-md:line-clamp-1 max-md:text-[0.7rem] max-md:font-medium md:text-lg"
                   : ""
               }`}
             >
@@ -219,13 +232,6 @@ export function VideoCard({
               </p>
             ) : null}
           </div>
-          <p
-            className={`mt-4 text-sm font-medium text-white/58 ${
-              c ? "max-md:mt-1 max-md:hidden" : ""
-            }`}
-          >
-            Toque para ampliar e compartilhar
-          </p>
         </div>
       </Link>
 
