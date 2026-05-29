@@ -19,6 +19,9 @@ import {
   BOOMERANG_CAPTURE_DURATION_MS,
   BOOMERANG_CAPTURE_FPS,
   BOOMERANG_FILE_PREFIX,
+  BOOMERANG_FRAME_DELAY_MS,
+  BOOMERANG_GIF_QUALITY,
+  BOOMERANG_MAX_LONG_EDGE,
   buildBoomerangSequence,
   MIN_VALID_BOOMERANG_FRAMES,
 } from "@/lib/virtual-booth/boomerang";
@@ -408,6 +411,7 @@ export function VirtualBoothModal({
         mirror: true,
         durationMs: isBoomerangMode ? BOOMERANG_CAPTURE_DURATION_MS : undefined,
         fps: isBoomerangMode ? BOOMERANG_CAPTURE_FPS : undefined,
+        maxLongEdge: isBoomerangMode ? BOOMERANG_MAX_LONG_EDGE : undefined,
         minValidFrames: isBoomerangMode ? MIN_VALID_BOOMERANG_FRAMES : undefined,
         logLabel: isBoomerangMode ? "Boomerang" : "GIF",
         onProgress: (frameIndex, totalFrames) => {
@@ -460,6 +464,13 @@ export function VirtualBoothModal({
             : "cabine-virtual",
           logLabel: isBoomerangMode ? "Boomerang" : "GIF",
           onStage: setComposingMessage,
+          encodeOptions: isBoomerangMode
+            ? {
+                frameDelayMs: BOOMERANG_FRAME_DELAY_MS,
+                quality: BOOMERANG_GIF_QUALITY,
+                maxLongEdge: BOOMERANG_MAX_LONG_EDGE,
+              }
+            : undefined,
         },
       );
 

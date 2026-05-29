@@ -13,23 +13,47 @@ import {
   cloneCanvasFrame,
   GIF_CAPTURE_FPS,
   GIF_FRAME_DELAY_MS,
+  scaleCanvasToMaxLongEdge,
 } from "@/lib/virtual-booth/gif-capture";
+
+export type GifEncodeOptions = {
+  frameDelayMs?: number;
+  quality?: number;
+  maxLongEdge?: number;
+};
+
+function prepareFramesForEncode(
+  frames: HTMLCanvasElement[],
+  encodeOptions?: GifEncodeOptions,
+): HTMLCanvasElement[] {
+  const maxLongEdge = encodeOptions?.maxLongEdge;
+
+  if (!maxLongEdge) {
+    return frames;
+  }
+
+  return frames.map((frame) => scaleCanvasToMaxLongEdge(frame, maxLongEdge));
+}
 
 export async function encodeCanvasesToGifFile(
   frames: HTMLCanvasElement[],
   fileName?: string,
   logLabel = "GIF",
+  encodeOptions?: GifEncodeOptions,
 ): Promise<File> {
   if (frames.length === 0) {
     throw new Error("Nenhum frame disponível para gerar o GIF.");
   }
 
-  const firstFrame = frames[0];
+  const preparedFrames = prepareFramesForEncode(frames, encodeOptions);
+  const firstFrame = preparedFrames[0];
+  const frameDelayMs = encodeOptions?.frameDelayMs ?? GIF_FRAME_DELAY_MS;
+  const quality = encodeOptions?.quality ?? 14;
 
   return new Promise((resolve, reject) => {
     const gif = new GIF({
       workers: 2,
-      quality: 14,
+      quality,
       workerScript: "/gif.worker.js",
       width: firstFrame.width,
       height: firstFrame.height,
@@ -38,9 +62,9 @@ export async function encodeCanvasesToGifFile(
 
     let addedFrames = 0;
 
-    for (const frame of frames) {
+    for (const frame of preparedFrames) {
       const snapshot = cloneCanvasFrame(frame);
-      gif.addFrame(snapshot, { delay: GIF_FRAME_DELAY_MS, copy: true });
+      gif.addFrame(snapshot, { delay: frameDelayMs, copy: true });
       addedFrames += 1;
     }
 
@@ -76,6 +100,7 @@ export async function processVirtualBoothGifFrames(
     fileNamePrefix?: string;
     logLabel?: string;
     onStage?: (message: string) => void;
+    encodeOptions?: GifEncodeOptions;
   } = {},
 ): Promise<{ glamGif: File; framedGif: File | null }> {
   const glamConfig = options.glamConfig ?? ALWAYS_ON_GLAM_FILTER;
@@ -100,6 +125,7 @@ export async function processVirtualBoothGifFrames(
     glamFrames,
     `${fileNamePrefix}-glam-${timestamp}.gif`,
     logLabel,
+    options.encodeOptions,
   );
 
   const frameUrl = options.frameUrl?.trim() ?? "";
@@ -121,6 +147,7 @@ export async function processVirtualBoothGifFrames(
     framedFrames,
     `${fileNamePrefix}-moldura-${timestamp}.gif`,
     logLabel,
+    options.encodeOptions,
   );
 
   return { glamGif, framedGif };

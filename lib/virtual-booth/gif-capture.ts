@@ -30,7 +30,7 @@ function waitForNextPaint(): Promise<void> {
   });
 }
 
-function getScaledDimensions(
+export function getScaledDimensions(
   sourceWidth: number,
   sourceHeight: number,
   maxLongEdge: number,
@@ -40,6 +40,35 @@ function getScaledDimensions(
     width: Math.max(1, Math.round(sourceWidth * scale)),
     height: Math.max(1, Math.round(sourceHeight * scale)),
   };
+}
+
+/** Reduz o canvas mantendo proporção (lado maior ≤ maxLongEdge). */
+export function scaleCanvasToMaxLongEdge(
+  source: HTMLCanvasElement,
+  maxLongEdge: number,
+): HTMLCanvasElement {
+  const { width, height } = getScaledDimensions(
+    source.width,
+    source.height,
+    maxLongEdge,
+  );
+
+  if (width === source.width && height === source.height) {
+    return source;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Canvas não disponível neste dispositivo.");
+  }
+
+  context.drawImage(source, 0, 0, width, height);
+  return canvas;
 }
 
 export function isVideoReadyForCapture(video: HTMLVideoElement): boolean {
