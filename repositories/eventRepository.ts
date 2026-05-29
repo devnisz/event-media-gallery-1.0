@@ -108,7 +108,16 @@ function formatSupabaseErrorForThrow(
     ser.hint ? `hint=${ser.hint}` : "",
   ].filter(Boolean);
 
-  return parts.join(" | ");
+  const detail = parts.join(" | ");
+  const mentionsLiveMoments =
+    /live_moments_enabled/i.test(detail) ||
+    /column.*events.*does not exist/i.test(detail);
+
+  if (mentionsLiveMoments) {
+    return `${detail}. Execute no Supabase (SQL Editor) a migration supabase/migrations/20260529160000_event_live_moments.sql ou rode: alter table public.events add column if not exists live_moments_enabled boolean not null default false;`;
+  }
+
+  return detail;
 }
 
 function optionalBoolean(value: unknown): boolean {

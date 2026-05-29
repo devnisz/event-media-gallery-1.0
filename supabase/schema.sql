@@ -19,7 +19,8 @@ create table if not exists public.events (
   require_guest_upload_approval boolean not null default false,
   frame_url text not null default '',
   gallery_layout text not null default 'premium',
-  owner_user_id uuid references auth.users (id) on delete set null
+  owner_user_id uuid references auth.users (id) on delete set null,
+  live_moments_enabled boolean not null default false
 );
 
 create index if not exists events_slug_idx on public.events (slug);

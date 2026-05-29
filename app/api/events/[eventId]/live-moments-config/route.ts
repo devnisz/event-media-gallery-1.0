@@ -54,10 +54,23 @@ export async function PATCH(
       );
     }
 
-    const { event: updated } = await updateEventLiveMomentsSettings(
+    const updateResult = await updateEventLiveMomentsSettings(
       trimmedEventId,
       body.liveMomentsEnabled,
-    );
+    ).catch((err: unknown) => {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Não foi possível salvar as configurações.";
+
+      return Response.json({ error: message }, { status: 400 });
+    });
+
+    if (updateResult instanceof Response) {
+      return updateResult;
+    }
+
+    const { event: updated } = updateResult;
 
     revalidatePath("/dashboard");
     revalidatePath(`/dashboard/events/${encodeURIComponent(updated.id)}`);
