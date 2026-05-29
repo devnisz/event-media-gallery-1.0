@@ -13,6 +13,7 @@ import { GalleryEmptyState } from "@/components/public/gallery/gallery-empty-sta
 import { PremiumGalleryGrid } from "@/components/public/gallery/premium-gallery-grid";
 import { SocialGalleryGrid } from "@/components/public/gallery/social-gallery-grid";
 import { GalleryCompactHeader } from "@/components/public/gallery-compact-header";
+import { LiveMomentsEntry } from "@/components/public/live-moments";
 import { VirtualBoothLauncher } from "@/components/public/virtual-booth";
 import {
   DEFAULT_GALLERY_LAYOUT,
@@ -36,6 +37,7 @@ type VideoGalleryProps = {
   frameUrl?: string;
   galleryLayout?: GalleryLayout;
   cabineConfig: CabineVirtualEventConfig;
+  liveMomentsEnabled: boolean;
 };
 
 const NEW_MEDIA_GLOW_MS = 8000;
@@ -169,6 +171,7 @@ export function VideoGallery({
   frameUrl = "",
   galleryLayout = DEFAULT_GALLERY_LAYOUT,
   cabineConfig,
+  liveMomentsEnabled,
 }: VideoGalleryProps) {
   const isSocialLayout = isSocialGalleryLayout(galleryLayout);
   const [videos, setVideos] = useState(initialVideos);
@@ -311,6 +314,8 @@ export function VideoGallery({
             : "px-5 pb-8 pt-4 sm:px-8 lg:px-12 2xl:px-20"
         }
       >
+        {liveMomentsEnabled ? <LiveMomentsEntry media={videos} /> : null}
+
         {videos.length > 0 ? (
           isSocialLayout ? (
             <SocialGalleryGrid {...gridSharedProps} />

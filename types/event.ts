@@ -36,6 +36,8 @@ export type GalleryEventRecord = {
   cabineVirtualCameraEnabled?: boolean;
   /** Permite escolher foto/video da galeria do dispositivo. */
   cabineVirtualGalleryImportEnabled?: boolean;
+  /** Exibe Momentos ao Vivo na galeria publica. */
+  liveMomentsEnabled?: boolean;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

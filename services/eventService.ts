@@ -105,6 +105,7 @@ export async function createEventRecordWithPersistence(
     cabineVirtualVideoMaxDurationSeconds: 10,
     cabineVirtualCameraEnabled: true,
     cabineVirtualGalleryImportEnabled: true,
+    liveMomentsEnabled: false,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -223,6 +224,27 @@ export async function setEventCoverIfEmpty(
 
   events[idx] = { ...events[idx], coverImage: trimmed };
   await writeEvents(events);
+}
+
+export async function updateEventLiveMomentsSettings(
+  eventId: string,
+  enabled: boolean,
+): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
+  const events = await readEvents();
+  const idx = events.findIndex((e) => e.id === eventId);
+
+  if (idx === -1) {
+    throw new Error("Evento não encontrado.");
+  }
+
+  events[idx] = {
+    ...events[idx],
+    liveMomentsEnabled: enabled,
+  };
+
+  const persistence = await writeEvents(events);
+
+  return { event: events[idx], persistence };
 }
 
 export async function updateEventCabineVirtualSettings(

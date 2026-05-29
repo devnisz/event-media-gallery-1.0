@@ -293,6 +293,9 @@ export function toEventMedia(
   const url = record.url;
 
   const qrCode = record.qrCode?.trim() ?? "";
+  const sortAt = resolveMediaSortTimestamp(record);
+  const uploadedAt =
+    record.uploadedAt ?? record.createdAt ?? record.timestamp;
 
   return {
     id: record.id,
@@ -318,7 +321,31 @@ export function toEventMedia(
     reviewStatus: record.reviewStatus,
     allowPublicDelete: publicDeleteSettings.allowPublicDelete,
     requireDeletePin: publicDeleteSettings.requireDeletePin,
+    ...(uploadedAt ? { uploadedAt } : {}),
+    sortAt,
   };
+}
+
+function resolveMediaSortTimestamp(record: GalleryMediaRecord): number {
+  const candidates = [
+    record.uploadedAt,
+    record.createdAt,
+    record.timestamp,
+  ];
+
+  for (const value of candidates) {
+    if (!value?.trim()) {
+      continue;
+    }
+
+    const parsed = Date.parse(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
 }
 
 /**

@@ -51,6 +51,7 @@ type EventRow = {
   cabine_virtual_video_max_duration_seconds?: number | null;
   cabine_virtual_camera_enabled?: boolean | null;
   cabine_virtual_gallery_import_enabled?: boolean | null;
+  live_moments_enabled?: boolean | null;
 };
 
 export type PersistEventsOutcome = {
@@ -163,6 +164,9 @@ function rowToLoose(row: EventRow): StoredEventLoose {
             row.cabine_virtual_gallery_import_enabled,
         }
       : {}),
+    ...(typeof row.live_moments_enabled === "boolean"
+      ? { liveMomentsEnabled: row.live_moments_enabled }
+      : {}),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -197,6 +201,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     cabine_virtual_camera_enabled: e.cabineVirtualCameraEnabled !== false,
     cabine_virtual_gallery_import_enabled:
       e.cabineVirtualGalleryImportEnabled !== false,
+    live_moments_enabled: e.liveMomentsEnabled === true,
   };
 }
 

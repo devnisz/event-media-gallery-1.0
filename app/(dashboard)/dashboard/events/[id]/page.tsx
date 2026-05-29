@@ -3,7 +3,9 @@ import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-bu
 import { EventCover } from "@/components/dashboard/event-cover";
 import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
 import { EventVirtualBoothFrameForm } from "@/components/dashboard/event-virtual-booth-frame-form";
+import { EventLiveMomentsSettingsForm } from "@/components/dashboard/event-live-moments-settings-form";
 import { EventVirtualBoothSettingsForm } from "@/components/dashboard/event-virtual-booth-settings-form";
+import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
 import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
 import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
@@ -38,6 +40,7 @@ export default async function DashboardEventPage({
   const { id } = await params;
   const detail = await getDashboardEventDetail(user.id, decodeURIComponent(id));
   const cabineConfig = resolveCabineVirtualConfig(detail.event);
+  const liveMomentsConfig = resolveLiveMomentsConfig(detail.event);
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 pb-16">
@@ -123,6 +126,11 @@ export default async function DashboardEventPage({
         }
         initialGalleryLayout={detail.event.galleryLayout}
         hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
+      />
+
+      <EventLiveMomentsSettingsForm
+        eventId={detail.event.id}
+        initialLiveMomentsEnabled={liveMomentsConfig.enabled}
       />
 
       <EventVirtualBoothSettingsForm
