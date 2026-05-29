@@ -35,6 +35,10 @@ export async function PATCH(
 
     const event = await getEventById(trimmedEventId);
 
+    if (!event) {
+      return Response.json({ error: "Evento não encontrado." }, { status: 404 });
+    }
+
     try {
       assertUserCanMutateEvent(userOrRes.id, event);
     } catch (err) {
@@ -71,9 +75,14 @@ export async function PATCH(
       cabineVirtualVideoMaxDurationSeconds: clampVideoMaxDurationSeconds(
         body.cabineVirtualVideoMaxDurationSeconds,
       ),
-      cabineVirtualCameraEnabled: body.cabineVirtualCameraEnabled === true,
+      cabineVirtualCameraEnabled:
+        typeof body.cabineVirtualCameraEnabled === "boolean"
+          ? body.cabineVirtualCameraEnabled
+          : event.cabineVirtualCameraEnabled !== false,
       cabineVirtualGalleryImportEnabled:
-        body.cabineVirtualGalleryImportEnabled === true,
+        typeof body.cabineVirtualGalleryImportEnabled === "boolean"
+          ? body.cabineVirtualGalleryImportEnabled
+          : event.cabineVirtualGalleryImportEnabled !== false,
     };
 
     const validationError = validateCabineVirtualSettingsInput(settings);

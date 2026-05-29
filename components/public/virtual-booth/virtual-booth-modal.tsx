@@ -853,37 +853,6 @@ export function VirtualBoothModal({
         onChange={handleGalleryVideoSelected}
       />
 
-      <VirtualBoothSourceSheet
-        open={sourceSheetVariant !== null}
-        variant={sourceSheetVariant ?? "photo"}
-        showCamera={cabineConfig.cameraEnabled}
-        showGallery={cabineConfig.galleryImportEnabled}
-        onCamera={() => {
-          const variant = sourceSheetVariant;
-          setSourceSheetVariant(null);
-
-          if (variant === "photo") {
-            void startCameraCapture("photo");
-            return;
-          }
-
-          if (variant === "video") {
-            void startCameraCapture("video");
-          }
-        }}
-        onGallery={() => {
-          if (sourceSheetVariant === "photo") {
-            openGalleryPhotoPicker();
-            return;
-          }
-
-          if (sourceSheetVariant === "video") {
-            openGalleryVideoPicker();
-          }
-        }}
-        onDismiss={() => setSourceSheetVariant(null)}
-      />
-
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
@@ -1387,6 +1356,38 @@ export function VirtualBoothModal({
               </>
             ) : null}
           </div>
+
+          <VirtualBoothSourceSheet
+            embedded
+            open={sourceSheetVariant !== null}
+            variant={sourceSheetVariant ?? "photo"}
+            showCamera={cabineConfig.cameraEnabled}
+            showGallery={cabineConfig.galleryImportEnabled}
+            onCamera={() => {
+              const variant = sourceSheetVariant;
+              setSourceSheetVariant(null);
+
+              if (variant === "photo") {
+                void startCameraCapture("photo");
+                return;
+              }
+
+              if (variant === "video") {
+                void startCameraCapture("video");
+              }
+            }}
+            onGallery={() => {
+              if (sourceSheetVariant === "photo") {
+                openGalleryPhotoPicker();
+                return;
+              }
+
+              if (sourceSheetVariant === "video") {
+                openGalleryVideoPicker();
+              }
+            }}
+            onDismiss={() => setSourceSheetVariant(null)}
+          />
         </div>
       </dialog>
     </>

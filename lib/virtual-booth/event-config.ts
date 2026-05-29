@@ -78,6 +78,8 @@ export function resolveCabineVirtualConfig(
   }
 
   const enabled = source.cabineVirtualEnabled === true;
+  const { cameraEnabled, galleryImportEnabled } =
+    resolveCabineVirtualSourceFlags(source);
 
   return {
     enabled,
@@ -88,8 +90,25 @@ export function resolveCabineVirtualConfig(
     videoMaxDurationSeconds: clampVideoMaxDurationSeconds(
       source.cabineVirtualVideoMaxDurationSeconds,
     ),
-    cameraEnabled: source.cabineVirtualCameraEnabled !== false,
-    galleryImportEnabled: source.cabineVirtualGalleryImportEnabled !== false,
+    cameraEnabled,
+    galleryImportEnabled,
+  };
+}
+
+/** Câmera/galeria: padrão ligado; corrige PATCH antigo que gravou ambos como false. */
+function resolveCabineVirtualSourceFlags(
+  source: CabineVirtualSource | StoredEventLoose,
+): { cameraEnabled: boolean; galleryImportEnabled: boolean } {
+  const camera = source.cabineVirtualCameraEnabled;
+  const gallery = source.cabineVirtualGalleryImportEnabled;
+
+  if (camera === false && gallery === false) {
+    return { cameraEnabled: true, galleryImportEnabled: true };
+  }
+
+  return {
+    cameraEnabled: camera !== false,
+    galleryImportEnabled: gallery !== false,
   };
 }
 

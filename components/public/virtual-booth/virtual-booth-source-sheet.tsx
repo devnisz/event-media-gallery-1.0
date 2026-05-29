@@ -3,6 +3,8 @@ type VirtualBoothSourceSheetProps = {
   variant: "photo" | "video";
   showCamera: boolean;
   showGallery: boolean;
+  /** Dentro do `<dialog>` — evita ficar atrás da top layer do modal nativo. */
+  embedded?: boolean;
   onCamera: () => void;
   onGallery: () => void;
   onDismiss: () => void;
@@ -36,11 +38,12 @@ export function VirtualBoothSourceSheet({
   variant,
   showCamera,
   showGallery,
+  embedded = false,
   onCamera,
   onGallery,
   onDismiss,
 }: VirtualBoothSourceSheetProps) {
-  if (!open) {
+  if (!open || (!showCamera && !showGallery)) {
     return null;
   }
 
@@ -50,8 +53,12 @@ export function VirtualBoothSourceSheet({
   const cameraIcon = variant === "photo" ? "📸" : "🎥";
   const galleryIcon = variant === "photo" ? "🖼" : "📂";
 
+  const overlayClass = embedded
+    ? "absolute inset-0 z-50 flex items-end justify-center p-4"
+    : "fixed inset-0 z-[60] flex items-end justify-center p-4 sm:p-6";
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center p-4 sm:p-6">
+    <div className={overlayClass}>
       <button
         type="button"
         aria-label="Fechar"
