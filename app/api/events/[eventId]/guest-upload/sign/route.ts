@@ -7,9 +7,10 @@ import {
 } from "@/lib/r2/upload";
 import {
   ALLOWED_GUEST_THUMBNAIL_TYPES,
-  ALLOWED_GUEST_UPLOAD_TYPES,
   MAX_GUEST_UPLOAD_BYTES,
   MAX_THUMBNAIL_BYTES,
+  normalizeGuestUploadMimeType,
+  resolveGuestUploadTypeInfo,
 } from "@/lib/guest-upload/validation";
 
 export const runtime = "nodejs";
@@ -53,12 +54,14 @@ export async function POST(request: Request, context: GuestUploadSignContext) {
       thumbnailType?: unknown;
       thumbnailSize?: unknown;
     };
-    const fileType = typeof body.fileType === "string" ? body.fileType : "";
+    const fileType = normalizeGuestUploadMimeType(
+      typeof body.fileType === "string" ? body.fileType : "",
+    );
     const fileSize =
       typeof body.fileSize === "number" && Number.isFinite(body.fileSize)
         ? body.fileSize
         : 0;
-    const typeInfo = ALLOWED_GUEST_UPLOAD_TYPES[fileType];
+    const typeInfo = resolveGuestUploadTypeInfo(fileType);
 
     if (!typeInfo) {
       return Response.json(

@@ -25,3 +25,36 @@ export const ALLOWED_GUEST_THUMBNAIL_TYPES: Record<string, string> = {
 export function cleanGuestUploadName(value: string): string {
   return value.trim().replace(/\s+/g, " ").slice(0, 120);
 }
+
+/** MediaRecorder costuma retornar MIME com codecs (`video/webm;codecs=vp9,opus`). */
+export function normalizeGuestUploadMimeType(fileType: string): string {
+  const base = fileType.split(";")[0]?.trim().toLowerCase() ?? "";
+
+  if (base in ALLOWED_GUEST_UPLOAD_TYPES) {
+    return base;
+  }
+
+  if (base.startsWith("video/")) {
+    if (base.includes("mp4") || base.includes("mpeg")) {
+      return "video/mp4";
+    }
+
+    if (base.includes("quicktime") || base === "video/mov") {
+      return "video/quicktime";
+    }
+
+    return "video/webm";
+  }
+
+  if (base.startsWith("image/")) {
+    return base;
+  }
+
+  return base;
+}
+
+export function resolveGuestUploadTypeInfo(fileType: string) {
+  const normalized = normalizeGuestUploadMimeType(fileType);
+
+  return ALLOWED_GUEST_UPLOAD_TYPES[normalized] ?? null;
+}

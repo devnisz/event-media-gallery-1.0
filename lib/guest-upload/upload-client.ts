@@ -1,3 +1,5 @@
+import { normalizeGuestUploadMimeType } from "@/lib/guest-upload/validation";
+
 export type GuestUploadSignResponse = {
   error?: string;
   mediaId?: string;
@@ -125,12 +127,23 @@ export async function uploadGuestMediaFile(
   file: File,
   onProgress?: (update: GuestUploadProgressUpdate) => void,
 ): Promise<void> {
+  const uploadMimeType = normalizeGuestUploadMimeType(file.type);
+  const uploadFile =
+    uploadMimeType === file.type
+      ? file
+      : new File([file], file.name, {
+          type: uploadMimeType,
+          lastModified: file.lastModified,
+        });
+
   onProgress?.({
     progress: 0,
-    message: file.type.startsWith("video/") ? "Gerando miniatura..." : "Preparando upload...",
+    message: uploadFile.type.startsWith("video/")
+      ? "Gerando miniatura..."
+      : "Preparando upload...",
   });
 
-  const thumbnail = await captureVideoThumbnail(file);
+  const thumbnail = await captureVideoThumbnail(uploadFile);
 
   onProgress?.({ progress: 0, message: "Preparando upload..." });
 
@@ -140,8 +153,8 @@ export async function uploadGuestMediaFile(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        fileType: file.type,
-        fileSize: file.size,
+        fileType: uploadFile.type,
+        fileSize: uploadFile.size,
         hasThumbnail: Boolean(thumbnail),
         thumbnailType: thumbnail?.type,
         thumbnailSize: thumbnail?.size,
@@ -163,8 +176,8 @@ export async function uploadGuestMediaFile(
 
   await putToSignedUrl({
     url: signPayload.upload.uploadUrl,
-    blob: file,
-    contentType: file.type,
+    blob: uploadFile,
+    contentType: uploadFile.type,
     label: "arquivo",
     onProgress: (progress) => onProgress?.({ progress, message: "Enviando arquivo..." }),
   });
@@ -188,9 +201,9 @@ export async function uploadGuestMediaFile(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mediaId: signPayload.mediaId,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
+        fileName: uploadFile.name,
+        fileType: uploadFile.type,
+        fileSize: uploadFile.size,
         publicUrl: signPayload.upload.publicUrl,
         thumbnailUrl: signPayload.thumbnail?.publicUrl,
       }),

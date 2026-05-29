@@ -34,7 +34,11 @@ import {
   ALWAYS_ON_GLAM_FILTER,
   applyGlamFilter,
 } from "@/lib/virtual-booth/glam-filter";
-import { recordVideoFromMediaStream } from "@/lib/virtual-booth/video-capture";
+import {
+  startVideoRecordingFromMediaStream,
+  type VideoRecordingHandle,
+} from "@/lib/virtual-booth/video-capture";
+import { VideoRecordingProgressRing } from "./video-recording-progress-ring";
 
 const BRAND_LABEL = "Cabine Virtual";
 
@@ -94,6 +98,7 @@ export function VirtualBoothModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const countdownTimersRef = useRef<number[]>([]);
+  const videoRecordingHandleRef = useRef<VideoRecordingHandle | null>(null);
   const capturePreviewUrlRef = useRef<string | null>(null);
   const composedPreviewUrlRef = useRef<string | null>(null);
   const titleId = useId();
@@ -107,6 +112,7 @@ export function VirtualBoothModal({
   );
   const [flashVisible, setFlashVisible] = useState(false);
   const [isRecordingMotion, setIsRecordingMotion] = useState(false);
+  const [videoRecordingProgress, setVideoRecordingProgress] = useState(0);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [composedFile, setComposedFile] = useState<File | null>(null);
   const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(
@@ -169,6 +175,8 @@ export function VirtualBoothModal({
     return () => {
       countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
       countdownTimersRef.current = [];
+      videoRecordingHandleRef.current?.stop();
+      videoRecordingHandleRef.current = null;
       stopMediaStream(cameraStreamRef.current);
       revokeObjectUrl(capturePreviewUrlRef.current);
       revokeObjectUrl(composedPreviewUrlRef.current);
@@ -193,9 +201,15 @@ export function VirtualBoothModal({
     };
   }, [cameraStream, step, isRecordingMotion]);
 
+  function stopActiveVideoRecording() {
+    videoRecordingHandleRef.current?.stop();
+    videoRecordingHandleRef.current = null;
+  }
+
   function resetState() {
     countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     countdownTimersRef.current = [];
+    stopActiveVideoRecording();
     stopMediaStream(cameraStreamRef.current);
     cameraStreamRef.current = null;
     revokeObjectUrl(capturePreviewUrl);
@@ -209,6 +223,7 @@ export function VirtualBoothModal({
     setCountdownPhase("prepare");
     setFlashVisible(false);
     setIsRecordingMotion(false);
+    setVideoRecordingProgress(0);
     setSourceFile(null);
     setComposedFile(null);
     setCapturePreviewUrl(null);
@@ -292,61 +307,89 @@ export function VirtualBoothModal({
     setErrorMessage("Este recurso não está disponível neste evento.");
   }
 
-  async function captureVideoSequence() {
+  function applyRecordedVideoFile(recordedFile: File) {
+    setIsRecordingMotion(false);
+    setVideoRecordingProgress(0);
+    stopActiveVideoRecording();
+    stopMediaStream(cameraStreamRef.current);
+    cameraStreamRef.current = null;
+    setCameraStream(null);
+    setCameraReady(false);
+
+    revokeObjectUrl(capturePreviewUrl);
+    revokeObjectUrl(composedPreviewUrl);
+
+    setSourceFile(recordedFile);
+    setCapturePreviewUrl(URL.createObjectURL(recordedFile));
+    setComposedFile(null);
+    setComposedPreviewUrl(null);
+    setUseFramedPreview(false);
+    setStep("final-preview");
+  }
+
+  function beginVideoRecording() {
     const stream = cameraStreamRef.current;
 
     if (!stream) {
-      setStep("camera");
       setErrorMessage("A câmera ainda não está pronta para gravar.");
       return;
     }
 
+    if (!cameraReady) {
+      return;
+    }
+
     setErrorMessage("");
+    setComposingMessage("");
+    setVideoRecordingProgress(0);
     setIsRecordingMotion(true);
-    setComposingMessage(
-      `Gravando vídeo (0/${cabineConfig.videoMaxDurationSeconds}s)...`,
-    );
+    setStep("camera");
 
     try {
-      const recordedFile = await recordVideoFromMediaStream(
+      const session = startVideoRecordingFromMediaStream(
         stream,
         cabineConfig.videoMaxDurationSeconds,
         {
-          onProgress: (elapsedSeconds, maxSeconds) => {
-            setComposingMessage(
-              `Gravando vídeo (${Math.min(
-                maxSeconds,
-                Math.ceil(elapsedSeconds),
-              )}/${maxSeconds}s)...`,
-            );
+          onProgress: (progress) => {
+            setVideoRecordingProgress(progress.fraction);
           },
         },
       );
 
-      setIsRecordingMotion(false);
-      stopMediaStream(cameraStreamRef.current);
-      cameraStreamRef.current = null;
-      setCameraStream(null);
-      setCameraReady(false);
+      videoRecordingHandleRef.current = session;
 
-      revokeObjectUrl(capturePreviewUrl);
-      revokeObjectUrl(composedPreviewUrl);
-
-      setSourceFile(recordedFile);
-      setCapturePreviewUrl(URL.createObjectURL(recordedFile));
-      setComposedFile(null);
-      setComposedPreviewUrl(null);
-      setUseFramedPreview(false);
-      setStep("final-preview");
+      void session.finished
+        .then((recordedFile) => {
+          applyRecordedVideoFile(recordedFile);
+        })
+        .catch((error) => {
+          setIsRecordingMotion(false);
+          setVideoRecordingProgress(0);
+          stopActiveVideoRecording();
+          setStep("camera");
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível gravar o vídeo. Tente novamente.",
+          );
+        });
     } catch (error) {
       setIsRecordingMotion(false);
-      setStep("camera");
+      setVideoRecordingProgress(0);
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Não foi possível gravar o vídeo. Tente novamente.",
+          : "Não foi possível iniciar a gravação.",
       );
     }
+  }
+
+  function finishVideoRecordingManually() {
+    if (!videoRecordingHandleRef.current) {
+      return;
+    }
+
+    videoRecordingHandleRef.current.stop();
   }
 
   async function applyOfficialFrameAutomatically(source: File) {
@@ -588,9 +631,7 @@ export function VirtualBoothModal({
     countdownTimersRef.current.push(
       window.setTimeout(() => setFlashVisible(true), 3720),
       window.setTimeout(() => {
-        if (isVideoMode) {
-          void captureVideoSequence();
-        } else if (isMotionMode) {
+        if (isMotionMode) {
           void captureMotionSequence();
         } else {
           void captureCurrentFrame();
@@ -772,7 +813,7 @@ export function VirtualBoothModal({
                       : isGifMode
                         ? "A gravação de 3 segundos começa automaticamente após a contagem."
                         : isVideoMode
-                          ? `A gravação de até ${cabineConfig.videoMaxDurationSeconds} segundos começa após a contagem.`
+                          ? `Grave até ${cabineConfig.videoMaxDurationSeconds} segundos. Toque em gravar para iniciar.`
                           : "A captura acontece automaticamente no final da contagem."
                     : isBoomerangMode
                       ? "Use boa luz, olhe para a câmera e toque em gravar."
@@ -808,7 +849,22 @@ export function VirtualBoothModal({
                     </div>
                   ) : null}
 
-                  {isRecordingMotion ? (
+                  {isRecordingMotion && isVideoMode ? (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/30 px-6 text-center backdrop-blur-[2px]">
+                      <div className="relative grid place-items-center">
+                        <VideoRecordingProgressRing
+                          progress={videoRecordingProgress}
+                          size={104}
+                          strokeWidth={5}
+                        />
+                        <span className="absolute text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white/90">
+                          🔴 Gravando
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {isRecordingMotion && !isVideoMode ? (
                     <div className="absolute inset-0 z-30 grid place-items-center bg-black/25 px-6 text-center backdrop-blur-[1px]">
                       <div>
                         <div className="mx-auto size-10 animate-pulse rounded-full border-2 border-fuchsia-300/80 border-t-transparent" />
@@ -816,15 +872,13 @@ export function VirtualBoothModal({
                           {composingMessage ||
                             (isBoomerangMode
                               ? "Gravando Boomerang..."
-                              : isVideoMode
-                                ? "Gravando vídeo..."
-                                : "Gravando GIF...")}
+                              : "Gravando GIF...")}
                         </p>
                       </div>
                     </div>
                   ) : null}
 
-                  {step === "countdown" && !isRecordingMotion ? (
+                  {step === "countdown" && !isRecordingMotion && !isVideoMode ? (
                     <div className="absolute inset-0 z-30 grid place-items-center bg-black/18 px-6 text-center backdrop-blur-[1px]">
                       <div className="relative flex flex-col items-center gap-4">
                         {countdownPhase === "prepare" ? (
@@ -872,7 +926,9 @@ export function VirtualBoothModal({
                 {step === "camera" && !isRecordingMotion ? (
                   <button
                     type="button"
-                    onClick={startCountdown}
+                    onClick={
+                      isVideoMode ? beginVideoRecording : startCountdown
+                    }
                     disabled={!cameraReady}
                     className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
                   >
@@ -892,6 +948,17 @@ export function VirtualBoothModal({
                         : isVideoMode
                           ? "Gravar vídeo"
                           : "Capturar"}
+                  </button>
+                ) : null}
+
+                {step === "camera" && isRecordingMotion && isVideoMode ? (
+                  <button
+                    type="button"
+                    onClick={finishVideoRecordingManually}
+                    className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 text-base font-black text-white shadow-[0_12px_40px_rgba(0,0,0,0.35)] transition hover:bg-white/15 active:scale-[0.98]"
+                  >
+                    <span aria-hidden>⏹</span>
+                    Finalizar Gravação
                   </button>
                 ) : null}
               </>

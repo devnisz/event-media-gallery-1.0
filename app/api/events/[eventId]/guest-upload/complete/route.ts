@@ -4,9 +4,10 @@ import { getEventById } from "@/services/eventService";
 import { appendGalleryMediaRecord } from "@/services/mediaService";
 import { generateAndStoreMediaQrCode } from "@/lib/media/qr-code";
 import {
-  ALLOWED_GUEST_UPLOAD_TYPES,
   cleanGuestUploadName,
   MAX_GUEST_UPLOAD_BYTES,
+  normalizeGuestUploadMimeType,
+  resolveGuestUploadTypeInfo,
 } from "@/lib/guest-upload/validation";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ function resolveGuestMediaType(
   fileType: string,
   fileName: string,
 ): MediaKind | null {
-  const typeInfo = ALLOWED_GUEST_UPLOAD_TYPES[fileType];
+  const typeInfo = resolveGuestUploadTypeInfo(fileType);
 
   if (!typeInfo) {
     return null;
@@ -69,7 +70,9 @@ export async function POST(
     };
     const mediaId = typeof body.mediaId === "string" ? body.mediaId.trim() : "";
     const fileName = typeof body.fileName === "string" ? body.fileName : "";
-    const fileType = typeof body.fileType === "string" ? body.fileType : "";
+    const fileType = normalizeGuestUploadMimeType(
+      typeof body.fileType === "string" ? body.fileType : "",
+    );
     const fileSize =
       typeof body.fileSize === "number" && Number.isFinite(body.fileSize)
         ? body.fileSize
