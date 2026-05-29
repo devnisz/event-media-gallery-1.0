@@ -49,6 +49,8 @@ type EventRow = {
   cabine_virtual_boomerang_enabled?: boolean | null;
   cabine_virtual_video_enabled?: boolean | null;
   cabine_virtual_video_max_duration_seconds?: number | null;
+  cabine_virtual_camera_enabled?: boolean | null;
+  cabine_virtual_gallery_import_enabled?: boolean | null;
 };
 
 export type PersistEventsOutcome = {
@@ -152,6 +154,15 @@ function rowToLoose(row: EventRow): StoredEventLoose {
           ),
         }
       : {}),
+    ...(typeof row.cabine_virtual_camera_enabled === "boolean"
+      ? { cabineVirtualCameraEnabled: row.cabine_virtual_camera_enabled }
+      : {}),
+    ...(typeof row.cabine_virtual_gallery_import_enabled === "boolean"
+      ? {
+          cabineVirtualGalleryImportEnabled:
+            row.cabine_virtual_gallery_import_enabled,
+        }
+      : {}),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -183,6 +194,9 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     cabine_virtual_video_max_duration_seconds: clampVideoMaxDurationSeconds(
       e.cabineVirtualVideoMaxDurationSeconds,
     ),
+    cabine_virtual_camera_enabled: e.cabineVirtualCameraEnabled !== false,
+    cabine_virtual_gallery_import_enabled:
+      e.cabineVirtualGalleryImportEnabled !== false,
   };
 }
 

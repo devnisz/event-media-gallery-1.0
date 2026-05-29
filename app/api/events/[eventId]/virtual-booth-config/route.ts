@@ -51,6 +51,8 @@ export async function PATCH(
       cabineVirtualBoomerangEnabled?: unknown;
       cabineVirtualVideoEnabled?: unknown;
       cabineVirtualVideoMaxDurationSeconds?: unknown;
+      cabineVirtualCameraEnabled?: unknown;
+      cabineVirtualGalleryImportEnabled?: unknown;
     };
 
     if (typeof body.cabineVirtualEnabled !== "boolean") {
@@ -69,6 +71,9 @@ export async function PATCH(
       cabineVirtualVideoMaxDurationSeconds: clampVideoMaxDurationSeconds(
         body.cabineVirtualVideoMaxDurationSeconds,
       ),
+      cabineVirtualCameraEnabled: body.cabineVirtualCameraEnabled === true,
+      cabineVirtualGalleryImportEnabled:
+        body.cabineVirtualGalleryImportEnabled === true,
     };
 
     const validationError = validateCabineVirtualSettingsInput(settings);
@@ -109,6 +114,9 @@ export async function PATCH(
         cabineVirtualVideoEnabled: updated.cabineVirtualVideoEnabled,
         cabineVirtualVideoMaxDurationSeconds:
           updated.cabineVirtualVideoMaxDurationSeconds,
+        cabineVirtualCameraEnabled: updated.cabineVirtualCameraEnabled,
+        cabineVirtualGalleryImportEnabled:
+          updated.cabineVirtualGalleryImportEnabled,
       },
     });
   } catch (error) {

@@ -103,6 +103,8 @@ export async function createEventRecordWithPersistence(
     cabineVirtualBoomerangEnabled: true,
     cabineVirtualVideoEnabled: false,
     cabineVirtualVideoMaxDurationSeconds: 10,
+    cabineVirtualCameraEnabled: true,
+    cabineVirtualGalleryImportEnabled: true,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 

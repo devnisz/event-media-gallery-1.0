@@ -134,6 +134,10 @@ export default async function DashboardEventPage({
         initialCabineVirtualVideoMaxDurationSeconds={
           cabineConfig.videoMaxDurationSeconds
         }
+        initialCabineVirtualCameraEnabled={cabineConfig.cameraEnabled}
+        initialCabineVirtualGalleryImportEnabled={
+          cabineConfig.galleryImportEnabled
+        }
       />
 
       <EventVirtualBoothFrameForm

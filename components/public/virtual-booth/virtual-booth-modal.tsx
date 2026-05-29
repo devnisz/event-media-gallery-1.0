@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
 } from "react";
 import { uploadGuestMediaFile } from "@/lib/guest-upload/upload-client";
 import { composePhotoWithFrame } from "@/lib/virtual-booth/apply-frame";
@@ -38,7 +39,15 @@ import {
   startVideoRecordingFromMediaStream,
   type VideoRecordingHandle,
 } from "@/lib/virtual-booth/video-capture";
+import {
+  CABINE_GALLERY_PHOTO_ACCEPT,
+  CABINE_GALLERY_VIDEO_ACCEPT,
+  normalizeGalleryImportFile,
+  validateGalleryPhotoFile,
+  validateGalleryVideoFile,
+} from "@/lib/virtual-booth/gallery-import";
 import { VideoRecordingProgressRing } from "./video-recording-progress-ring";
+import { VirtualBoothSourceSheet } from "./virtual-booth-source-sheet";
 
 const BRAND_LABEL = "Cabine Virtual";
 
@@ -99,6 +108,8 @@ export function VirtualBoothModal({
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const countdownTimersRef = useRef<number[]>([]);
   const videoRecordingHandleRef = useRef<VideoRecordingHandle | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const capturePreviewUrlRef = useRef<string | null>(null);
   const composedPreviewUrlRef = useRef<string | null>(null);
   const titleId = useId();
@@ -126,6 +137,10 @@ export function VirtualBoothModal({
   const [uploadMessage, setUploadMessage] = useState("");
   const [composingMessage, setComposingMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [sourceSheetVariant, setSourceSheetVariant] = useState<
+    "photo" | "video" | null
+  >(null);
+  const [isVideoFromGallery, setIsVideoFromGallery] = useState(false);
 
   const officialFrameUrl = frameUrl.trim();
   const hasOfficialFrame = officialFrameUrl.length > 0;
@@ -233,9 +248,16 @@ export function VirtualBoothModal({
     setUploadMessage("");
     setComposingMessage("");
     setErrorMessage("");
+    setSourceSheetVariant(null);
+    setIsVideoFromGallery(false);
   }
 
   function handleClose() {
+    if (sourceSheetVariant) {
+      setSourceSheetVariant(null);
+      return;
+    }
+
     if (
       step === "uploading" ||
       step === "composing" ||
@@ -247,6 +269,134 @@ export function VirtualBoothModal({
 
     resetState();
     onClose();
+  }
+
+  function openGalleryPhotoPicker() {
+    setSourceSheetVariant(null);
+    photoInputRef.current?.click();
+  }
+
+  function openGalleryVideoPicker() {
+    setSourceSheetVariant(null);
+    videoInputRef.current?.click();
+  }
+
+  function beginPhotoFlow() {
+    setErrorMessage("");
+    setCaptureMode("photo");
+
+    if (!allowGuestUpload || !eventId) {
+      setErrorMessage("Este evento não permite envio de mídia na galeria.");
+      return;
+    }
+
+    const showCamera = cabineConfig.cameraEnabled;
+    const showGallery = cabineConfig.galleryImportEnabled;
+
+    if (showCamera && showGallery) {
+      setSourceSheetVariant("photo");
+      return;
+    }
+
+    if (showCamera) {
+      void startCameraCapture("photo");
+      return;
+    }
+
+    if (showGallery) {
+      openGalleryPhotoPicker();
+      return;
+    }
+
+    setErrorMessage("Foto indisponível neste evento.");
+  }
+
+  function beginVideoFlow() {
+    setErrorMessage("");
+    setCaptureMode("video");
+
+    if (!allowGuestUpload || !eventId) {
+      setErrorMessage("Este evento não permite envio de mídia na galeria.");
+      return;
+    }
+
+    const showCamera = cabineConfig.cameraEnabled;
+    const showGallery = cabineConfig.galleryImportEnabled;
+
+    if (showCamera && showGallery) {
+      setSourceSheetVariant("video");
+      return;
+    }
+
+    if (showCamera) {
+      void startCameraCapture("video");
+      return;
+    }
+
+    if (showGallery) {
+      openGalleryVideoPicker();
+      return;
+    }
+
+    setErrorMessage("Vídeo indisponível neste evento.");
+  }
+
+  function applyGalleryVideoPreview(file: File) {
+    revokeObjectUrl(capturePreviewUrl);
+    revokeObjectUrl(composedPreviewUrl);
+
+    setSourceFile(file);
+    setCapturePreviewUrl(URL.createObjectURL(file));
+    setComposedFile(null);
+    setComposedPreviewUrl(null);
+    setUseFramedPreview(false);
+    setIsVideoFromGallery(true);
+    setStep("final-preview");
+    setErrorMessage("");
+  }
+
+  async function handleGalleryPhotoSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateGalleryPhotoFile(file);
+
+    if (validationError) {
+      setErrorMessage(validationError);
+      setStep("menu");
+      return;
+    }
+
+    setCaptureMode("photo");
+    await prepareCapturedPhoto(normalizeGalleryImportFile(file));
+  }
+
+  function handleGalleryVideoSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateGalleryVideoFile(file);
+
+    if (validationError) {
+      setErrorMessage(validationError);
+
+      if (step !== "final-preview") {
+        setStep("menu");
+      }
+
+      return;
+    }
+
+    setCaptureMode("video");
+    applyGalleryVideoPreview(normalizeGalleryImportFile(file));
   }
 
   async function startCameraCapture(mode: CaptureMode) {
@@ -285,22 +435,32 @@ export function VirtualBoothModal({
     setErrorMessage("");
 
     if (optionId === "photo") {
-      void startCameraCapture("photo");
+      beginPhotoFlow();
       return;
     }
 
     if (optionId === "gif") {
+      if (!cabineConfig.cameraEnabled) {
+        setErrorMessage("Captura por câmera desativada neste evento.");
+        return;
+      }
+
       void startCameraCapture("gif");
       return;
     }
 
     if (optionId === "boomerang") {
+      if (!cabineConfig.cameraEnabled) {
+        setErrorMessage("Captura por câmera desativada neste evento.");
+        return;
+      }
+
       void startCameraCapture("boomerang");
       return;
     }
 
     if (optionId === "video") {
-      void startCameraCapture("video");
+      beginVideoFlow();
       return;
     }
 
@@ -324,6 +484,7 @@ export function VirtualBoothModal({
     setComposedFile(null);
     setComposedPreviewUrl(null);
     setUseFramedPreview(false);
+    setIsVideoFromGallery(false);
     setStep("final-preview");
   }
 
@@ -677,6 +838,52 @@ export function VirtualBoothModal({
 
   return (
     <>
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept={CABINE_GALLERY_PHOTO_ACCEPT}
+        className="sr-only"
+        onChange={(event) => void handleGalleryPhotoSelected(event)}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept={CABINE_GALLERY_VIDEO_ACCEPT}
+        className="sr-only"
+        onChange={handleGalleryVideoSelected}
+      />
+
+      <VirtualBoothSourceSheet
+        open={sourceSheetVariant !== null}
+        variant={sourceSheetVariant ?? "photo"}
+        showCamera={cabineConfig.cameraEnabled}
+        showGallery={cabineConfig.galleryImportEnabled}
+        onCamera={() => {
+          const variant = sourceSheetVariant;
+          setSourceSheetVariant(null);
+
+          if (variant === "photo") {
+            void startCameraCapture("photo");
+            return;
+          }
+
+          if (variant === "video") {
+            void startCameraCapture("video");
+          }
+        }}
+        onGallery={() => {
+          if (sourceSheetVariant === "photo") {
+            openGalleryPhotoPicker();
+            return;
+          }
+
+          if (sourceSheetVariant === "video") {
+            openGalleryVideoPicker();
+          }
+        }}
+        onDismiss={() => setSourceSheetVariant(null)}
+      />
+
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
@@ -1073,7 +1280,15 @@ export function VirtualBoothModal({
                           : "Publicar foto"}
                   </button>
 
-                  {isMotionMode || isVideoMode ? (
+                  {isVideoMode && isVideoFromGallery ? (
+                    <button
+                      type="button"
+                      onClick={openGalleryVideoPicker}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
+                    >
+                      Trocar Vídeo
+                    </button>
+                  ) : isMotionMode || isVideoMode ? (
                     <button
                       type="button"
                       onClick={resetState}

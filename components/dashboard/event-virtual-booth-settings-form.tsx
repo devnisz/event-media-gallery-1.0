@@ -17,6 +17,8 @@ type EventVirtualBoothSettingsFormProps = {
   initialCabineVirtualBoomerangEnabled: boolean;
   initialCabineVirtualVideoEnabled: boolean;
   initialCabineVirtualVideoMaxDurationSeconds: number;
+  initialCabineVirtualCameraEnabled: boolean;
+  initialCabineVirtualGalleryImportEnabled: boolean;
 };
 
 export function EventVirtualBoothSettingsForm({
@@ -26,6 +28,8 @@ export function EventVirtualBoothSettingsForm({
   initialCabineVirtualBoomerangEnabled,
   initialCabineVirtualVideoEnabled,
   initialCabineVirtualVideoMaxDurationSeconds,
+  initialCabineVirtualCameraEnabled,
+  initialCabineVirtualGalleryImportEnabled,
 }: EventVirtualBoothSettingsFormProps) {
   const router = useRouter();
   const [cabineVirtualEnabled, setCabineVirtualEnabled] = useState(
@@ -41,6 +45,11 @@ export function EventVirtualBoothSettingsForm({
   );
   const [cabineVirtualVideoMaxDurationSeconds, setCabineVirtualVideoMaxDurationSeconds] =
     useState(initialCabineVirtualVideoMaxDurationSeconds);
+  const [cabineVirtualCameraEnabled, setCabineVirtualCameraEnabled] = useState(
+    initialCabineVirtualCameraEnabled,
+  );
+  const [cabineVirtualGalleryImportEnabled, setCabineVirtualGalleryImportEnabled] =
+    useState(initialCabineVirtualGalleryImportEnabled);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -63,6 +72,8 @@ export function EventVirtualBoothSettingsForm({
       cabineVirtualBoomerangEnabled,
       cabineVirtualVideoEnabled,
       cabineVirtualVideoMaxDurationSeconds,
+      cabineVirtualCameraEnabled,
+      cabineVirtualGalleryImportEnabled,
     };
 
     const validationError = validateCabineVirtualSettingsInput(payload);
@@ -229,6 +240,48 @@ export function EventVirtualBoothSettingsForm({
                 </label>
               </div>
             ) : null}
+
+            <p className="pt-2 text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
+              Origem da mídia
+            </p>
+
+            <label className="flex items-start gap-4">
+              <input
+                type="checkbox"
+                checked={cabineVirtualCameraEnabled}
+                disabled={isSaving}
+                onChange={(event) =>
+                  setCabineVirtualCameraEnabled(event.target.checked)
+                }
+                className="mt-1 size-5 accent-amber-300"
+              />
+              <span>
+                <span className="block font-bold">Permitir captura por câmera</span>
+                <span className="mt-1 block text-sm leading-6 text-white/50">
+                  Tirar foto ou gravar vídeo ao vivo na Cabine.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-4">
+              <input
+                type="checkbox"
+                checked={cabineVirtualGalleryImportEnabled}
+                disabled={isSaving}
+                onChange={(event) =>
+                  setCabineVirtualGalleryImportEnabled(event.target.checked)
+                }
+                className="mt-1 size-5 accent-amber-300"
+              />
+              <span>
+                <span className="block font-bold">
+                  Permitir importação da galeria
+                </span>
+                <span className="mt-1 block text-sm leading-6 text-white/50">
+                  Escolher foto ou vídeo já existente no celular.
+                </span>
+              </span>
+            </label>
 
             {captureWarning ? (
               <p className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">

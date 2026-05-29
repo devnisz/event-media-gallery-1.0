@@ -46,6 +46,8 @@ export function hydrateAssignTokens(
       cabineVirtualBoomerangEnabled: cabineConfig.boomerang,
       cabineVirtualVideoEnabled: cabineConfig.video,
       cabineVirtualVideoMaxDurationSeconds: cabineConfig.videoMaxDurationSeconds,
+      cabineVirtualCameraEnabled: cabineConfig.cameraEnabled,
+      cabineVirtualGalleryImportEnabled: cabineConfig.galleryImportEnabled,
     };
 
     if (trimmedExisting) {

@@ -32,6 +32,10 @@ export type GalleryEventRecord = {
   cabineVirtualVideoEnabled?: boolean;
   /** Duracao maxima de gravacao de video na Cabine (5–30 s). */
   cabineVirtualVideoMaxDurationSeconds?: number;
+  /** Permite captura ao vivo pela camera. */
+  cabineVirtualCameraEnabled?: boolean;
+  /** Permite escolher foto/video da galeria do dispositivo. */
+  cabineVirtualGalleryImportEnabled?: boolean;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

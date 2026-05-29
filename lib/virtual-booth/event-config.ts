@@ -19,6 +19,8 @@ export type CabineVirtualEventConfig = {
   /** GIF legado — permanece disponível até haver toggle no dashboard. */
   gif: boolean;
   videoMaxDurationSeconds: number;
+  cameraEnabled: boolean;
+  galleryImportEnabled: boolean;
 };
 
 export type CabineVirtualSettingsInput = {
@@ -27,6 +29,8 @@ export type CabineVirtualSettingsInput = {
   cabineVirtualBoomerangEnabled: boolean;
   cabineVirtualVideoEnabled: boolean;
   cabineVirtualVideoMaxDurationSeconds: number;
+  cabineVirtualCameraEnabled: boolean;
+  cabineVirtualGalleryImportEnabled: boolean;
 };
 
 type CabineVirtualSource = Pick<
@@ -36,6 +40,8 @@ type CabineVirtualSource = Pick<
   | "cabineVirtualBoomerangEnabled"
   | "cabineVirtualVideoEnabled"
   | "cabineVirtualVideoMaxDurationSeconds"
+  | "cabineVirtualCameraEnabled"
+  | "cabineVirtualGalleryImportEnabled"
 >;
 
 function hasCabineVirtualFields(
@@ -46,7 +52,9 @@ function hasCabineVirtualFields(
     typeof source.cabineVirtualPhotoEnabled === "boolean" ||
     typeof source.cabineVirtualBoomerangEnabled === "boolean" ||
     typeof source.cabineVirtualVideoEnabled === "boolean" ||
-    typeof source.cabineVirtualVideoMaxDurationSeconds === "number"
+    typeof source.cabineVirtualVideoMaxDurationSeconds === "number" ||
+    typeof source.cabineVirtualCameraEnabled === "boolean" ||
+    typeof source.cabineVirtualGalleryImportEnabled === "boolean"
   );
 }
 
@@ -64,23 +72,24 @@ export function resolveCabineVirtualConfig(
       video: false,
       gif: true,
       videoMaxDurationSeconds: CABINE_VIRTUAL_VIDEO_DURATION_DEFAULT_SECONDS,
+      cameraEnabled: true,
+      galleryImportEnabled: true,
     };
   }
 
   const enabled = source.cabineVirtualEnabled === true;
-  const photo = source.cabineVirtualPhotoEnabled === true;
-  const boomerang = source.cabineVirtualBoomerangEnabled === true;
-  const video = source.cabineVirtualVideoEnabled === true;
 
   return {
     enabled,
-    photo,
-    boomerang,
-    video,
+    photo: source.cabineVirtualPhotoEnabled === true,
+    boomerang: source.cabineVirtualBoomerangEnabled === true,
+    video: source.cabineVirtualVideoEnabled === true,
     gif: true,
     videoMaxDurationSeconds: clampVideoMaxDurationSeconds(
       source.cabineVirtualVideoMaxDurationSeconds,
     ),
+    cameraEnabled: source.cabineVirtualCameraEnabled !== false,
+    galleryImportEnabled: source.cabineVirtualGalleryImportEnabled !== false,
   };
 }
 
@@ -159,6 +168,8 @@ export function cabineVirtualFieldsFromInput(
   | "cabineVirtualBoomerangEnabled"
   | "cabineVirtualVideoEnabled"
   | "cabineVirtualVideoMaxDurationSeconds"
+  | "cabineVirtualCameraEnabled"
+  | "cabineVirtualGalleryImportEnabled"
 > {
   const enabled = input.cabineVirtualEnabled === true;
 
@@ -171,5 +182,8 @@ export function cabineVirtualFieldsFromInput(
     cabineVirtualVideoMaxDurationSeconds: clampVideoMaxDurationSeconds(
       input.cabineVirtualVideoMaxDurationSeconds,
     ),
+    cabineVirtualCameraEnabled: enabled && input.cabineVirtualCameraEnabled === true,
+    cabineVirtualGalleryImportEnabled:
+      enabled && input.cabineVirtualGalleryImportEnabled === true,
   };
 }
