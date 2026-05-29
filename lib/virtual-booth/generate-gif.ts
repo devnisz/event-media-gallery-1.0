@@ -10,6 +10,7 @@ import {
   type GlamFilterConfig,
 } from "@/lib/virtual-booth/glam-filter";
 import {
+  cloneCanvasFrame,
   GIF_CAPTURE_FPS,
   GIF_FRAME_DELAY_MS,
 } from "@/lib/virtual-booth/gif-capture";
@@ -34,9 +35,20 @@ export async function encodeCanvasesToGifFile(
       repeat: 0,
     });
 
+    let addedFrames = 0;
+
     for (const frame of frames) {
-      gif.addFrame(frame, { delay: GIF_FRAME_DELAY_MS, copy: true });
+      const snapshot = cloneCanvasFrame(frame);
+      gif.addFrame(snapshot, { delay: GIF_FRAME_DELAY_MS, copy: true });
+      addedFrames += 1;
     }
+
+    console.log("[Cabine Virtual GIF] frames adicionados ao encoder", {
+      received: frames.length,
+      added: addedFrames,
+      width: firstFrame.width,
+      height: firstFrame.height,
+    });
 
     gif.on("finished", (blob) => {
       resolve(
@@ -67,12 +79,14 @@ export async function processVirtualBoothGifFrames(
 
   options.onStage?.("Aplicando filtro Glam automático...");
 
-  const glamFrames = rawFrames.map((frame) => {
-    const copy = document.createElement("canvas");
-    copy.width = frame.width;
-    copy.height = frame.height;
-    copy.getContext("2d")?.drawImage(frame, 0, 0);
+  const glamFrames = rawFrames.map((frame, index) => {
+    const copy = cloneCanvasFrame(frame);
     applyGlamToCanvas(copy, glamConfig);
+    console.log("[Cabine Virtual GIF] glam aplicado", {
+      index: index + 1,
+      width: copy.width,
+      height: copy.height,
+    });
     return copy;
   });
 

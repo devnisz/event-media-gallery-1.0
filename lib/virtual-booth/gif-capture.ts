@@ -3,10 +3,30 @@ export const GIF_CAPTURE_FPS = 10;
 export const GIF_FRAME_DELAY_MS = 100;
 export const GIF_FRAME_COUNT = 30;
 export const GIF_MAX_LONG_EDGE = 720;
+export const MIN_VALID_GIF_FRAMES = 10;
 
-function sleep(ms: number): Promise<void> {
+export type GifCaptureStats = {
+  attempted: number;
+  captured: number;
+  skipped: number;
+  videoWidth: number;
+  videoHeight: number;
+};
+
+export type GifCaptureResult = {
+  frames: HTMLCanvasElement[];
+  stats: GifCaptureStats;
+};
+
+function logGifCapture(...args: unknown[]) {
+  console.log("[Cabine Virtual GIF]", ...args);
+}
+
+function waitForNextPaint(): Promise<void> {
   return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
   });
 }
 
@@ -22,29 +42,132 @@ function getScaledDimensions(
   };
 }
 
+export function isVideoReadyForCapture(video: HTMLVideoElement): boolean {
+  return (
+    video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+    video.videoWidth > 0 &&
+    video.videoHeight > 0
+  );
+}
+
+async function waitForVideoReady(
+  video: HTMLVideoElement,
+  timeoutMs = 4000,
+): Promise<boolean> {
+  if (isVideoReadyForCapture(video)) {
+    return true;
+  }
+
+  const startedAt = performance.now();
+
+  return new Promise((resolve) => {
+    const check = () => {
+      if (isVideoReadyForCapture(video)) {
+        resolve(true);
+        return;
+      }
+
+      if (performance.now() - startedAt >= timeoutMs) {
+        resolve(false);
+        return;
+      }
+
+      requestAnimationFrame(check);
+    };
+
+    check();
+  });
+}
+
+function isCanvasFrameValid(canvas: HTMLCanvasElement): boolean {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (!context || canvas.width <= 0 || canvas.height <= 0) {
+    return false;
+  }
+
+  const sampleWidth = Math.min(40, canvas.width);
+  const sampleHeight = Math.min(40, canvas.height);
+  const startX = Math.floor((canvas.width - sampleWidth) / 2);
+  const startY = Math.floor((canvas.height - sampleHeight) / 2);
+
+  let brightnessSum = 0;
+
+  try {
+    const { data } = context.getImageData(startX, startY, sampleWidth, sampleHeight);
+
+    for (let index = 0; index < data.length; index += 4) {
+      brightnessSum += data[index] + data[index + 1] + data[index + 2];
+    }
+  } catch {
+    return false;
+  }
+
+  return brightnessSum > 600;
+}
+
+/**
+ * Captura um único frame em canvas novo (nunca reutilizado).
+ * Retorna null se o vídeo não estiver pronto ou o draw falhar.
+ */
 export function captureVideoFrameCanvas(
   video: HTMLVideoElement,
   dimensions: { width: number; height: number },
   options: { mirror?: boolean } = {},
-): HTMLCanvasElement {
+): HTMLCanvasElement | null {
+  if (!isVideoReadyForCapture(video)) {
+    return null;
+  }
+
   const canvas = document.createElement("canvas");
   canvas.width = dimensions.width;
   canvas.height = dimensions.height;
 
-  const context = canvas.getContext("2d");
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (!context) {
+    return null;
+  }
+
+  context.fillStyle = "#101010";
+  context.fillRect(0, 0, dimensions.width, dimensions.height);
+
+  try {
+    if (options.mirror) {
+      context.save();
+      context.translate(dimensions.width, 0);
+      context.scale(-1, 1);
+    }
+
+    context.drawImage(video, 0, 0, dimensions.width, dimensions.height);
+
+    if (options.mirror) {
+      context.restore();
+    }
+  } catch {
+    return null;
+  }
+
+  if (!isCanvasFrameValid(canvas)) {
+    return null;
+  }
+
+  return canvas;
+}
+
+export function cloneCanvasFrame(source: HTMLCanvasElement): HTMLCanvasElement {
+  const copy = document.createElement("canvas");
+  copy.width = source.width;
+  copy.height = source.height;
+
+  const context = copy.getContext("2d");
 
   if (!context) {
     throw new Error("Canvas não disponível neste dispositivo.");
   }
 
-  if (options.mirror) {
-    context.translate(dimensions.width, 0);
-    context.scale(-1, 1);
-  }
-
-  context.drawImage(video, 0, 0, dimensions.width, dimensions.height);
-
-  return canvas;
+  context.drawImage(source, 0, 0);
+  return copy;
 }
 
 export async function captureGifFramesFromVideo(
@@ -56,14 +179,15 @@ export async function captureGifFramesFromVideo(
     maxLongEdge?: number;
     onProgress?: (frameIndex: number, totalFrames: number) => void;
   } = {},
-): Promise<HTMLCanvasElement[]> {
-  const sourceWidth = video.videoWidth;
-  const sourceHeight = video.videoHeight;
+): Promise<GifCaptureResult> {
+  const videoReady = await waitForVideoReady(video);
 
-  if (sourceWidth <= 0 || sourceHeight <= 0) {
-    throw new Error("A câmera ainda não está pronta para capturar.");
+  if (!videoReady) {
+    throw new Error("Não foi possível gerar o GIF. Tente novamente.");
   }
 
+  const sourceWidth = video.videoWidth;
+  const sourceHeight = video.videoHeight;
   const durationMs = options.durationMs ?? GIF_CAPTURE_DURATION_MS;
   const fps = options.fps ?? GIF_CAPTURE_FPS;
   const totalFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
@@ -73,16 +197,69 @@ export async function captureGifFramesFromVideo(
     sourceHeight,
     options.maxLongEdge ?? GIF_MAX_LONG_EDGE,
   );
+
+  logGifCapture("início da captura", {
+    videoWidth: sourceWidth,
+    videoHeight: sourceHeight,
+    canvasWidth: dimensions.width,
+    canvasHeight: dimensions.height,
+    totalFrames,
+    intervalMs,
+    readyState: video.readyState,
+  });
+
   const frames: HTMLCanvasElement[] = [];
+  let skipped = 0;
+  const startedAt = performance.now();
 
   for (let index = 0; index < totalFrames; index += 1) {
     if (index > 0) {
-      await sleep(intervalMs);
+      const targetTime = startedAt + index * intervalMs;
+
+      while (performance.now() < targetTime) {
+        await waitForNextPaint();
+      }
+    } else {
+      await waitForNextPaint();
     }
 
-    frames.push(captureVideoFrameCanvas(video, dimensions, options));
+    const frame = captureVideoFrameCanvas(video, dimensions, options);
+
+    if (frame) {
+      frames.push(frame);
+      logGifCapture("frame válido", {
+        index: index + 1,
+        totalFrames,
+        frameWidth: frame.width,
+        frameHeight: frame.height,
+      });
+    } else {
+      skipped += 1;
+      logGifCapture("frame ignorado", {
+        index: index + 1,
+        totalFrames,
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+      });
+    }
+
     options.onProgress?.(index + 1, totalFrames);
   }
 
-  return frames;
+  const stats: GifCaptureStats = {
+    attempted: totalFrames,
+    captured: frames.length,
+    skipped,
+    videoWidth: sourceWidth,
+    videoHeight: sourceHeight,
+  };
+
+  logGifCapture("captura finalizada", stats);
+
+  if (frames.length < MIN_VALID_GIF_FRAMES) {
+    throw new Error("Não foi possível gerar o GIF. Tente novamente.");
+  }
+
+  return { frames, stats };
 }

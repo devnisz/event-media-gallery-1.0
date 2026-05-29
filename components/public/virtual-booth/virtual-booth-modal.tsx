@@ -118,6 +118,7 @@ export function VirtualBoothModal({
     "prepare",
   );
   const [flashVisible, setFlashVisible] = useState(false);
+  const [isRecordingGif, setIsRecordingGif] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [composedFile, setComposedFile] = useState<File | null>(null);
   const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(
@@ -182,7 +183,10 @@ export function VirtualBoothModal({
   useEffect(() => {
     const video = videoRef.current;
 
-    if (!video || !cameraStream || (step !== "camera" && step !== "countdown")) {
+    const keepVideoLive =
+      step === "camera" || step === "countdown" || isRecordingGif;
+
+    if (!video || !cameraStream || !keepVideoLive) {
       return;
     }
 
@@ -192,7 +196,7 @@ export function VirtualBoothModal({
     return () => {
       video.srcObject = null;
     };
-  }, [cameraStream, step]);
+  }, [cameraStream, step, isRecordingGif]);
 
   function resetState() {
     countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -209,6 +213,7 @@ export function VirtualBoothModal({
     setCountdownDisplay("");
     setCountdownPhase("prepare");
     setFlashVisible(false);
+    setIsRecordingGif(false);
     setSourceFile(null);
     setComposedFile(null);
     setCapturePreviewUrl(null);
@@ -221,7 +226,12 @@ export function VirtualBoothModal({
   }
 
   function handleClose() {
-    if (step === "uploading" || step === "composing" || step === "countdown") {
+    if (
+      step === "uploading" ||
+      step === "composing" ||
+      step === "countdown" ||
+      isRecordingGif
+    ) {
       return;
     }
 
@@ -373,22 +383,27 @@ export function VirtualBoothModal({
       return;
     }
 
-    setStep("composing");
-    setComposingMessage("Capturando movimento...");
     setErrorMessage("");
+    setIsRecordingGif(true);
+    setComposingMessage("Capturando movimento...");
 
     try {
-      const rawFrames = await captureGifFramesFromVideo(video, {
+      const { frames: rawFrames, stats } = await captureGifFramesFromVideo(video, {
         mirror: true,
         onProgress: (frameIndex, totalFrames) => {
           setComposingMessage(`Capturando movimento (${frameIndex}/${totalFrames})...`);
         },
       });
 
+      console.log("[Cabine Virtual GIF] resumo da captura no modal", stats);
+
+      setIsRecordingGif(false);
       stopMediaStream(cameraStreamRef.current);
       cameraStreamRef.current = null;
       setCameraStream(null);
       setCameraReady(false);
+
+      setStep("composing");
 
       revokeObjectUrl(capturePreviewUrl);
       revokeObjectUrl(composedPreviewUrl);
@@ -415,12 +430,13 @@ export function VirtualBoothModal({
         );
       }
     } catch (error) {
+      setIsRecordingGif(false);
       setStep("camera");
       setFlashVisible(false);
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Não foi possível gerar o GIF.",
+          : "Não foi possível gerar o GIF. Tente novamente.",
       );
     }
   }
@@ -508,7 +524,8 @@ export function VirtualBoothModal({
             event.target === dialogRef.current &&
             step !== "uploading" &&
             step !== "composing" &&
-            step !== "countdown"
+            step !== "countdown" &&
+            !isRecordingGif
           ) {
             handleClose();
           }
@@ -521,7 +538,10 @@ export function VirtualBoothModal({
           />
 
           <div className="relative p-6 sm:p-8">
-            {step !== "uploading" && step !== "composing" && step !== "countdown" ? (
+            {step !== "uploading" &&
+            step !== "composing" &&
+            step !== "countdown" &&
+            !isRecordingGif ? (
               <button
                 type="button"
                 onClick={handleClose}
@@ -606,7 +626,7 @@ export function VirtualBoothModal({
               </>
             ) : null}
 
-            {step === "camera" || step === "countdown" ? (
+            {step === "camera" || step === "countdown" || isRecordingGif ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
                   {BRAND_LABEL}
@@ -656,7 +676,18 @@ export function VirtualBoothModal({
                     </div>
                   ) : null}
 
-                  {step === "countdown" ? (
+                  {isRecordingGif ? (
+                    <div className="absolute inset-0 z-30 grid place-items-center bg-black/25 px-6 text-center backdrop-blur-[1px]">
+                      <div>
+                        <div className="mx-auto size-10 animate-pulse rounded-full border-2 border-fuchsia-300/80 border-t-transparent" />
+                        <p className="mt-4 text-sm font-semibold text-white/80">
+                          {composingMessage || "Gravando GIF..."}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {step === "countdown" && !isRecordingGif ? (
                     <div className="absolute inset-0 z-30 grid place-items-center bg-black/18 px-6 text-center backdrop-blur-[1px]">
                       <div className="relative flex flex-col items-center gap-4">
                         {countdownPhase === "prepare" ? (
@@ -697,7 +728,7 @@ export function VirtualBoothModal({
                   </p>
                 ) : null}
 
-                {step === "camera" ? (
+                {step === "camera" && !isRecordingGif ? (
                   <button
                     type="button"
                     onClick={startCountdown}
