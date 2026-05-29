@@ -272,6 +272,10 @@ function uiDurationLabel(mediaType: GalleryMediaRecord["mediaType"]): string {
     return "GIF";
   }
 
+  if (mediaType === "boomerang") {
+    return "Boomerang";
+  }
+
   return "Foto";
 }
 

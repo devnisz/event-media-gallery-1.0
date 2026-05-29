@@ -10,7 +10,7 @@ export function suggestedDownloadFileName(
       .replace(/\s+/g, " ")
       .trim() || "midia";
 
-  if (media.mediaType === "gif") {
+  if (media.mediaType === "gif" || media.mediaType === "boomerang") {
     return `${base}.gif`;
   }
 

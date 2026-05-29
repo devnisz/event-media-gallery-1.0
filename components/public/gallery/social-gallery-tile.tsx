@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type MouseEvent } from "react";
 
+import { MediaBadge } from "@/components/public/media-badge";
 import { routes } from "@/lib/routes";
 import type { EventVideo } from "@/types/video";
 
@@ -192,6 +193,12 @@ export function SocialGalleryTile({
             aria-hidden
           />
         )}
+
+        {video.mediaType === "gif" || video.mediaType === "boomerang" ? (
+          <span className="pointer-events-none absolute left-1.5 top-1.5 z-10">
+            <MediaBadge kind={video.mediaType} size="sm" />
+          </span>
+        ) : null}
 
         {video.mediaType === "video" ? (
           <span className="pointer-events-none absolute bottom-1.5 left-1.5 opacity-90">

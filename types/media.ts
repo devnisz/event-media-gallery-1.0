@@ -3,7 +3,7 @@
  * Legacy: registros com `videoUrl` / `thumbnail` são normalizados na leitura.
  */
 
-export type MediaKind = "video" | "image" | "gif";
+export type MediaKind = "video" | "image" | "gif" | "boomerang";
 export type MediaSource = "operator" | "guest";
 export type MediaReviewStatus = "approved" | "pending" | "rejected";
 

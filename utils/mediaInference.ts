@@ -9,7 +9,7 @@ function normalizeExplicitMediaType(
 ): MediaKind | undefined {
   const v = raw?.trim().toLowerCase();
 
-  if (v === "video" || v === "image" || v === "gif") {
+  if (v === "video" || v === "image" || v === "gif" || v === "boomerang") {
     return v;
   }
 
@@ -73,7 +73,7 @@ export function inferFileType(
 
   const pathOnly = assetUrl.split(/[?#]/)[0]?.toLowerCase() ?? "";
 
-  if (mediaKind === "gif") {
+  if (mediaKind === "gif" || mediaKind === "boomerang") {
     return "image/gif";
   }
 

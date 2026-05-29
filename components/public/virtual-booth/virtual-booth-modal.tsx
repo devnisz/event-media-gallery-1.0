@@ -15,6 +15,13 @@ import {
   startVirtualBoothPhotoStream,
   stopMediaStream,
 } from "@/lib/virtual-booth/camera";
+import {
+  BOOMERANG_CAPTURE_DURATION_MS,
+  BOOMERANG_CAPTURE_FPS,
+  BOOMERANG_FILE_PREFIX,
+  buildBoomerangSequence,
+  MIN_VALID_BOOMERANG_FRAMES,
+} from "@/lib/virtual-booth/boomerang";
 import { captureGifFramesFromVideo } from "@/lib/virtual-booth/gif-capture";
 import { processVirtualBoothGifFrames } from "@/lib/virtual-booth/generate-gif";
 import {
@@ -39,20 +46,20 @@ const OPTIONS: VirtualBoothOption[] = [
     description: "Tire uma foto personalizada para o evento.",
   },
   {
-    id: "video",
-    icon: "🎥",
-    title: "Vídeo",
-    description: "Grave um vídeo para compartilhar.",
-  },
-  {
     id: "gif",
     icon: "🎞️",
     title: "GIF",
     description: "Crie um GIF divertido para o evento.",
   },
+  {
+    id: "boomerang",
+    icon: "🔄",
+    title: "Boomerang",
+    description: "Crie um movimento de vai-e-volta para o evento.",
+  },
 ];
 
-type CaptureMode = "photo" | "gif";
+type CaptureMode = "photo" | "gif" | "boomerang";
 
 type ModalStep =
   | "menu"
@@ -118,7 +125,7 @@ export function VirtualBoothModal({
     "prepare",
   );
   const [flashVisible, setFlashVisible] = useState(false);
-  const [isRecordingGif, setIsRecordingGif] = useState(false);
+  const [isRecordingMotion, setIsRecordingMotion] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [composedFile, setComposedFile] = useState<File | null>(null);
   const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(
@@ -136,6 +143,8 @@ export function VirtualBoothModal({
   const officialFrameUrl = frameUrl.trim();
   const hasOfficialFrame = officialFrameUrl.length > 0;
   const isGifMode = captureMode === "gif";
+  const isBoomerangMode = captureMode === "boomerang";
+  const isMotionMode = isGifMode || isBoomerangMode;
   const showingFramedVersion =
     hasOfficialFrame && useFramedPreview && Boolean(composedFile);
 
@@ -184,7 +193,7 @@ export function VirtualBoothModal({
     const video = videoRef.current;
 
     const keepVideoLive =
-      step === "camera" || step === "countdown" || isRecordingGif;
+      step === "camera" || step === "countdown" || isRecordingMotion;
 
     if (!video || !cameraStream || !keepVideoLive) {
       return;
@@ -196,7 +205,7 @@ export function VirtualBoothModal({
     return () => {
       video.srcObject = null;
     };
-  }, [cameraStream, step, isRecordingGif]);
+  }, [cameraStream, step, isRecordingMotion]);
 
   function resetState() {
     countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -213,7 +222,7 @@ export function VirtualBoothModal({
     setCountdownDisplay("");
     setCountdownPhase("prepare");
     setFlashVisible(false);
-    setIsRecordingGif(false);
+    setIsRecordingMotion(false);
     setSourceFile(null);
     setComposedFile(null);
     setCapturePreviewUrl(null);
@@ -230,7 +239,7 @@ export function VirtualBoothModal({
       step === "uploading" ||
       step === "composing" ||
       step === "countdown" ||
-      isRecordingGif
+      isRecordingMotion
     ) {
       return;
     }
@@ -281,6 +290,11 @@ export function VirtualBoothModal({
 
     if (optionId === "gif") {
       void startCameraCapture("gif");
+      return;
+    }
+
+    if (optionId === "boomerang") {
+      void startCameraCapture("boomerang");
       return;
     }
 
@@ -374,7 +388,7 @@ export function VirtualBoothModal({
     }
   }
 
-  async function captureGifSequence() {
+  async function captureMotionSequence() {
     const video = videoRef.current;
 
     if (!video) {
@@ -384,35 +398,67 @@ export function VirtualBoothModal({
     }
 
     setErrorMessage("");
-    setIsRecordingGif(true);
-    setComposingMessage("Capturando movimento...");
+    setIsRecordingMotion(true);
+    setComposingMessage(
+      isBoomerangMode ? "Capturando Boomerang..." : "Capturando movimento...",
+    );
 
     try {
       const { frames: rawFrames, stats } = await captureGifFramesFromVideo(video, {
         mirror: true,
+        durationMs: isBoomerangMode ? BOOMERANG_CAPTURE_DURATION_MS : undefined,
+        fps: isBoomerangMode ? BOOMERANG_CAPTURE_FPS : undefined,
+        minValidFrames: isBoomerangMode ? MIN_VALID_BOOMERANG_FRAMES : undefined,
+        logLabel: isBoomerangMode ? "Boomerang" : "GIF",
         onProgress: (frameIndex, totalFrames) => {
-          setComposingMessage(`Capturando movimento (${frameIndex}/${totalFrames})...`);
+          setComposingMessage(
+            isBoomerangMode
+              ? `Capturando Boomerang (${frameIndex}/${totalFrames})...`
+              : `Capturando movimento (${frameIndex}/${totalFrames})...`,
+          );
         },
       });
 
-      console.log("[Cabine Virtual GIF] resumo da captura no modal", stats);
+      console.log(
+        `[Cabine Virtual ${isBoomerangMode ? "Boomerang" : "GIF"}] resumo da captura no modal`,
+        stats,
+      );
 
-      setIsRecordingGif(false);
+      setIsRecordingMotion(false);
       stopMediaStream(cameraStreamRef.current);
       cameraStreamRef.current = null;
       setCameraStream(null);
       setCameraReady(false);
 
       setStep("composing");
+      setComposingMessage(
+        isBoomerangMode ? "Gerando Boomerang..." : "Gerando GIF...",
+      );
 
       revokeObjectUrl(capturePreviewUrl);
       revokeObjectUrl(composedPreviewUrl);
 
+      const sequenceFrames = isBoomerangMode
+        ? buildBoomerangSequence(rawFrames)
+        : rawFrames;
+
+      console.log(
+        `[Cabine Virtual ${isBoomerangMode ? "Boomerang" : "GIF"}] frames na sequência final`,
+        {
+          capturados: rawFrames.length,
+          sequencia: sequenceFrames.length,
+        },
+      );
+
       const { glamGif, framedGif } = await processVirtualBoothGifFrames(
-        rawFrames,
+        sequenceFrames,
         {
           frameUrl: hasOfficialFrame ? officialFrameUrl : undefined,
           glamConfig: ALWAYS_ON_GLAM_FILTER,
+          fileNamePrefix: isBoomerangMode
+            ? BOOMERANG_FILE_PREFIX
+            : "cabine-virtual",
+          logLabel: isBoomerangMode ? "Boomerang" : "GIF",
           onStage: setComposingMessage,
         },
       );
@@ -426,17 +472,21 @@ export function VirtualBoothModal({
 
       if (!framedGif && hasOfficialFrame) {
         setErrorMessage(
-          "Não foi possível aplicar a moldura. Você ainda pode publicar o GIF sem moldura.",
+          isBoomerangMode
+            ? "Não foi possível aplicar a moldura. Você ainda pode publicar o Boomerang sem moldura."
+            : "Não foi possível aplicar a moldura. Você ainda pode publicar o GIF sem moldura.",
         );
       }
     } catch (error) {
-      setIsRecordingGif(false);
+      setIsRecordingMotion(false);
       setStep("camera");
       setFlashVisible(false);
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Não foi possível gerar o GIF. Tente novamente.",
+          : isBoomerangMode
+            ? "Não foi possível gerar o Boomerang. Tente novamente."
+            : "Não foi possível gerar o GIF. Tente novamente.",
       );
     }
   }
@@ -458,7 +508,11 @@ export function VirtualBoothModal({
       { delay: 900, phase: "tick" as const, value: "3" },
       { delay: 1800, phase: "tick" as const, value: "2" },
       { delay: 2700, phase: "tick" as const, value: "1" },
-      { delay: 3600, phase: "snap" as const, value: isGifMode ? "🎞️" : "📸" },
+      {
+        delay: 3600,
+        phase: "snap" as const,
+        value: isBoomerangMode ? "🔄" : isGifMode ? "🎞️" : "📸",
+      },
     ];
 
     sequence.forEach(({ delay, phase, value }) => {
@@ -472,8 +526,8 @@ export function VirtualBoothModal({
     countdownTimersRef.current.push(
       window.setTimeout(() => setFlashVisible(true), 3720),
       window.setTimeout(() => {
-        if (isGifMode) {
-          void captureGifSequence();
+        if (isMotionMode) {
+          void captureMotionSequence();
         } else {
           void captureCurrentFrame();
         }
@@ -505,9 +559,11 @@ export function VirtualBoothModal({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : isGifMode
-            ? "Não foi possível publicar o GIF."
-            : "Não foi possível publicar a foto.",
+          : isBoomerangMode
+            ? "Não foi possível publicar o Boomerang."
+            : isGifMode
+              ? "Não foi possível publicar o GIF."
+              : "Não foi possível publicar a foto.",
       );
     }
   }
@@ -525,7 +581,7 @@ export function VirtualBoothModal({
             step !== "uploading" &&
             step !== "composing" &&
             step !== "countdown" &&
-            !isRecordingGif
+            !isRecordingMotion
           ) {
             handleClose();
           }
@@ -541,7 +597,7 @@ export function VirtualBoothModal({
             {step !== "uploading" &&
             step !== "composing" &&
             step !== "countdown" &&
-            !isRecordingGif ? (
+            !isRecordingMotion ? (
               <button
                 type="button"
                 onClick={handleClose}
@@ -564,7 +620,7 @@ export function VirtualBoothModal({
                   {BRAND_LABEL}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Crie fotos e GIFs personalizados com a moldura oficial do evento.
+                  Crie fotos, GIFs e Boomerangs personalizados com a moldura oficial do evento.
                 </p>
 
                 {errorMessage ? (
@@ -626,7 +682,7 @@ export function VirtualBoothModal({
               </>
             ) : null}
 
-            {step === "camera" || step === "countdown" || isRecordingGif ? (
+            {step === "camera" || step === "countdown" || isRecordingMotion ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
                   {BRAND_LABEL}
@@ -637,18 +693,24 @@ export function VirtualBoothModal({
                 >
                   {step === "countdown"
                     ? "Prepare-se"
-                    : isGifMode
-                      ? "Enquadre seu GIF"
-                      : "Enquadre sua foto"}
+                    : isBoomerangMode
+                      ? "Enquadre seu Boomerang"
+                      : isGifMode
+                        ? "Enquadre seu GIF"
+                        : "Enquadre sua foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {step === "countdown"
-                    ? isGifMode
-                      ? "A gravação de 3 segundos começa automaticamente após a contagem."
-                      : "A captura acontece automaticamente no final da contagem."
-                    : isGifMode
+                    ? isBoomerangMode
+                      ? "A gravação de 2 segundos começa automaticamente após a contagem."
+                      : isGifMode
+                        ? "A gravação de 3 segundos começa automaticamente após a contagem."
+                        : "A captura acontece automaticamente no final da contagem."
+                    : isBoomerangMode
                       ? "Use boa luz, olhe para a câmera e toque em gravar."
-                      : "Use boa luz, olhe para a câmera e toque em capturar."}
+                      : isGifMode
+                        ? "Use boa luz, olhe para a câmera e toque em gravar."
+                        : "Use boa luz, olhe para a câmera e toque em capturar."}
                 </p>
 
                 <div className="relative mt-5 flex min-h-[min(52vh,30rem)] items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
@@ -676,25 +738,28 @@ export function VirtualBoothModal({
                     </div>
                   ) : null}
 
-                  {isRecordingGif ? (
+                  {isRecordingMotion ? (
                     <div className="absolute inset-0 z-30 grid place-items-center bg-black/25 px-6 text-center backdrop-blur-[1px]">
                       <div>
                         <div className="mx-auto size-10 animate-pulse rounded-full border-2 border-fuchsia-300/80 border-t-transparent" />
                         <p className="mt-4 text-sm font-semibold text-white/80">
-                          {composingMessage || "Gravando GIF..."}
+                          {composingMessage ||
+                            (isBoomerangMode ? "Gravando Boomerang..." : "Gravando GIF...")}
                         </p>
                       </div>
                     </div>
                   ) : null}
 
-                  {step === "countdown" && !isRecordingGif ? (
+                  {step === "countdown" && !isRecordingMotion ? (
                     <div className="absolute inset-0 z-30 grid place-items-center bg-black/18 px-6 text-center backdrop-blur-[1px]">
                       <div className="relative flex flex-col items-center gap-4">
                         {countdownPhase === "prepare" ? (
                           <p className="max-w-[14rem] text-[0.7rem] font-medium leading-relaxed tracking-[0.18em] text-white/55 uppercase">
-                            {isGifMode
-                              ? "Prepare-se para o GIF"
-                              : "Prepare-se para a foto"}
+                            {isBoomerangMode
+                              ? "Prepare-se para o Boomerang"
+                              : isGifMode
+                                ? "Prepare-se para o GIF"
+                                : "Prepare-se para a foto"}
                           </p>
                         ) : (
                           <>
@@ -728,15 +793,21 @@ export function VirtualBoothModal({
                   </p>
                 ) : null}
 
-                {step === "camera" && !isRecordingGif ? (
+                {step === "camera" && !isRecordingMotion ? (
                   <button
                     type="button"
                     onClick={startCountdown}
                     disabled={!cameraReady}
                     className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
                   >
-                    <span aria-hidden>{isGifMode ? "🎞️" : "📸"}</span>
-                    {isGifMode ? "Gravar GIF" : "Capturar"}
+                    <span aria-hidden>
+                      {isBoomerangMode ? "🔄" : isGifMode ? "🎞️" : "📸"}
+                    </span>
+                    {isBoomerangMode
+                      ? "Gravar Boomerang"
+                      : isGifMode
+                        ? "Gravar GIF"
+                        : "Capturar"}
                   </button>
                 ) : null}
               </>
@@ -751,7 +822,11 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  {isGifMode ? "Preparando seu GIF" : "Preparando sua foto"}
+                  {isBoomerangMode
+                    ? "Preparando seu Boomerang"
+                    : isGifMode
+                      ? "Preparando seu GIF"
+                      : "Preparando sua foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {composingMessage || "Ajustando detalhes da imagem..."}
@@ -771,10 +846,18 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  {isGifMode ? "Seu GIF está pronto!" : "Sua foto está pronta!"}
+                  {isBoomerangMode
+                    ? "Seu Boomerang está pronto!"
+                    : isGifMode
+                      ? "Seu GIF está pronto!"
+                      : "Sua foto está pronta!"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  {isGifMode
+                  {isBoomerangMode
+                    ? showingFramedVersion
+                      ? "Boomerang animado com moldura oficial do evento."
+                      : "Prévia do Boomerang pronto para publicar."
+                    : isGifMode
                     ? showingFramedVersion
                       ? "GIF animado com moldura oficial do evento."
                       : "Prévia do GIF pronto para publicar."
@@ -788,7 +871,11 @@ export function VirtualBoothModal({
                   <img
                     src={activePreviewUrl}
                     alt={
-                      isGifMode
+                      isBoomerangMode
+                        ? showingFramedVersion
+                          ? "Prévia do Boomerang com moldura"
+                          : "Prévia do Boomerang"
+                        : isGifMode
                         ? showingFramedVersion
                           ? "Prévia do GIF com moldura"
                           : "Prévia do GIF"
@@ -813,10 +900,14 @@ export function VirtualBoothModal({
                     className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98]"
                   >
                     <span aria-hidden>✅</span>
-                    {isGifMode ? "Publicar GIF" : "Publicar foto"}
+                    {isBoomerangMode
+                      ? "Publicar Boomerang"
+                      : isGifMode
+                        ? "Publicar GIF"
+                        : "Publicar foto"}
                   </button>
 
-                  {isGifMode ? (
+                  {isMotionMode ? (
                     <button
                       type="button"
                       onClick={resetState}
@@ -858,7 +949,11 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  {isGifMode ? "Publicando GIF" : "Publicando foto"}
+                  {isBoomerangMode
+                    ? "Publicando Boomerang"
+                    : isGifMode
+                      ? "Publicando GIF"
+                      : "Publicando foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {uploadMessage || "Enviando para a galeria..."}
@@ -882,10 +977,16 @@ export function VirtualBoothModal({
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
                   <span aria-hidden>🎉 </span>
-                  {isGifMode ? "GIF publicado!" : "Foto publicada!"}
+                  {isBoomerangMode
+                    ? "Boomerang publicado!"
+                    : isGifMode
+                      ? "GIF publicado!"
+                      : "Foto publicada!"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  {isGifMode
+                  {isBoomerangMode
+                    ? "Seu Boomerang já está disponível na galeria do evento."
+                    : isGifMode
                     ? "Seu GIF já está disponível na galeria do evento."
                     : "Sua foto já está disponível na galeria do evento."}
                 </p>

@@ -47,11 +47,13 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
   const isVideo = video.mediaType === "video";
 
   const downloadLabel =
-    video.mediaType === "gif"
-      ? "Baixar GIF"
-      : video.mediaType === "image"
-        ? "Baixar imagem"
-        : "Baixar vídeo";
+    video.mediaType === "boomerang"
+      ? "Baixar Boomerang"
+      : video.mediaType === "gif"
+        ? "Baixar GIF"
+        : video.mediaType === "image"
+          ? "Baixar imagem"
+          : "Baixar vídeo";
 
   const bodyCopy = isVideo
     ? "No celular, o som pode iniciar silenciado para uma reprodução suave — use os controles quando quiser ouvir."

@@ -18,8 +18,8 @@ export type GifCaptureResult = {
   stats: GifCaptureStats;
 };
 
-function logGifCapture(...args: unknown[]) {
-  console.log("[Cabine Virtual GIF]", ...args);
+function logGifCapture(label: string, ...args: unknown[]) {
+  console.log(`[Cabine Virtual ${label}]`, ...args);
 }
 
 function waitForNextPaint(): Promise<void> {
@@ -177,6 +177,8 @@ export async function captureGifFramesFromVideo(
     fps?: number;
     mirror?: boolean;
     maxLongEdge?: number;
+    minValidFrames?: number;
+    logLabel?: string;
     onProgress?: (frameIndex: number, totalFrames: number) => void;
   } = {},
 ): Promise<GifCaptureResult> {
@@ -198,7 +200,9 @@ export async function captureGifFramesFromVideo(
     options.maxLongEdge ?? GIF_MAX_LONG_EDGE,
   );
 
-  logGifCapture("início da captura", {
+  const logLabel = options.logLabel ?? "GIF";
+
+  logGifCapture(logLabel, "início da captura", {
     videoWidth: sourceWidth,
     videoHeight: sourceHeight,
     canvasWidth: dimensions.width,
@@ -227,7 +231,7 @@ export async function captureGifFramesFromVideo(
 
     if (frame) {
       frames.push(frame);
-      logGifCapture("frame válido", {
+      logGifCapture(logLabel, "frame válido", {
         index: index + 1,
         totalFrames,
         frameWidth: frame.width,
@@ -235,7 +239,7 @@ export async function captureGifFramesFromVideo(
       });
     } else {
       skipped += 1;
-      logGifCapture("frame ignorado", {
+      logGifCapture(logLabel, "frame ignorado", {
         index: index + 1,
         totalFrames,
         readyState: video.readyState,
@@ -255,9 +259,11 @@ export async function captureGifFramesFromVideo(
     videoHeight: sourceHeight,
   };
 
-  logGifCapture("captura finalizada", stats);
+  logGifCapture(logLabel, "captura finalizada", stats);
 
-  if (frames.length < MIN_VALID_GIF_FRAMES) {
+  const minValid = options.minValidFrames ?? MIN_VALID_GIF_FRAMES;
+
+  if (frames.length < minValid) {
     throw new Error("Não foi possível gerar o GIF. Tente novamente.");
   }
 

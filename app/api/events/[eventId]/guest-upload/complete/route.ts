@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import type { GalleryMediaRecord } from "@/types/media";
+import type { GalleryMediaRecord, MediaKind } from "@/types/media";
 import { getEventById } from "@/services/eventService";
 import { appendGalleryMediaRecord } from "@/services/mediaService";
 import { generateAndStoreMediaQrCode } from "@/lib/media/qr-code";
@@ -14,6 +14,23 @@ export const runtime = "nodejs";
 type GuestUploadCompleteContext = {
   params: Promise<{ eventId: string }>;
 };
+
+function resolveGuestMediaType(
+  fileType: string,
+  fileName: string,
+): MediaKind | null {
+  const typeInfo = ALLOWED_GUEST_UPLOAD_TYPES[fileType];
+
+  if (!typeInfo) {
+    return null;
+  }
+
+  if (typeInfo.mediaType === "gif" && /boomerang/i.test(fileName)) {
+    return "boomerang";
+  }
+
+  return typeInfo.mediaType;
+}
 
 function revalidateEventPaths(eventId: string, eventSlug: string, mediaId: string) {
   revalidatePath("/");
@@ -63,13 +80,13 @@ export async function POST(
       typeof body.thumbnailUrl === "string" && body.thumbnailUrl.trim()
         ? body.thumbnailUrl.trim()
         : undefined;
-    const typeInfo = ALLOWED_GUEST_UPLOAD_TYPES[fileType];
+    const mediaType = resolveGuestMediaType(fileType, fileName);
 
     if (!/^guest_[a-f0-9]{18}$/.test(mediaId)) {
       return Response.json({ error: "Upload inválido." }, { status: 400 });
     }
 
-    if (!typeInfo) {
+    if (!mediaType) {
       return Response.json(
         { error: "Tipo de arquivo não permitido." },
         { status: 415 },
@@ -97,9 +114,13 @@ export async function POST(
     }
 
     const fallbackName =
-      typeInfo.mediaType === "video"
+      mediaType === "video"
         ? "Vídeo enviado por convidado"
-        : "Foto enviada por convidado";
+        : mediaType === "boomerang"
+          ? "Boomerang enviado por convidado"
+          : mediaType === "gif"
+            ? "GIF enviado por convidado"
+            : "Foto enviada por convidado";
     const record: GalleryMediaRecord = {
       id: mediaId,
       eventId: event.id,
@@ -108,11 +129,11 @@ export async function POST(
       name: cleanGuestUploadName(fileName) || fallbackName,
       url: publicUrl,
       qrCode,
-      mediaType: typeInfo.mediaType,
+      mediaType,
       fileType,
       mediaSource: "guest",
       reviewStatus: event.requireGuestUploadApproval ? "pending" : "approved",
-      thumbnailUrl: thumbnailUrl ?? (typeInfo.mediaType === "video" ? undefined : publicUrl),
+      thumbnailUrl: thumbnailUrl ?? (mediaType === "video" ? undefined : publicUrl),
       createdAt: now,
       uploadedAt: now,
       isHidden: false,

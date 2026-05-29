@@ -18,6 +18,7 @@ import {
 export async function encodeCanvasesToGifFile(
   frames: HTMLCanvasElement[],
   fileName?: string,
+  logLabel = "GIF",
 ): Promise<File> {
   if (frames.length === 0) {
     throw new Error("Nenhum frame disponível para gerar o GIF.");
@@ -43,7 +44,7 @@ export async function encodeCanvasesToGifFile(
       addedFrames += 1;
     }
 
-    console.log("[Cabine Virtual GIF] frames adicionados ao encoder", {
+    console.log(`[Cabine Virtual ${logLabel}] frames adicionados ao encoder`, {
       received: frames.length,
       added: addedFrames,
       width: firstFrame.width,
@@ -72,17 +73,22 @@ export async function processVirtualBoothGifFrames(
   options: {
     frameUrl?: string;
     glamConfig?: GlamFilterConfig;
+    fileNamePrefix?: string;
+    logLabel?: string;
     onStage?: (message: string) => void;
   } = {},
 ): Promise<{ glamGif: File; framedGif: File | null }> {
   const glamConfig = options.glamConfig ?? ALWAYS_ON_GLAM_FILTER;
+  const fileNamePrefix = options.fileNamePrefix ?? "cabine-virtual";
+  const logLabel = options.logLabel ?? "GIF";
+  const timestamp = Date.now();
 
   options.onStage?.("Aplicando filtro Glam automático...");
 
   const glamFrames = rawFrames.map((frame, index) => {
     const copy = cloneCanvasFrame(frame);
     applyGlamToCanvas(copy, glamConfig);
-    console.log("[Cabine Virtual GIF] glam aplicado", {
+    console.log(`[Cabine Virtual ${logLabel}] glam aplicado`, {
       index: index + 1,
       width: copy.width,
       height: copy.height,
@@ -92,7 +98,8 @@ export async function processVirtualBoothGifFrames(
 
   const glamGif = await encodeCanvasesToGifFile(
     glamFrames,
-    `cabine-virtual-glam-${Date.now()}.gif`,
+    `${fileNamePrefix}-glam-${timestamp}.gif`,
+    logLabel,
   );
 
   const frameUrl = options.frameUrl?.trim() ?? "";
@@ -112,7 +119,8 @@ export async function processVirtualBoothGifFrames(
 
   const framedGif = await encodeCanvasesToGifFile(
     framedFrames,
-    `cabine-virtual-moldura-${Date.now()}.gif`,
+    `${fileNamePrefix}-moldura-${timestamp}.gif`,
+    logLabel,
   );
 
   return { glamGif, framedGif };

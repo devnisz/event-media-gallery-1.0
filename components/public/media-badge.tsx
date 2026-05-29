@@ -4,6 +4,7 @@ const LABELS: Record<MediaKind, string> = {
   video: "VIDEO",
   image: "FOTO",
   gif: "GIF",
+  boomerang: "🔄 Boomerang",
 };
 
 const VARIANTS: Record<
@@ -16,6 +17,8 @@ const VARIANTS: Record<
     "border-fuchsia-300/35 bg-fuchsia-500/15 text-fuchsia-50 shadow-[0_12px_40px_rgba(217,70,239,0.18)]",
   gif:
     "border-amber-300/40 bg-amber-400/18 text-amber-50 shadow-[0_12px_40px_rgba(251,191,36,0.22)]",
+  boomerang:
+    "border-sky-300/40 bg-sky-400/18 text-sky-50 shadow-[0_12px_40px_rgba(56,189,248,0.22)]",
 };
 
 type MediaBadgeProps = {
