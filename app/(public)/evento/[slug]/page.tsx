@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { AmbientBackground } from "@/components/public/ambient-background";
 import { VideoGallery } from "@/components/public/video-gallery";
+import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { getEventBySlug } from "@/services/eventService";
 import { getEventVideosForEventSlug } from "@/services/videoService";
 
@@ -32,6 +33,8 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
     notFound();
   }
 
+  const cabineConfig = resolveCabineVirtualConfig(event);
+
   const eventVideos = await getEventVideosForEventSlug(slug, event.id, {
     allowPublicDelete: event.allowPublicDelete,
     requireDeletePin: event.allowPublicDelete && event.requireDeletePin,
@@ -52,6 +55,7 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
         allowGuestUpload={event.allowGuestUpload}
         frameUrl={event.frameUrl}
         galleryLayout={event.galleryLayout}
+        cabineConfig={cabineConfig}
       />
     </main>
   );

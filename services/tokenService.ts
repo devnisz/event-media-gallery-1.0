@@ -3,6 +3,7 @@
  */
 import { timingSafeEqual } from "crypto";
 import { normalizeGalleryLayout } from "@/lib/gallery/layout";
+import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   readEventsLooseForHydration,
@@ -38,6 +39,15 @@ export function hydrateAssignTokens(
       ...(deletePinHash ? { deletePinHash } : {}),
     };
 
+    const cabineConfig = resolveCabineVirtualConfig(e);
+    const cabineFields = {
+      cabineVirtualEnabled: cabineConfig.enabled,
+      cabineVirtualPhotoEnabled: cabineConfig.photo,
+      cabineVirtualBoomerangEnabled: cabineConfig.boomerang,
+      cabineVirtualVideoEnabled: cabineConfig.video,
+      cabineVirtualVideoMaxDurationSeconds: cabineConfig.videoMaxDurationSeconds,
+    };
+
     if (trimmedExisting) {
       return {
         id: e.id,
@@ -50,6 +60,7 @@ export function hydrateAssignTokens(
         frameUrl: e.frameUrl ?? "",
         galleryLayout: normalizeGalleryLayout(e.galleryLayout),
         ...gallerySettings,
+        ...cabineFields,
         ...(e.ownerUserId?.trim()
           ? { ownerUserId: e.ownerUserId.trim() }
           : {}),
@@ -72,6 +83,7 @@ export function hydrateAssignTokens(
       frameUrl: e.frameUrl ?? "",
       galleryLayout: normalizeGalleryLayout(e.galleryLayout),
       ...gallerySettings,
+      ...cabineFields,
       ...(e.ownerUserId?.trim()
         ? { ownerUserId: e.ownerUserId.trim() }
         : {}),

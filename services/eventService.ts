@@ -10,6 +10,11 @@ import type { PersistEventsOutcome } from "@/repositories/eventRepository";
 import { persistEventsFullReplace } from "@/repositories/eventRepository";
 import { normalizeGalleryLayout, type GalleryLayout } from "@/lib/gallery/layout";
 import { hashDeletePin, isValidDeletePin } from "@/lib/security/delete-pin";
+import {
+  cabineVirtualFieldsFromInput,
+  type CabineVirtualSettingsInput,
+  validateCabineVirtualSettingsInput,
+} from "@/lib/virtual-booth/event-config";
 
 export type EventGalleryDeleteSettingsInput = {
   allowPublicDelete: boolean;
@@ -93,6 +98,11 @@ export async function createEventRecordWithPersistence(
     requireGuestUploadApproval: false,
     frameUrl: "",
     galleryLayout: "premium",
+    cabineVirtualEnabled: true,
+    cabineVirtualPhotoEnabled: true,
+    cabineVirtualBoomerangEnabled: true,
+    cabineVirtualVideoEnabled: false,
+    cabineVirtualVideoMaxDurationSeconds: 10,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -211,6 +221,33 @@ export async function setEventCoverIfEmpty(
 
   events[idx] = { ...events[idx], coverImage: trimmed };
   await writeEvents(events);
+}
+
+export async function updateEventCabineVirtualSettings(
+  eventId: string,
+  settings: CabineVirtualSettingsInput,
+): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
+  const validationError = validateCabineVirtualSettingsInput(settings);
+
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  const events = await readEvents();
+  const idx = events.findIndex((e) => e.id === eventId);
+
+  if (idx === -1) {
+    throw new Error("Evento não encontrado.");
+  }
+
+  events[idx] = {
+    ...events[idx],
+    ...cabineVirtualFieldsFromInput(settings),
+  };
+
+  const persistence = await writeEvents(events);
+
+  return { event: events[idx], persistence };
 }
 
 export async function updateEventVirtualBoothFrameUrl(

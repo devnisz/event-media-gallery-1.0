@@ -19,6 +19,7 @@ import {
   isSocialGalleryLayout,
   type GalleryLayout,
 } from "@/lib/gallery/layout";
+import type { CabineVirtualEventConfig } from "@/lib/virtual-booth/event-config";
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
@@ -34,6 +35,7 @@ type VideoGalleryProps = {
   allowGuestUpload: boolean;
   frameUrl?: string;
   galleryLayout?: GalleryLayout;
+  cabineConfig: CabineVirtualEventConfig;
 };
 
 const NEW_MEDIA_GLOW_MS = 8000;
@@ -166,6 +168,7 @@ export function VideoGallery({
   allowGuestUpload,
   frameUrl = "",
   galleryLayout = DEFAULT_GALLERY_LAYOUT,
+  cabineConfig,
 }: VideoGalleryProps) {
   const isSocialLayout = isSocialGalleryLayout(galleryLayout);
   const [videos, setVideos] = useState(initialVideos);
@@ -323,6 +326,7 @@ export function VideoGallery({
         eventId={eventId}
         allowGuestUpload={allowGuestUpload}
         frameUrl={frameUrl}
+        cabineConfig={cabineConfig}
       />
     </section>
   );

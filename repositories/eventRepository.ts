@@ -2,6 +2,7 @@
  * Persistência de eventos: Supabase quando configurado, com fallback JSON.
  */
 import { normalizeGalleryLayout } from "@/lib/gallery/layout";
+import { clampVideoMaxDurationSeconds } from "@/lib/virtual-booth/event-config";
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   createServiceRoleSupabase,
@@ -43,6 +44,11 @@ type EventRow = {
   require_guest_upload_approval?: boolean | null;
   frame_url?: string | null;
   gallery_layout?: string | null;
+  cabine_virtual_enabled?: boolean | null;
+  cabine_virtual_photo_enabled?: boolean | null;
+  cabine_virtual_boomerang_enabled?: boolean | null;
+  cabine_virtual_video_enabled?: boolean | null;
+  cabine_virtual_video_max_duration_seconds?: number | null;
 };
 
 export type PersistEventsOutcome = {
@@ -127,6 +133,25 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     requireGuestUploadApproval: optionalBoolean(row.require_guest_upload_approval),
     frameUrl: optionalTrimmedString(row.frame_url),
     galleryLayout: normalizeGalleryLayout(row.gallery_layout),
+    ...(typeof row.cabine_virtual_enabled === "boolean"
+      ? { cabineVirtualEnabled: row.cabine_virtual_enabled }
+      : {}),
+    ...(typeof row.cabine_virtual_photo_enabled === "boolean"
+      ? { cabineVirtualPhotoEnabled: row.cabine_virtual_photo_enabled }
+      : {}),
+    ...(typeof row.cabine_virtual_boomerang_enabled === "boolean"
+      ? { cabineVirtualBoomerangEnabled: row.cabine_virtual_boomerang_enabled }
+      : {}),
+    ...(typeof row.cabine_virtual_video_enabled === "boolean"
+      ? { cabineVirtualVideoEnabled: row.cabine_virtual_video_enabled }
+      : {}),
+    ...(typeof row.cabine_virtual_video_max_duration_seconds === "number"
+      ? {
+          cabineVirtualVideoMaxDurationSeconds: clampVideoMaxDurationSeconds(
+            row.cabine_virtual_video_max_duration_seconds,
+          ),
+        }
+      : {}),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -151,6 +176,13 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     require_guest_upload_approval: e.requireGuestUploadApproval,
     frame_url: e.frameUrl ?? "",
     gallery_layout: normalizeGalleryLayout(e.galleryLayout),
+    cabine_virtual_enabled: e.cabineVirtualEnabled === true,
+    cabine_virtual_photo_enabled: e.cabineVirtualPhotoEnabled === true,
+    cabine_virtual_boomerang_enabled: e.cabineVirtualBoomerangEnabled === true,
+    cabine_virtual_video_enabled: e.cabineVirtualVideoEnabled === true,
+    cabine_virtual_video_max_duration_seconds: clampVideoMaxDurationSeconds(
+      e.cabineVirtualVideoMaxDurationSeconds,
+    ),
   };
 }
 

@@ -25,6 +25,13 @@ export type GalleryEventRecord = {
   frameUrl: string;
   /** Layout publico da galeria: premium (padrao) ou social. */
   galleryLayout: GalleryLayout;
+  /** Cabine Virtual habilitada na galeria publica. */
+  cabineVirtualEnabled?: boolean;
+  cabineVirtualPhotoEnabled?: boolean;
+  cabineVirtualBoomerangEnabled?: boolean;
+  cabineVirtualVideoEnabled?: boolean;
+  /** Duracao maxima de gravacao de video na Cabine (5–30 s). */
+  cabineVirtualVideoMaxDurationSeconds?: number;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

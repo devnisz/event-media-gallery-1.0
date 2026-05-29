@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import {
+  shouldShowCabineVirtualLauncher,
+  type CabineVirtualEventConfig,
+} from "@/lib/virtual-booth/event-config";
 import { VirtualBoothModal } from "./virtual-booth-modal";
 
 type VirtualBoothLauncherProps = {
   eventId?: string;
   allowGuestUpload: boolean;
   frameUrl?: string;
+  cabineConfig: CabineVirtualEventConfig;
 };
 
 /**
@@ -17,8 +22,17 @@ export function VirtualBoothLauncher({
   eventId,
   allowGuestUpload,
   frameUrl = "",
+  cabineConfig,
 }: VirtualBoothLauncherProps) {
   const [open, setOpen] = useState(false);
+
+  if (
+    !allowGuestUpload ||
+    !eventId?.trim() ||
+    !shouldShowCabineVirtualLauncher(cabineConfig)
+  ) {
+    return null;
+  }
 
   return (
     <>
@@ -31,6 +45,7 @@ export function VirtualBoothLauncher({
         eventId={eventId}
         allowGuestUpload={allowGuestUpload}
         frameUrl={frameUrl}
+        cabineConfig={cabineConfig}
         onClose={() => setOpen(false)}
       />
 

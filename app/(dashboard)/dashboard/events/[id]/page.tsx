@@ -3,6 +3,8 @@ import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-bu
 import { EventCover } from "@/components/dashboard/event-cover";
 import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
 import { EventVirtualBoothFrameForm } from "@/components/dashboard/event-virtual-booth-frame-form";
+import { EventVirtualBoothSettingsForm } from "@/components/dashboard/event-virtual-booth-settings-form";
+import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
 import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
 import { QrCode } from "@/components/public/qr-code";
@@ -35,6 +37,7 @@ export default async function DashboardEventPage({
   const user = await requireSessionUser();
   const { id } = await params;
   const detail = await getDashboardEventDetail(user.id, decodeURIComponent(id));
+  const cabineConfig = resolveCabineVirtualConfig(detail.event);
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 pb-16">
@@ -120,6 +123,17 @@ export default async function DashboardEventPage({
         }
         initialGalleryLayout={detail.event.galleryLayout}
         hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
+      />
+
+      <EventVirtualBoothSettingsForm
+        eventId={detail.event.id}
+        initialCabineVirtualEnabled={cabineConfig.enabled}
+        initialCabineVirtualPhotoEnabled={cabineConfig.photo}
+        initialCabineVirtualBoomerangEnabled={cabineConfig.boomerang}
+        initialCabineVirtualVideoEnabled={cabineConfig.video}
+        initialCabineVirtualVideoMaxDurationSeconds={
+          cabineConfig.videoMaxDurationSeconds
+        }
       />
 
       <EventVirtualBoothFrameForm
