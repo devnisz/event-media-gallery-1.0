@@ -15,6 +15,8 @@ import {
   startVirtualBoothPhotoStream,
   stopMediaStream,
 } from "@/lib/virtual-booth/camera";
+import { captureGifFramesFromVideo } from "@/lib/virtual-booth/gif-capture";
+import { processVirtualBoothGifFrames } from "@/lib/virtual-booth/generate-gif";
 import {
   ALWAYS_ON_GLAM_FILTER,
   applyGlamFilter,
@@ -49,6 +51,8 @@ const OPTIONS: VirtualBoothOption[] = [
     description: "Crie um GIF divertido para o evento.",
   },
 ];
+
+type CaptureMode = "photo" | "gif";
 
 type ModalStep =
   | "menu"
@@ -106,6 +110,7 @@ export function VirtualBoothModal({
   const composedPreviewUrlRef = useRef<string | null>(null);
   const titleId = useId();
   const [step, setStep] = useState<ModalStep>("menu");
+  const [captureMode, setCaptureMode] = useState<CaptureMode>("photo");
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [countdownDisplay, setCountdownDisplay] = useState("");
@@ -129,6 +134,7 @@ export function VirtualBoothModal({
 
   const officialFrameUrl = frameUrl.trim();
   const hasOfficialFrame = officialFrameUrl.length > 0;
+  const isGifMode = captureMode === "gif";
   const showingFramedVersion =
     hasOfficialFrame && useFramedPreview && Boolean(composedFile);
 
@@ -197,6 +203,7 @@ export function VirtualBoothModal({
     revokeObjectUrl(composedPreviewUrl);
 
     setStep("menu");
+    setCaptureMode("photo");
     setCameraStream(null);
     setCameraReady(false);
     setCountdownDisplay("");
@@ -222,11 +229,12 @@ export function VirtualBoothModal({
     onClose();
   }
 
-  async function handlePhotoOptionClick() {
+  async function startCameraCapture(mode: CaptureMode) {
     setErrorMessage("");
+    setCaptureMode(mode);
 
     if (!allowGuestUpload || !eventId) {
-      setErrorMessage("Este evento não permite envio de fotos na galeria.");
+      setErrorMessage("Este evento não permite envio de mídia na galeria.");
       return;
     }
 
@@ -257,7 +265,12 @@ export function VirtualBoothModal({
     setErrorMessage("");
 
     if (optionId === "photo") {
-      void handlePhotoOptionClick();
+      void startCameraCapture("photo");
+      return;
+    }
+
+    if (optionId === "gif") {
+      void startCameraCapture("gif");
       return;
     }
 
@@ -351,6 +364,67 @@ export function VirtualBoothModal({
     }
   }
 
+  async function captureGifSequence() {
+    const video = videoRef.current;
+
+    if (!video) {
+      setStep("camera");
+      setErrorMessage("A câmera ainda não está pronta para capturar.");
+      return;
+    }
+
+    setStep("composing");
+    setComposingMessage("Capturando movimento...");
+    setErrorMessage("");
+
+    try {
+      const rawFrames = await captureGifFramesFromVideo(video, {
+        mirror: true,
+        onProgress: (frameIndex, totalFrames) => {
+          setComposingMessage(`Capturando movimento (${frameIndex}/${totalFrames})...`);
+        },
+      });
+
+      stopMediaStream(cameraStreamRef.current);
+      cameraStreamRef.current = null;
+      setCameraStream(null);
+      setCameraReady(false);
+
+      revokeObjectUrl(capturePreviewUrl);
+      revokeObjectUrl(composedPreviewUrl);
+
+      const { glamGif, framedGif } = await processVirtualBoothGifFrames(
+        rawFrames,
+        {
+          frameUrl: hasOfficialFrame ? officialFrameUrl : undefined,
+          glamConfig: ALWAYS_ON_GLAM_FILTER,
+          onStage: setComposingMessage,
+        },
+      );
+
+      setSourceFile(glamGif);
+      setCapturePreviewUrl(URL.createObjectURL(glamGif));
+      setComposedFile(framedGif);
+      setComposedPreviewUrl(framedGif ? URL.createObjectURL(framedGif) : null);
+      setUseFramedPreview(Boolean(framedGif));
+      setStep("final-preview");
+
+      if (!framedGif && hasOfficialFrame) {
+        setErrorMessage(
+          "Não foi possível aplicar a moldura. Você ainda pode publicar o GIF sem moldura.",
+        );
+      }
+    } catch (error) {
+      setStep("camera");
+      setFlashVisible(false);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível gerar o GIF.",
+      );
+    }
+  }
+
   function startCountdown() {
     if (!cameraReady) {
       return;
@@ -368,7 +442,7 @@ export function VirtualBoothModal({
       { delay: 900, phase: "tick" as const, value: "3" },
       { delay: 1800, phase: "tick" as const, value: "2" },
       { delay: 2700, phase: "tick" as const, value: "1" },
-      { delay: 3600, phase: "snap" as const, value: "📸" },
+      { delay: 3600, phase: "snap" as const, value: isGifMode ? "🎞️" : "📸" },
     ];
 
     sequence.forEach(({ delay, phase, value }) => {
@@ -382,13 +456,17 @@ export function VirtualBoothModal({
     countdownTimersRef.current.push(
       window.setTimeout(() => setFlashVisible(true), 3720),
       window.setTimeout(() => {
-        void captureCurrentFrame();
+        if (isGifMode) {
+          void captureGifSequence();
+        } else {
+          void captureCurrentFrame();
+        }
       }, 3820),
       window.setTimeout(() => setFlashVisible(false), 4050),
     );
   }
 
-  async function handlePublishPhoto() {
+  async function handlePublishMedia() {
     if (!activePublishFile || !eventId) {
       return;
     }
@@ -411,7 +489,9 @@ export function VirtualBoothModal({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Não foi possível publicar a foto.",
+          : isGifMode
+            ? "Não foi possível publicar o GIF."
+            : "Não foi possível publicar a foto.",
       );
     }
   }
@@ -464,7 +544,7 @@ export function VirtualBoothModal({
                   {BRAND_LABEL}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Crie fotos personalizadas com a moldura oficial do evento.
+                  Crie fotos e GIFs personalizados com a moldura oficial do evento.
                 </p>
 
                 {errorMessage ? (
@@ -535,12 +615,20 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  {step === "countdown" ? "Prepare-se" : "Enquadre sua foto"}
+                  {step === "countdown"
+                    ? "Prepare-se"
+                    : isGifMode
+                      ? "Enquadre seu GIF"
+                      : "Enquadre sua foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {step === "countdown"
-                    ? "A captura acontece automaticamente no final da contagem."
-                    : "Use boa luz, olhe para a câmera e toque em capturar."}
+                    ? isGifMode
+                      ? "A gravação de 3 segundos começa automaticamente após a contagem."
+                      : "A captura acontece automaticamente no final da contagem."
+                    : isGifMode
+                      ? "Use boa luz, olhe para a câmera e toque em gravar."
+                      : "Use boa luz, olhe para a câmera e toque em capturar."}
                 </p>
 
                 <div className="relative mt-5 flex min-h-[min(52vh,30rem)] items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
@@ -573,7 +661,9 @@ export function VirtualBoothModal({
                       <div className="relative flex flex-col items-center gap-4">
                         {countdownPhase === "prepare" ? (
                           <p className="max-w-[14rem] text-[0.7rem] font-medium leading-relaxed tracking-[0.18em] text-white/55 uppercase">
-                            Prepare-se para a foto
+                            {isGifMode
+                              ? "Prepare-se para o GIF"
+                              : "Prepare-se para a foto"}
                           </p>
                         ) : (
                           <>
@@ -614,8 +704,8 @@ export function VirtualBoothModal({
                     disabled={!cameraReady}
                     className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
                   >
-                    <span aria-hidden>📸</span>
-                    Capturar
+                    <span aria-hidden>{isGifMode ? "🎞️" : "📸"}</span>
+                    {isGifMode ? "Gravar GIF" : "Capturar"}
                   </button>
                 ) : null}
               </>
@@ -630,7 +720,7 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  Preparando sua foto
+                  {isGifMode ? "Preparando seu GIF" : "Preparando sua foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {composingMessage || "Ajustando detalhes da imagem..."}
@@ -650,12 +740,16 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  Sua foto está pronta!
+                  {isGifMode ? "Seu GIF está pronto!" : "Sua foto está pronta!"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  {showingFramedVersion
-                    ? "Personalizada com a moldura oficial do evento."
-                    : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
+                  {isGifMode
+                    ? showingFramedVersion
+                      ? "GIF animado com moldura oficial do evento."
+                      : "Prévia do GIF pronto para publicar."
+                    : showingFramedVersion
+                      ? "Personalizada com a moldura oficial do evento."
+                      : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
                 </p>
 
                 <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
@@ -663,9 +757,13 @@ export function VirtualBoothModal({
                   <img
                     src={activePreviewUrl}
                     alt={
-                      showingFramedVersion
-                        ? "Prévia final com moldura"
-                        : "Prévia da foto original"
+                      isGifMode
+                        ? showingFramedVersion
+                          ? "Prévia do GIF com moldura"
+                          : "Prévia do GIF"
+                        : showingFramedVersion
+                          ? "Prévia final com moldura"
+                          : "Prévia da foto original"
                     }
                     className="max-h-[min(52vh,28rem)] w-full object-contain"
                   />
@@ -680,14 +778,22 @@ export function VirtualBoothModal({
                 <div className="mt-6 space-y-3">
                   <button
                     type="button"
-                    onClick={() => void handlePublishPhoto()}
+                    onClick={() => void handlePublishMedia()}
                     className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98]"
                   >
                     <span aria-hidden>✅</span>
-                    Publicar foto
+                    {isGifMode ? "Publicar GIF" : "Publicar foto"}
                   </button>
 
-                  {hasOfficialFrame && composedFile ? (
+                  {isGifMode ? (
+                    <button
+                      type="button"
+                      onClick={resetState}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
+                    >
+                      Refazer
+                    </button>
+                  ) : hasOfficialFrame && composedFile ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -721,7 +827,7 @@ export function VirtualBoothModal({
                   id={titleId}
                   className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  Publicando foto
+                  {isGifMode ? "Publicando GIF" : "Publicando foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {uploadMessage || "Enviando para a galeria..."}
@@ -745,10 +851,12 @@ export function VirtualBoothModal({
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
                   <span aria-hidden>🎉 </span>
-                  Foto publicada!
+                  {isGifMode ? "GIF publicado!" : "Foto publicada!"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Sua foto já está disponível na galeria do evento.
+                  {isGifMode
+                    ? "Seu GIF já está disponível na galeria do evento."
+                    : "Sua foto já está disponível na galeria do evento."}
                 </p>
                 <button
                   type="button"

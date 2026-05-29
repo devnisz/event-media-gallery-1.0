@@ -1,0 +1,107 @@
+import GIF from "gif.js";
+
+import {
+  composeCanvasWithFrame,
+  loadFrameImageFromUrl,
+} from "@/lib/virtual-booth/apply-frame";
+import {
+  ALWAYS_ON_GLAM_FILTER,
+  applyGlamToCanvas,
+  type GlamFilterConfig,
+} from "@/lib/virtual-booth/glam-filter";
+import {
+  GIF_CAPTURE_FPS,
+  GIF_FRAME_DELAY_MS,
+} from "@/lib/virtual-booth/gif-capture";
+
+export async function encodeCanvasesToGifFile(
+  frames: HTMLCanvasElement[],
+  fileName?: string,
+): Promise<File> {
+  if (frames.length === 0) {
+    throw new Error("Nenhum frame disponível para gerar o GIF.");
+  }
+
+  const firstFrame = frames[0];
+
+  return new Promise((resolve, reject) => {
+    const gif = new GIF({
+      workers: 2,
+      quality: 14,
+      workerScript: "/gif.worker.js",
+      width: firstFrame.width,
+      height: firstFrame.height,
+      repeat: 0,
+    });
+
+    for (const frame of frames) {
+      gif.addFrame(frame, { delay: GIF_FRAME_DELAY_MS, copy: true });
+    }
+
+    gif.on("finished", (blob) => {
+      resolve(
+        new File([blob], fileName ?? `cabine-virtual-${Date.now()}.gif`, {
+          type: "image/gif",
+          lastModified: Date.now(),
+        }),
+      );
+    });
+
+    gif.on("error", (error) => {
+      reject(error);
+    });
+
+    gif.render();
+  });
+}
+
+export async function processVirtualBoothGifFrames(
+  rawFrames: HTMLCanvasElement[],
+  options: {
+    frameUrl?: string;
+    glamConfig?: GlamFilterConfig;
+    onStage?: (message: string) => void;
+  } = {},
+): Promise<{ glamGif: File; framedGif: File | null }> {
+  const glamConfig = options.glamConfig ?? ALWAYS_ON_GLAM_FILTER;
+
+  options.onStage?.("Aplicando filtro Glam automático...");
+
+  const glamFrames = rawFrames.map((frame) => {
+    const copy = document.createElement("canvas");
+    copy.width = frame.width;
+    copy.height = frame.height;
+    copy.getContext("2d")?.drawImage(frame, 0, 0);
+    applyGlamToCanvas(copy, glamConfig);
+    return copy;
+  });
+
+  const glamGif = await encodeCanvasesToGifFile(
+    glamFrames,
+    `cabine-virtual-glam-${Date.now()}.gif`,
+  );
+
+  const frameUrl = options.frameUrl?.trim() ?? "";
+
+  if (!frameUrl) {
+    return { glamGif, framedGif: null };
+  }
+
+  options.onStage?.("Aplicando a moldura oficial do evento...");
+
+  const frameImage = await loadFrameImageFromUrl(frameUrl);
+  const framedFrames = glamFrames.map((frame) =>
+    composeCanvasWithFrame(frame, frameImage),
+  );
+
+  options.onStage?.("Gerando GIF...");
+
+  const framedGif = await encodeCanvasesToGifFile(
+    framedFrames,
+    `cabine-virtual-moldura-${Date.now()}.gif`,
+  );
+
+  return { glamGif, framedGif };
+}
+
+export { GIF_CAPTURE_FPS, GIF_FRAME_DELAY_MS };

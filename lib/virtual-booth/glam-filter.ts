@@ -116,6 +116,33 @@ function applySoftSharpen(
   }
 }
 
+export function applyGlamToCanvas(
+  canvas: HTMLCanvasElement,
+  config: GlamFilterConfig = ALWAYS_ON_GLAM_FILTER,
+): void {
+  if (!config.enabled) {
+    return;
+  }
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  if (width <= 0 || height <= 0) {
+    throw new Error("Dimensões inválidas para aplicar o filtro Glam.");
+  }
+
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (!context) {
+    throw new Error("Canvas não disponível neste dispositivo.");
+  }
+
+  const imageData = context.getImageData(0, 0, width, height);
+  applyGlamTone(imageData.data);
+  applySoftSharpen(imageData.data, width, height);
+  context.putImageData(imageData, 0, 0);
+}
+
 export async function applyGlamFilter(
   sourceFile: File,
   config: GlamFilterConfig = ALWAYS_ON_GLAM_FILTER,
@@ -143,11 +170,7 @@ export async function applyGlamFilter(
   }
 
   context.drawImage(image, 0, 0, width, height);
-
-  const imageData = context.getImageData(0, 0, width, height);
-  applyGlamTone(imageData.data);
-  applySoftSharpen(imageData.data, width, height);
-  context.putImageData(imageData, 0, 0);
+  applyGlamToCanvas(canvas, config);
 
   return canvasToJpegFile(canvas, sourceFile);
 }

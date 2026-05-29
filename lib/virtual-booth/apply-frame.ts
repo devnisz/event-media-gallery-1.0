@@ -1,4 +1,4 @@
-function loadImageFromUrl(src: string): Promise<HTMLImageElement> {
+export function loadFrameImageFromUrl(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = "anonymous";
@@ -28,15 +28,40 @@ function loadImageFromFile(file: File): Promise<HTMLImageElement> {
   });
 }
 
+function getSourceDimensions(image: CanvasImageSource): {
+  width: number;
+  height: number;
+} {
+  if (image instanceof HTMLImageElement) {
+    return { width: image.naturalWidth, height: image.naturalHeight };
+  }
+
+  if (image instanceof HTMLVideoElement) {
+    return { width: image.videoWidth, height: image.videoHeight };
+  }
+
+  if (image instanceof HTMLCanvasElement) {
+    return { width: image.width, height: image.height };
+  }
+
+  if (image instanceof ImageBitmap) {
+    return { width: image.width, height: image.height };
+  }
+
+  return { width: 0, height: 0 };
+}
+
 function drawImageCover(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   width: number,
   height: number,
 ) {
-  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
-  const drawWidth = image.naturalWidth * scale;
-  const drawHeight = image.naturalHeight * scale;
+  const { width: sourceWidth, height: sourceHeight } = getSourceDimensions(image);
+
+  const scale = Math.max(width / sourceWidth, height / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
   const offsetX = (width - drawWidth) / 2;
   const offsetY = (height - drawHeight) / 2;
 
@@ -50,7 +75,7 @@ export async function composePhotoWithFrame(
 ): Promise<File> {
   const [photo, frame] = await Promise.all([
     loadImageFromFile(photoFile),
-    loadImageFromUrl(frameUrl),
+    loadFrameImageFromUrl(frameUrl),
   ]);
 
   const width = frame.naturalWidth || photo.naturalWidth;
@@ -94,4 +119,32 @@ export async function composePhotoWithFrame(
     type: "image/jpeg",
     lastModified: Date.now(),
   });
+}
+
+/** Compõe um frame (canvas) + moldura PNG; reutilizado na geração de GIF. */
+export function composeCanvasWithFrame(
+  photoCanvas: HTMLCanvasElement,
+  frame: HTMLImageElement,
+): HTMLCanvasElement {
+  const width = frame.naturalWidth || photoCanvas.width;
+  const height = frame.naturalHeight || photoCanvas.height;
+
+  if (width <= 0 || height <= 0) {
+    throw new Error("Dimensões inválidas para aplicar a moldura.");
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Canvas não disponível neste dispositivo.");
+  }
+
+  drawImageCover(context, photoCanvas, width, height);
+  context.drawImage(frame, 0, 0, width, height);
+
+  return canvas;
 }
