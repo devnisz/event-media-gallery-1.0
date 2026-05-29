@@ -42,6 +42,8 @@ export type RawMediaRecord = {
   is_hidden?: unknown;
   isFavorite?: unknown;
   is_favorite?: unknown;
+  likesCount?: unknown;
+  likes_count?: unknown;
   mediaSource?: unknown;
   media_source?: unknown;
   reviewStatus?: unknown;
@@ -121,6 +123,22 @@ function coerceBooleanField(raw: unknown): boolean | undefined {
 
     if (["false", "0", "no", "nao", "não"].includes(normalized)) {
       return false;
+    }
+  }
+
+  return undefined;
+}
+
+function coerceLikesCount(raw: unknown): number | undefined {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(0, Math.trunc(raw));
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    const parsed = Number.parseInt(raw.trim(), 10);
+
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, parsed);
     }
   }
 
@@ -234,6 +252,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     (typeof raw.deleted_by === "string" ? raw.deleted_by.trim() : "");
   const isHidden = coerceBooleanField(raw.isHidden ?? raw.is_hidden);
   const isFavorite = coerceBooleanField(raw.isFavorite ?? raw.is_favorite);
+  const likesCount = coerceLikesCount(raw.likesCount ?? raw.likes_count);
   const mediaSource = coerceMediaSource(raw.mediaSource ?? raw.media_source);
   const reviewStatus = coerceReviewStatus(raw.reviewStatus ?? raw.review_status);
 
@@ -254,6 +273,7 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     timestamp,
     ...(isHidden !== undefined ? { isHidden } : {}),
     ...(isFavorite !== undefined ? { isFavorite } : {}),
+    ...(likesCount !== undefined ? { likesCount } : {}),
     ...(deletedAt ? { deletedAt } : {}),
     ...(deletedByRaw ? { deletedBy: deletedByRaw } : {}),
     orderIndex:
@@ -317,6 +337,7 @@ export function toEventMedia(
     thumbnailUrl: thumb,
     isHidden: record.isHidden,
     isFavorite: record.isFavorite,
+    likesCount: record.likesCount ?? 0,
     deletedAt: record.deletedAt,
     reviewStatus: record.reviewStatus,
     allowPublicDelete: publicDeleteSettings.allowPublicDelete,

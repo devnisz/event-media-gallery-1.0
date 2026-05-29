@@ -38,6 +38,7 @@ type VideoGalleryProps = {
   galleryLayout?: GalleryLayout;
   cabineConfig: CabineVirtualEventConfig;
   liveMomentsEnabled: boolean;
+  allowLikes: boolean;
 };
 
 const NEW_MEDIA_GLOW_MS = 8000;
@@ -172,6 +173,7 @@ export function VideoGallery({
   galleryLayout = DEFAULT_GALLERY_LAYOUT,
   cabineConfig,
   liveMomentsEnabled,
+  allowLikes,
 }: VideoGalleryProps) {
   const isSocialLayout = isSocialGalleryLayout(galleryLayout);
   const [videos, setVideos] = useState(initialVideos);
@@ -271,6 +273,14 @@ export function VideoGallery({
     [removingIds.size, videos.length],
   );
 
+  function handleLikeCountChange(mediaId: string, likesCount: number) {
+    setVideos((prev) =>
+      prev.map((item) =>
+        item.id === mediaId ? { ...item, likesCount } : item,
+      ),
+    );
+  }
+
   function handleDeleted(id: string) {
     setRemovingIds((current) => new Set(current).add(id));
 
@@ -295,7 +305,9 @@ export function VideoGallery({
     removingIds,
     allowPublicDelete,
     requireDeletePin,
+    allowLikes,
     onDeleted: handleDeleted,
+    onLikeCountChange: handleLikeCountChange,
   };
 
   return (
@@ -314,7 +326,13 @@ export function VideoGallery({
             : "px-5 pb-8 pt-4 sm:px-8 lg:px-12 2xl:px-20"
         }
       >
-        {liveMomentsEnabled ? <LiveMomentsEntry media={videos} /> : null}
+        {liveMomentsEnabled ? (
+          <LiveMomentsEntry
+            media={videos}
+            allowLikes={allowLikes}
+            onLikeCountChange={handleLikeCountChange}
+          />
+        ) : null}
 
         {videos.length > 0 ? (
           isSocialLayout ? (

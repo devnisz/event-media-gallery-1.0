@@ -13,12 +13,19 @@ import {
   getLiveMomentLabel,
   type LiveMomentItem,
 } from "@/lib/live-moments/media";
+import { MediaLikeButton } from "@/components/public/media-like-button";
 import { LiveMomentsMedia } from "./live-moments-media";
 import { LiveMomentsProgress } from "./live-moments-progress";
 
 type LiveMomentsViewerProps = {
   items: LiveMomentItem[];
   initialIndex?: number;
+  allowLikes?: boolean;
+  onLikeCountChange?: (
+    mediaId: string,
+    likesCount: number,
+    liked: boolean,
+  ) => void;
   onClose: () => void;
 };
 
@@ -37,6 +44,8 @@ function preloadMoment(item: LiveMomentItem) {
 export function LiveMomentsViewer({
   items,
   initialIndex = 0,
+  allowLikes = false,
+  onLikeCountChange,
   onClose,
 }: LiveMomentsViewerProps) {
   const [index, setIndex] = useState(
@@ -213,20 +222,34 @@ export function LiveMomentsViewer({
           </div>
         </div>
 
-        <div className="pointer-events-none relative z-10 flex items-center justify-between px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-          <p className="text-sm font-semibold text-white/90">
+        <div className="relative z-10 flex items-center justify-between px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+          <p className="pointer-events-none text-sm font-semibold text-white/90">
             <span aria-hidden className="mr-1.5">
               {getLiveMomentIcon(current.kind)}
             </span>
             {getLiveMomentLabel(current.kind)}
           </p>
-          {timeLabel ? (
-            <p className="text-xs font-medium text-white/45">{timeLabel}</p>
-          ) : (
-            <span className="text-xs text-white/30">
-              {clampedIndex + 1} / {items.length}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {allowLikes ? (
+              <MediaLikeButton
+                key={`${current.id}-${current.likesCount}`}
+                mediaId={current.id}
+                initialCount={current.likesCount}
+                allowLikes={allowLikes}
+                variant="overlay"
+                onCountChange={onLikeCountChange}
+              />
+            ) : null}
+            {timeLabel ? (
+              <p className="pointer-events-none text-xs font-medium text-white/45">
+                {timeLabel}
+              </p>
+            ) : (
+              <span className="pointer-events-none text-xs text-white/30">
+                {clampedIndex + 1} / {items.length}
+              </span>
+            )}
+          </div>
         </div>
 
         {paused ? (

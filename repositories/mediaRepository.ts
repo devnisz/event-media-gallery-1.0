@@ -268,6 +268,14 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     o.isFavorite = isFavorite;
   }
 
+  const likesCount =
+    optionalFiniteNumber(row.likes_count) ??
+    optionalFiniteNumber(row.likesCount);
+
+  if (likesCount !== undefined) {
+    o.likesCount = Math.max(0, Math.trunc(likesCount));
+  }
+
   const deletedAt =
     optionalIsoDate(row.deleted_at) ??
     optionalIsoDate(row.deletedAt);
@@ -347,6 +355,10 @@ function galleryRecordToRow(
 
   if (m.isFavorite !== undefined) {
     row.is_favorite = m.isFavorite;
+  }
+
+  if (m.likesCount !== undefined) {
+    row.likes_count = Math.max(0, Math.trunc(m.likesCount));
   }
 
   if (m.deletedAt !== undefined) {

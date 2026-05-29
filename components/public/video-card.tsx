@@ -6,6 +6,7 @@ import { useState, type FormEvent, type MouseEvent } from "react";
 import type { EventVideo } from "@/types/video";
 import { routes } from "@/lib/routes";
 import { MediaBadge } from "./media-badge";
+import { MediaLikeButton } from "./media-like-button";
 import { VideoThumbnail } from "./video-thumbnail";
 
 type VideoCardProps = {
@@ -18,6 +19,12 @@ type VideoCardProps = {
   compactMobileTwoCol?: boolean;
   allowPublicDelete?: boolean;
   requireDeletePin?: boolean;
+  allowLikes?: boolean;
+  onLikeCountChange?: (
+    mediaId: string,
+    likesCount: number,
+    liked: boolean,
+  ) => void;
   hideEventLabel?: boolean;
 };
 
@@ -61,6 +68,8 @@ export function VideoCard({
   compactMobileTwoCol = false,
   allowPublicDelete = false,
   requireDeletePin = false,
+  allowLikes = false,
+  onLikeCountChange,
   hideEventLabel = false,
 }: VideoCardProps) {
   const router = useRouter();
@@ -195,6 +204,17 @@ export function VideoCard({
           ) : null}
         </div>
         <VideoThumbnail video={video} variant="vertical" />
+        {allowLikes ? (
+          <div className="pointer-events-auto absolute bottom-3 right-3 z-20 max-md:bottom-1.5 max-md:right-1.5">
+            <MediaLikeButton
+              key={`${video.id}-${video.likesCount ?? 0}`}
+              mediaId={video.id}
+              initialCount={video.likesCount ?? 0}
+              allowLikes={allowLikes}
+              onCountChange={onLikeCountChange}
+            />
+          </div>
+        ) : null}
         <div
           className={`pointer-events-none absolute inset-x-0 bottom-0 rounded-b-[1.5rem] bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-4 pt-16 md:rounded-b-[1.65rem] ${
             c ? "max-md:rounded-b-lg max-md:px-1.5 max-md:pb-1.5 max-md:pt-10" : ""

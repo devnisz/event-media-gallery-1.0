@@ -38,6 +38,8 @@ export type GalleryEventRecord = {
   cabineVirtualGalleryImportEnabled?: boolean;
   /** Exibe Momentos ao Vivo na galeria publica. */
   liveMomentsEnabled?: boolean;
+  /** Permite curtidas (❤️) na galeria publica. */
+  allowLikes?: boolean;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

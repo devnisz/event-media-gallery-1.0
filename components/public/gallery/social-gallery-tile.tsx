@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type MouseEvent } from "react";
 
 import { MediaBadge } from "@/components/public/media-badge";
+import { MediaLikeButton } from "@/components/public/media-like-button";
 import { routes } from "@/lib/routes";
 import type { EventVideo } from "@/types/video";
 
@@ -14,7 +15,13 @@ type SocialGalleryTileProps = {
   isRemoving?: boolean;
   allowPublicDelete?: boolean;
   requireDeletePin?: boolean;
+  allowLikes?: boolean;
   onDeleted?: (id: string) => void;
+  onLikeCountChange?: (
+    mediaId: string,
+    likesCount: number,
+    liked: boolean,
+  ) => void;
 };
 
 function TrashIcon() {
@@ -57,7 +64,9 @@ export function SocialGalleryTile({
   isRemoving = false,
   allowPublicDelete = false,
   requireDeletePin = false,
+  allowLikes = false,
   onDeleted,
+  onLikeCountChange,
 }: SocialGalleryTileProps) {
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
@@ -206,6 +215,18 @@ export function SocialGalleryTile({
           </span>
         ) : null}
       </Link>
+
+      {allowLikes ? (
+        <div className="absolute bottom-1.5 right-1.5 z-20">
+          <MediaLikeButton
+            key={`${video.id}-${video.likesCount ?? 0}`}
+            mediaId={video.id}
+            initialCount={video.likesCount ?? 0}
+            allowLikes={allowLikes}
+            onCountChange={onLikeCountChange}
+          />
+        </div>
+      ) : null}
 
       {pinDialogOpen ? (
         <div

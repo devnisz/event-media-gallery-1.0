@@ -556,10 +556,20 @@ export async function deleteGalleryMedia(id: string) {
 export type MediaStatePatch = {
   isHidden?: boolean;
   isFavorite?: boolean;
+  likesCount?: number;
   reviewStatus?: MediaReviewStatus;
   deletedAt?: string;
   deletedBy?: string;
 };
+
+export async function updateGalleryMediaLikesCount(
+  id: string,
+  likesCount: number,
+): Promise<GalleryMediaRecord | null> {
+  return updateGalleryMediaState(id, {
+    likesCount: Math.max(0, Math.trunc(likesCount)),
+  });
+}
 
 export async function updateGalleryMediaState(
   id: string,

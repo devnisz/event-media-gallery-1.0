@@ -11,11 +11,19 @@ import { LiveMomentsViewer } from "./live-moments-viewer";
 type LiveMomentsEntryProps = {
   media: EventMedia[];
   sortOrder?: LiveMomentsSortOrder;
+  allowLikes?: boolean;
+  onLikeCountChange?: (
+    mediaId: string,
+    likesCount: number,
+    liked: boolean,
+  ) => void;
 };
 
 export function LiveMomentsEntry({
   media,
   sortOrder = "newest-first",
+  allowLikes = false,
+  onLikeCountChange,
 }: LiveMomentsEntryProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
 
@@ -40,6 +48,8 @@ export function LiveMomentsEntry({
       {viewerOpen ? (
         <LiveMomentsViewer
           items={moments}
+          allowLikes={allowLikes}
+          onLikeCountChange={onLikeCountChange}
           onClose={() => setViewerOpen(false)}
         />
       ) : null}

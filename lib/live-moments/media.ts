@@ -16,6 +16,7 @@ export type LiveMomentItem = {
   fileType: string;
   sortAt: number;
   occurredAt?: string;
+  likesCount: number;
 };
 
 export function isLiveMomentsEligibleKind(
@@ -52,6 +53,7 @@ function toLiveMomentItem(item: EventMedia): LiveMomentItem {
     fileType: item.fileType,
     sortAt: item.sortAt ?? 0,
     occurredAt: item.uploadedAt,
+    likesCount: Math.max(0, item.likesCount ?? 0),
   };
 }
 

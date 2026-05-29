@@ -52,6 +52,7 @@ type EventRow = {
   cabine_virtual_camera_enabled?: boolean | null;
   cabine_virtual_gallery_import_enabled?: boolean | null;
   live_moments_enabled?: boolean | null;
+  allow_likes?: boolean | null;
 };
 
 export type PersistEventsOutcome = {
@@ -115,7 +116,7 @@ function formatSupabaseErrorForThrow(
   const needsEventsSchemaUpdate =
     missingColumn !== undefined ||
     /PGRST204/i.test(detail) ||
-    /cabine_virtual_|live_moments_enabled/i.test(detail) ||
+    /cabine_virtual_|live_moments_enabled|allow_likes/i.test(detail) ||
     /column.*events.*does not exist/i.test(detail);
 
   if (needsEventsSchemaUpdate) {
@@ -123,7 +124,7 @@ function formatSupabaseErrorForThrow(
       ? ` Coluna ausente: ${missingColumn}.`
       : "";
 
-    return `${detail}.${columnHint} Execute no Supabase (SQL Editor) o arquivo supabase/apply-event-feature-columns.sql (cabine virtual + momentos ao vivo). Depois, no projeto Supabase: Settings → API → Reload schema (ou aguarde ~1 min) e tente salvar de novo.`;
+    return `${detail}.${columnHint} Execute no Supabase (SQL Editor) supabase/apply-event-feature-columns.sql e supabase/migrations/20260530120000_media_likes.sql. Depois: Settings → API → Reload schema (ou aguarde ~1 min) e tente salvar de novo.`;
   }
 
   return detail;
@@ -185,6 +186,9 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     ...(typeof row.live_moments_enabled === "boolean"
       ? { liveMomentsEnabled: row.live_moments_enabled }
       : {}),
+    ...(typeof row.allow_likes === "boolean"
+      ? { allowLikes: row.allow_likes }
+      : {}),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -220,6 +224,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     cabine_virtual_gallery_import_enabled:
       e.cabineVirtualGalleryImportEnabled !== false,
     live_moments_enabled: e.liveMomentsEnabled === true,
+    allow_likes: e.allowLikes === true,
   };
 }
 

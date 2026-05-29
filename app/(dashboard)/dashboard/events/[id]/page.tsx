@@ -3,7 +3,9 @@ import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-bu
 import { EventCover } from "@/components/dashboard/event-cover";
 import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
 import { EventVirtualBoothFrameForm } from "@/components/dashboard/event-virtual-booth-frame-form";
+import { EventLikesSettingsForm } from "@/components/dashboard/event-likes-settings-form";
 import { EventLiveMomentsSettingsForm } from "@/components/dashboard/event-live-moments-settings-form";
+import { resolveLikesConfig } from "@/lib/likes/config";
 import { EventVirtualBoothSettingsForm } from "@/components/dashboard/event-virtual-booth-settings-form";
 import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
 import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
@@ -41,6 +43,7 @@ export default async function DashboardEventPage({
   const detail = await getDashboardEventDetail(user.id, decodeURIComponent(id));
   const cabineConfig = resolveCabineVirtualConfig(detail.event);
   const liveMomentsConfig = resolveLiveMomentsConfig(detail.event);
+  const likesConfig = resolveLikesConfig(detail.event);
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 pb-16">
@@ -131,6 +134,11 @@ export default async function DashboardEventPage({
       <EventLiveMomentsSettingsForm
         eventId={detail.event.id}
         initialLiveMomentsEnabled={liveMomentsConfig.enabled}
+      />
+
+      <EventLikesSettingsForm
+        eventId={detail.event.id}
+        initialAllowLikes={likesConfig.enabled}
       />
 
       <EventVirtualBoothSettingsForm

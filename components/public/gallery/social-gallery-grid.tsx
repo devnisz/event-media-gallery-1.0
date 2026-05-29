@@ -9,7 +9,9 @@ export function SocialGalleryGrid({
   removingIds,
   allowPublicDelete,
   requireDeletePin,
+  allowLikes,
   onDeleted,
+  onLikeCountChange,
 }: GalleryGridSharedProps) {
   return (
     <div className="grid grid-cols-3 gap-px sm:gap-0.5 md:grid-cols-5 lg:grid-cols-6">
@@ -21,7 +23,9 @@ export function SocialGalleryGrid({
           isRemoving={removingIds.has(video.id)}
           allowPublicDelete={allowPublicDelete}
           requireDeletePin={requireDeletePin}
+          allowLikes={allowLikes}
           onDeleted={onDeleted}
+          onLikeCountChange={onLikeCountChange}
         />
       ))}
     </div>

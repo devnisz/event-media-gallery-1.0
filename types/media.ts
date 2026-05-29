@@ -34,6 +34,8 @@ export type GalleryMediaRecord = {
   isHidden?: boolean;
   /** Destaque visual no painel do cliente. */
   isFavorite?: boolean;
+  /** Total de curtidas públicas (❤️). */
+  likesCount?: number;
   /** Soft-delete: remove da experiência do app sem apagar o objeto no R2. */
   deletedAt?: string;
   deletedBy?: string;
@@ -69,6 +71,8 @@ export type EventMedia = {
   thumbnailUrl?: string;
   isHidden?: boolean;
   isFavorite?: boolean;
+  /** Total de curtidas na galeria pública. */
+  likesCount?: number;
   deletedAt?: string;
   reviewStatus?: MediaReviewStatus;
   allowPublicDelete: boolean;

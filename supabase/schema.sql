@@ -28,6 +28,7 @@ create table if not exists public.events (
   cabine_virtual_camera_enabled boolean not null default true,
   cabine_virtual_gallery_import_enabled boolean not null default true,
   live_moments_enabled boolean not null default false,
+  allow_likes boolean not null default false,
   constraint events_cabine_virtual_video_duration_check
     check (
       cabine_virtual_video_max_duration_seconds >= 5
@@ -57,12 +58,26 @@ create table if not exists public.media (
   order_index integer,
   is_hidden boolean not null default false,
   is_favorite boolean not null default false,
+  likes_count integer not null default 0,
   deleted_at timestamptz,
   deleted_by text,
   media_source text not null default 'operator',
   review_status text not null default 'approved',
-  owner_user_id uuid references auth.users (id) on delete set null
+  owner_user_id uuid references auth.users (id) on delete set null,
+  constraint media_likes_count_check check (likes_count >= 0)
 );
+
+create table if not exists public.media_likes (
+  media_id text not null references public.media (id) on delete cascade,
+  visitor_key text not null,
+  created_at timestamptz not null default now(),
+  primary key (media_id, visitor_key)
+);
+
+create index if not exists media_likes_media_id_idx
+  on public.media_likes (media_id);
+
+alter table public.media_likes enable row level security;
 
 alter table public.media
   drop constraint if exists media_source_check;

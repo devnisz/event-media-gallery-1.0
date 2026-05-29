@@ -49,6 +49,7 @@ export function hydrateAssignTokens(
       cabineVirtualCameraEnabled: cabineConfig.cameraEnabled,
       cabineVirtualGalleryImportEnabled: cabineConfig.galleryImportEnabled,
       liveMomentsEnabled: e.liveMomentsEnabled === true,
+      allowLikes: e.allowLikes === true,
     };
 
     if (trimmedExisting) {

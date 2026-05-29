@@ -11,7 +11,9 @@ export function PremiumGalleryGrid({
   removingIds,
   allowPublicDelete,
   requireDeletePin,
+  allowLikes,
   onDeleted,
+  onLikeCountChange,
 }: GalleryGridSharedProps) {
   const [mobileTwoCols, setMobileTwoCols] = useState(() => {
     if (typeof window === "undefined") {
@@ -91,6 +93,8 @@ export function PremiumGalleryGrid({
             compactMobileTwoCol={mobileTwoCols}
             allowPublicDelete={allowPublicDelete}
             requireDeletePin={requireDeletePin}
+            allowLikes={allowLikes}
+            onLikeCountChange={onLikeCountChange}
             hideEventLabel
           />
         ))}
