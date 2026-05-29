@@ -1,12 +1,12 @@
 import { revalidatePath } from "next/cache";
 import {
-  buildPocketBoothFrameKey,
+  buildVirtualBoothFrameKey,
   storePublicAssetObject,
 } from "@/lib/r2/upload";
 import {
-  isPocketBoothFrameContentType,
-  MAX_POCKET_BOOTH_FRAME_BYTES,
-} from "@/lib/pocket-booth/frame-validation";
+  isVirtualBoothFrameContentType,
+  MAX_VIRTUAL_BOOTH_FRAME_BYTES,
+} from "@/lib/virtual-booth/frame-validation";
 import { getRouteHandlerUser } from "@/lib/auth/session";
 import {
   assertUserCanMutateEvent,
@@ -15,7 +15,7 @@ import {
 import { deleteR2ObjectsByKeys, tryCreateR2DeletionClient } from "@/lib/r2/removal";
 import {
   getEventById,
-  updateEventPocketBoothFrameUrl,
+  updateEventVirtualBoothFrameUrl,
 } from "@/services/eventService";
 
 export const runtime = "nodejs";
@@ -77,14 +77,14 @@ export async function POST(
       return Response.json({ error: "Envie um arquivo PNG." }, { status: 400 });
     }
 
-    if (!isPocketBoothFrameContentType(file.type)) {
+    if (!isVirtualBoothFrameContentType(file.type)) {
       return Response.json(
         { error: "A moldura deve ser um PNG transparente." },
         { status: 415 },
       );
     }
 
-    if (file.size <= 0 || file.size > MAX_POCKET_BOOTH_FRAME_BYTES) {
+    if (file.size <= 0 || file.size > MAX_VIRTUAL_BOOTH_FRAME_BYTES) {
       return Response.json(
         { error: "A moldura deve ter no máximo 5 MB." },
         { status: 413 },
@@ -95,10 +95,10 @@ export async function POST(
     const frameUrl = await storePublicAssetObject({
       bytes,
       contentType: "image/png",
-      key: buildPocketBoothFrameKey(trimmedEventId),
+      key: buildVirtualBoothFrameKey(trimmedEventId),
     });
 
-    const { event: updated } = await updateEventPocketBoothFrameUrl(
+    const { event: updated } = await updateEventVirtualBoothFrameUrl(
       trimmedEventId,
       frameUrl,
     );
@@ -110,7 +110,7 @@ export async function POST(
       frameUrl: updated.frameUrl,
     });
   } catch (error) {
-    console.error("[POCKET_BOOTH_FRAME_UPLOAD] erro", error);
+    console.error("[VIRTUAL_BOOTH_FRAME_UPLOAD] erro", error);
 
     return Response.json(
       { error: "Não foi possível salvar a moldura." },
@@ -141,11 +141,11 @@ export async function DELETE(
 
     if (r2) {
       await deleteR2ObjectsByKeys(r2.client, r2.bucket, [
-        buildPocketBoothFrameKey(trimmedEventId),
+        buildVirtualBoothFrameKey(trimmedEventId),
       ]);
     }
 
-    const { event: updated } = await updateEventPocketBoothFrameUrl(
+    const { event: updated } = await updateEventVirtualBoothFrameUrl(
       trimmedEventId,
       "",
     );
@@ -154,7 +154,7 @@ export async function DELETE(
 
     return Response.json({ ok: true });
   } catch (error) {
-    console.error("[POCKET_BOOTH_FRAME_DELETE] erro", error);
+    console.error("[VIRTUAL_BOOTH_FRAME_DELETE] erro", error);
 
     return Response.json(
       { error: "Não foi possível remover a moldura." },

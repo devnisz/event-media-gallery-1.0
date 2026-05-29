@@ -8,6 +8,7 @@ import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import { listPersistedEventsHydrated } from "@/services/tokenService";
 import type { PersistEventsOutcome } from "@/repositories/eventRepository";
 import { persistEventsFullReplace } from "@/repositories/eventRepository";
+import { normalizeGalleryLayout, type GalleryLayout } from "@/lib/gallery/layout";
 import { hashDeletePin, isValidDeletePin } from "@/lib/security/delete-pin";
 
 export type EventGalleryDeleteSettingsInput = {
@@ -16,6 +17,7 @@ export type EventGalleryDeleteSettingsInput = {
   deletePin?: string;
   allowGuestUpload?: boolean;
   requireGuestUploadApproval?: boolean;
+  galleryLayout?: GalleryLayout;
 };
 
 export async function readEvents(): Promise<GalleryEventRecord[]> {
@@ -90,6 +92,7 @@ export async function createEventRecordWithPersistence(
     allowGuestUpload: false,
     requireGuestUploadApproval: false,
     frameUrl: "",
+    galleryLayout: "premium",
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -127,6 +130,10 @@ export async function updateEventGalleryDeleteSettings(
     typeof settings.requireGuestUploadApproval === "boolean"
       ? settings.requireGuestUploadApproval
       : events[idx].requireGuestUploadApproval === true;
+  const galleryLayout =
+    settings.galleryLayout !== undefined
+      ? normalizeGalleryLayout(settings.galleryLayout)
+      : normalizeGalleryLayout(events[idx].galleryLayout);
   const trimmedPin = settings.deletePin?.trim() ?? "";
   let deletePinHash = events[idx].deletePinHash?.trim();
 
@@ -148,6 +155,7 @@ export async function updateEventGalleryDeleteSettings(
     requireDeletePin,
     allowGuestUpload,
     requireGuestUploadApproval,
+    galleryLayout,
     ...(deletePinHash ? { deletePinHash } : { deletePinHash: undefined }),
   };
 
@@ -205,7 +213,7 @@ export async function setEventCoverIfEmpty(
   await writeEvents(events);
 }
 
-export async function updateEventPocketBoothFrameUrl(
+export async function updateEventVirtualBoothFrameUrl(
   eventId: string,
   frameUrl: string,
 ): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {

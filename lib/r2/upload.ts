@@ -16,7 +16,7 @@ export function cleanR2Segment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
 }
 
-export function buildPocketBoothFrameKey(eventId: string): string {
+export function buildVirtualBoothFrameKey(eventId: string): string {
   const keyPrefix = (
     process.env.R2_KEY_PREFIX?.trim() || DEFAULT_KEY_PREFIX
   ).replace(/^\/+|\/+$/g, "");

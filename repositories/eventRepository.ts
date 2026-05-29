@@ -1,6 +1,7 @@
 /**
  * Persistência de eventos: Supabase quando configurado, com fallback JSON.
  */
+import { normalizeGalleryLayout } from "@/lib/gallery/layout";
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   createServiceRoleSupabase,
@@ -41,6 +42,7 @@ type EventRow = {
   allow_guest_upload?: boolean | null;
   require_guest_upload_approval?: boolean | null;
   frame_url?: string | null;
+  gallery_layout?: string | null;
 };
 
 export type PersistEventsOutcome = {
@@ -124,6 +126,7 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     allowGuestUpload: optionalBoolean(row.allow_guest_upload),
     requireGuestUploadApproval: optionalBoolean(row.require_guest_upload_approval),
     frameUrl: optionalTrimmedString(row.frame_url),
+    galleryLayout: normalizeGalleryLayout(row.gallery_layout),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -147,6 +150,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     allow_guest_upload: e.allowGuestUpload,
     require_guest_upload_approval: e.requireGuestUploadApproval,
     frame_url: e.frameUrl ?? "",
+    gallery_layout: normalizeGalleryLayout(e.galleryLayout),
   };
 }
 

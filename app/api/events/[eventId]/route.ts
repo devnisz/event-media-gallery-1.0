@@ -8,6 +8,7 @@ import {
   assertUserCanMutateEvent,
   DashboardAccessError,
 } from "@/lib/auth/dashboard-access";
+import { normalizeGalleryLayout } from "@/lib/gallery/layout";
 import {
   getEventById,
   updateEventGalleryDeleteSettings,
@@ -51,6 +52,7 @@ export async function PATCH(
       deletePin?: unknown;
       allowGuestUpload?: unknown;
       requireGuestUploadApproval?: unknown;
+      galleryLayout?: unknown;
     };
 
     if (
@@ -62,6 +64,11 @@ export async function PATCH(
         { status: 400 },
       );
     }
+
+    const galleryLayout =
+      body.galleryLayout === "social" || body.galleryLayout === "premium"
+        ? body.galleryLayout
+        : undefined;
 
     const updateResult = await updateEventGalleryDeleteSettings(trimmedEventId, {
       allowPublicDelete: body.allowPublicDelete,
@@ -76,6 +83,7 @@ export async function PATCH(
         typeof body.requireGuestUploadApproval === "boolean"
           ? body.requireGuestUploadApproval
           : undefined,
+      galleryLayout,
     }).catch((err: unknown) => {
       const message =
         err instanceof Error
@@ -103,6 +111,7 @@ export async function PATCH(
         requireDeletePin: updated.requireDeletePin,
         allowGuestUpload: updated.allowGuestUpload,
         requireGuestUploadApproval: updated.requireGuestUploadApproval,
+        galleryLayout: normalizeGalleryLayout(updated.galleryLayout),
       },
     });
   } catch (error) {

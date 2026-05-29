@@ -18,6 +18,7 @@ create table if not exists public.events (
   allow_guest_upload boolean not null default false,
   require_guest_upload_approval boolean not null default false,
   frame_url text not null default '',
+  gallery_layout text not null default 'premium',
   owner_user_id uuid references auth.users (id) on delete set null
 );
 

@@ -36,16 +36,28 @@ type GalleryCompactHeaderProps = {
   eventName: string;
   mediaCount: number;
   guestUploadSlot?: React.ReactNode;
+  compact?: boolean;
 };
 
 export function GalleryCompactHeader({
   eventName,
   mediaCount,
   guestUploadSlot,
+  compact = false,
 }: GalleryCompactHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 -mx-5 border-b border-white/8 bg-[#050505]/75 px-5 py-3 backdrop-blur-2xl sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 2xl:-mx-20 2xl:px-20">
-      <div className="mx-auto flex max-h-[110px] max-w-[1900px] items-center gap-3 md:max-h-[140px] md:gap-5">
+    <header
+      className={`sticky top-0 z-30 border-b border-white/8 bg-[#050505]/75 backdrop-blur-2xl ${
+        compact
+          ? "px-2 py-2"
+          : "-mx-5 px-5 py-3 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 2xl:-mx-20 2xl:px-20"
+      }`}
+    >
+      <div
+        className={`mx-auto flex max-w-[1900px] items-center gap-2 md:gap-5 ${
+          compact ? "max-h-[88px]" : "max-h-[110px] md:max-h-[140px]"
+        }`}
+      >
         <Link
           href={routes.home}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-semibold text-white/60 transition hover:border-white/20 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 active:scale-[0.98]"
@@ -55,7 +67,11 @@ export function GalleryCompactHeader({
         </Link>
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-xl font-black tracking-tight text-white md:text-2xl">
+          <h1
+            className={`truncate font-black tracking-tight text-white ${
+              compact ? "text-lg md:text-xl" : "text-xl md:text-2xl"
+            }`}
+          >
             {eventName}
           </h1>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">

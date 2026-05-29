@@ -1,23 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { PocketBoothModal } from "./pocket-booth-modal";
+import { VirtualBoothModal } from "./virtual-booth-modal";
 
-type PocketBoothLauncherProps = {
+type VirtualBoothLauncherProps = {
   eventId?: string;
   allowGuestUpload: boolean;
   frameUrl?: string;
 };
 
 /**
- * Cabine de Bolso — captura, moldura e publicação via fluxo de upload de convidado.
+ * Cabine Virtual — captura, moldura e publicação via fluxo de upload de convidado.
  * Componente isolado: remova este import e o uso em `video-gallery.tsx` para desativar.
  */
-export function PocketBoothLauncher({
+export function VirtualBoothLauncher({
   eventId,
   allowGuestUpload,
   frameUrl = "",
-}: PocketBoothLauncherProps) {
+}: VirtualBoothLauncherProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -26,7 +26,7 @@ export function PocketBoothLauncher({
         className="pointer-events-none h-20 shrink-0 sm:h-24"
         aria-hidden
       />
-      <PocketBoothModal
+      <VirtualBoothModal
         open={open}
         eventId={eventId}
         allowGuestUpload={allowGuestUpload}
@@ -44,7 +44,7 @@ export function PocketBoothLauncher({
         <span aria-hidden className="text-base sm:text-lg">
           📸
         </span>
-        <span>Criar mídia</span>
+        <span>Cabine Virtual</span>
       </button>
     </>
   );

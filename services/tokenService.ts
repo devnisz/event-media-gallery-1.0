@@ -2,6 +2,7 @@
  * Serviço de tokens de upload — validação estilo backend para watcher/API.
  */
 import { timingSafeEqual } from "crypto";
+import { normalizeGalleryLayout } from "@/lib/gallery/layout";
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   readEventsLooseForHydration,
@@ -47,6 +48,7 @@ export function hydrateAssignTokens(
         videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
         uploadToken: trimmedExisting,
         frameUrl: e.frameUrl ?? "",
+        galleryLayout: normalizeGalleryLayout(e.galleryLayout),
         ...gallerySettings,
         ...(e.ownerUserId?.trim()
           ? { ownerUserId: e.ownerUserId.trim() }
@@ -68,6 +70,7 @@ export function hydrateAssignTokens(
       videosCount: typeof e.videosCount === "number" ? e.videosCount : 0,
       uploadToken,
       frameUrl: e.frameUrl ?? "",
+      galleryLayout: normalizeGalleryLayout(e.galleryLayout),
       ...gallerySettings,
       ...(e.ownerUserId?.trim()
         ? { ownerUserId: e.ownerUserId.trim() }

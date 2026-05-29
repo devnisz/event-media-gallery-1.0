@@ -9,13 +9,20 @@ import {
   type SetStateAction,
 } from "react";
 
+import { GalleryEmptyState } from "@/components/public/gallery/gallery-empty-state";
+import { PremiumGalleryGrid } from "@/components/public/gallery/premium-gallery-grid";
+import { SocialGalleryGrid } from "@/components/public/gallery/social-gallery-grid";
 import { GalleryCompactHeader } from "@/components/public/gallery-compact-header";
-import { PocketBoothLauncher } from "@/components/public/pocket-booth";
+import { VirtualBoothLauncher } from "@/components/public/virtual-booth";
+import {
+  DEFAULT_GALLERY_LAYOUT,
+  isSocialGalleryLayout,
+  type GalleryLayout,
+} from "@/lib/gallery/layout";
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
 import { GuestUploadButton } from "./guest-upload-button";
-import { VideoCard } from "./video-card";
 
 type VideoGalleryProps = {
   initialVideos: EventVideo[];
@@ -26,6 +33,7 @@ type VideoGalleryProps = {
   requireDeletePin: boolean;
   allowGuestUpload: boolean;
   frameUrl?: string;
+  galleryLayout?: GalleryLayout;
 };
 
 const NEW_MEDIA_GLOW_MS = 8000;
@@ -157,31 +165,12 @@ export function VideoGallery({
   requireDeletePin,
   allowGuestUpload,
   frameUrl = "",
+  galleryLayout = DEFAULT_GALLERY_LAYOUT,
 }: VideoGalleryProps) {
+  const isSocialLayout = isSocialGalleryLayout(galleryLayout);
   const [videos, setVideos] = useState(initialVideos);
   const [newMediaIds, setNewMediaIds] = useState<Set<string>>(new Set());
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
-  const [mobileTwoCols, setMobileTwoCols] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    try {
-      return window.localStorage.getItem("gallery-mobile-two-cols") === "1";
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        "gallery-mobile-two-cols",
-        mobileTwoCols ? "1" : "0",
-      );
-    } catch {
-      /* ignore */
-    }
-  }, [mobileTwoCols]);
 
   const ctxRef = useRef({ eventSlug, eventId, eventName });
 
@@ -294,90 +283,43 @@ export function VideoGallery({
       <GuestUploadButton eventId={eventId} compact />
     ) : null;
 
+  const gridSharedProps = {
+    videos,
+    newMediaIds,
+    removingIds,
+    allowPublicDelete,
+    requireDeletePin,
+    onDeleted: handleDeleted,
+  };
+
   return (
     <section className="mx-auto flex w-full max-w-[1900px] flex-col">
       <GalleryCompactHeader
         eventName={eventName}
         mediaCount={visibleVideoCount}
         guestUploadSlot={guestUploadSlot}
+        compact={isSocialLayout}
       />
 
-      <div className="px-5 pb-8 pt-4 sm:px-8 lg:px-12 2xl:px-20">
+      <div
+        className={
+          isSocialLayout
+            ? "px-0 pb-4 pt-1 sm:px-0.5"
+            : "px-5 pb-8 pt-4 sm:px-8 lg:px-12 2xl:px-20"
+        }
+      >
         {videos.length > 0 ? (
-          <div
-            className={`flex flex-col ${mobileTwoCols ? "gap-2 md:gap-4" : "gap-3 md:gap-4"}`}
-          >
-            <div className="flex flex-wrap items-center justify-end gap-3 md:hidden">
-              <div
-                className="inline-flex rounded-full border border-white/10 bg-black/30 p-0.5"
-                role="group"
-                aria-label="Número de colunas no celular"
-              >
-                <button
-                  type="button"
-                  aria-pressed={!mobileTwoCols}
-                  onClick={() => setMobileTwoCols(false)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    !mobileTwoCols
-                      ? "bg-white text-slate-950 shadow"
-                      : "text-white/60 hover:text-white"
-                  }`}
-                >
-                  1 col
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={mobileTwoCols}
-                  onClick={() => setMobileTwoCols(true)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    mobileTwoCols
-                      ? "bg-white text-slate-950 shadow"
-                      : "text-white/60 hover:text-white"
-                  }`}
-                >
-                  2 cols
-                </button>
-              </div>
-            </div>
-
-            <div
-              className={`grid min-w-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-                mobileTwoCols
-                  ? "grid-cols-2 gap-2 md:gap-5"
-                  : "grid-cols-2 gap-3 sm:gap-4 md:gap-5"
-              }`}
-            >
-              {videos.map((video, index) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  index={index}
-                  isNew={newMediaIds.has(video.id)}
-                  isRemoving={removingIds.has(video.id)}
-                  onDeleted={handleDeleted}
-                  compactMobileTwoCol={mobileTwoCols}
-                  allowPublicDelete={allowPublicDelete}
-                  requireDeletePin={requireDeletePin}
-                  hideEventLabel
-                />
-              ))}
-            </div>
-          </div>
+          isSocialLayout ? (
+            <SocialGalleryGrid {...gridSharedProps} />
+          ) : (
+            <PremiumGalleryGrid {...gridSharedProps} />
+          )
         ) : (
-          <div className="mx-auto max-w-md py-16 text-center">
-            <div className="mx-auto mb-6 grid size-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.04]">
-              <span className="size-2 rounded-full bg-emerald-400 animate-live-pulse" />
-            </div>
-            <h2 className="text-xl font-black text-white">Galeria ao vivo</h2>
-            <p className="mt-2 text-sm leading-6 text-white/45">
-              As mídias aparecem aqui assim que forem enviadas. Fique nesta
-              página — tudo chega em tempo real.
-            </p>
-          </div>
+          <GalleryEmptyState />
         )}
       </div>
 
-      <PocketBoothLauncher
+      <VirtualBoothLauncher
         eventId={eventId}
         allowGuestUpload={allowGuestUpload}
         frameUrl={frameUrl}

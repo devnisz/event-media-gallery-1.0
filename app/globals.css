@@ -137,6 +137,16 @@ body {
   }
 }
 
+@keyframes gallery-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes ring-spin {
   from {
     transform: rotate(0deg);
@@ -165,6 +175,10 @@ body {
 
 .animate-slide-in-media {
   animation: slide-in-media 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-gallery-fade-in {
+  animation: gallery-fade-in 520ms ease-out both;
 }
 
 .animate-count-pop {
@@ -201,6 +215,7 @@ dialog::backdrop {
   .animate-live-pulse,
   .animate-glow-new,
   .animate-slide-in-media,
+  .animate-gallery-fade-in,
   .animate-count-pop,
   .animate-float-soft,
   .animate-toast-in,

@@ -202,6 +202,7 @@ async function migrateLegacyAssociations(
       allowGuestUpload: false,
       requireGuestUploadApproval: false,
       frameUrl: "",
+      galleryLayout: "premium",
     };
     events.push(legacy);
     await writeEvents(events);

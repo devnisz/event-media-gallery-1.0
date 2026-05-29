@@ -27,14 +27,14 @@ export async function canCapturePhoto(): Promise<boolean> {
   return hasVideoInputDevice();
 }
 
-export function buildPocketBoothPhotoFile(source: File): File {
+export function buildVirtualBoothPhotoFile(source: File): File {
   if (source.name.trim()) {
     return source;
   }
 
   const extension = source.type === "image/png" ? "png" : "jpg";
 
-  return new File([source], `cabine-bolso-${Date.now()}.${extension}`, {
+  return new File([source], `cabine-virtual-${Date.now()}.${extension}`, {
     type: source.type || "image/jpeg",
     lastModified: source.lastModified,
   });

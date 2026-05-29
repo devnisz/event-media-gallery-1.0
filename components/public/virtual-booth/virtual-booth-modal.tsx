@@ -9,25 +9,27 @@ import {
   type ChangeEvent,
 } from "react";
 import { uploadGuestMediaFile } from "@/lib/guest-upload/upload-client";
-import { composePhotoWithFrame } from "@/lib/pocket-booth/apply-frame";
+import { composePhotoWithFrame } from "@/lib/virtual-booth/apply-frame";
 import {
-  buildPocketBoothPhotoFile,
+  buildVirtualBoothPhotoFile,
   canCapturePhoto,
-} from "@/lib/pocket-booth/camera";
+} from "@/lib/virtual-booth/camera";
 
-type PocketBoothOption = {
+const BRAND_LABEL = "Cabine Virtual";
+
+type VirtualBoothOption = {
   id: string;
   icon: string;
   title: string;
   description: string;
 };
 
-const OPTIONS: PocketBoothOption[] = [
+const OPTIONS: VirtualBoothOption[] = [
   {
     id: "photo",
     icon: "📸",
-    title: "Foto",
-    description: "Tire uma foto usando seu celular.",
+    title: "Cabine Virtual",
+    description: "Tire uma foto personalizada para o evento.",
   },
   {
     id: "video",
@@ -43,9 +45,15 @@ const OPTIONS: PocketBoothOption[] = [
   },
 ];
 
-type ModalStep = "menu" | "no-camera" | "composing" | "final-preview" | "uploading";
+type ModalStep =
+  | "menu"
+  | "no-camera"
+  | "composing"
+  | "final-preview"
+  | "uploading"
+  | "success";
 
-type PocketBoothModalProps = {
+type VirtualBoothModalProps = {
   open: boolean;
   eventId?: string;
   allowGuestUpload: boolean;
@@ -59,13 +67,13 @@ function revokeObjectUrl(url: string | null) {
   }
 }
 
-export function PocketBoothModal({
+export function VirtualBoothModal({
   open,
   eventId,
   allowGuestUpload,
   frameUrl = "",
   onClose,
-}: PocketBoothModalProps) {
+}: VirtualBoothModalProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -221,7 +229,7 @@ export function PocketBoothModal({
     revokeObjectUrl(capturePreviewUrl);
     revokeObjectUrl(composedPreviewUrl);
 
-    const normalizedFile = buildPocketBoothPhotoFile(file);
+    const normalizedFile = buildVirtualBoothPhotoFile(file);
     const nextCaptureUrl = URL.createObjectURL(normalizedFile);
 
     setSourceFile(normalizedFile);
@@ -255,9 +263,8 @@ export function PocketBoothModal({
         setUploadMessage(update.message);
       });
 
-      resetState();
-      onClose();
       router.refresh();
+      setStep("success");
     } catch (error) {
       setStep("final-preview");
       setErrorMessage(
@@ -315,16 +322,16 @@ export function PocketBoothModal({
             {step === "menu" ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  Cabine de Bolso
+                  {BRAND_LABEL}
                 </p>
                 <h2
                   id={titleId}
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  Criar conteúdo para o evento
+                  {BRAND_LABEL}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Escolha o formato que deseja criar e compartilhar na galeria.
+                  Crie fotos personalizadas com a moldura oficial do evento.
                 </p>
 
                 {errorMessage ? (
@@ -346,7 +353,9 @@ export function PocketBoothModal({
                         </span>
                         <span className="min-w-0 pt-0.5">
                           <span className="block text-base font-black text-white">
-                            {option.title}
+                            {option.id === "photo"
+                              ? "📸 Cabine Virtual"
+                              : option.title}
                           </span>
                           <span className="mt-1 block text-sm leading-5 text-white/50">
                             {option.description}
@@ -362,7 +371,7 @@ export function PocketBoothModal({
             {step === "no-camera" ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  Cabine de Bolso
+                  {BRAND_LABEL}
                 </p>
                 <h2
                   id={titleId}
@@ -386,7 +395,7 @@ export function PocketBoothModal({
             {step === "composing" ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  Cabine de Bolso
+                  {BRAND_LABEL}
                 </p>
                 <h2
                   id={titleId}
@@ -395,7 +404,7 @@ export function PocketBoothModal({
                   Preparando sua foto
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Aplicando a identidade visual do evento...
+                  Aplicando a moldura oficial do evento...
                 </p>
                 <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
                   <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400" />
@@ -406,17 +415,17 @@ export function PocketBoothModal({
             {step === "final-preview" && activePreviewUrl ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  Cabine de Bolso
+                  {BRAND_LABEL}
                 </p>
                 <h2
                   id={titleId}
                   className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
                 >
-                  {showingFramedVersion ? "Sua foto está pronta" : "Foto original"}
+                  Sua foto está pronta!
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {showingFramedVersion
-                    ? "Revise o resultado com a moldura do evento antes de publicar."
+                    ? "Personalizada com a moldura oficial do evento."
                     : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
                 </p>
 
@@ -477,7 +486,7 @@ export function PocketBoothModal({
             {step === "uploading" ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  Cabine de Bolso
+                  {BRAND_LABEL}
                 </p>
                 <h2
                   id={titleId}
@@ -494,6 +503,31 @@ export function PocketBoothModal({
                     style={{ width: `${Math.max(uploadProgress, 8)}%` }}
                   />
                 </div>
+              </>
+            ) : null}
+
+            {step === "success" ? (
+              <>
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
+                  {BRAND_LABEL}
+                </p>
+                <h2
+                  id={titleId}
+                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
+                >
+                  <span aria-hidden>🎉 </span>
+                  Foto publicada!
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-white/45">
+                  Sua foto já está disponível na galeria do evento.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 text-sm font-black text-slate-950 transition hover:bg-amber-100"
+                >
+                  Fechar
+                </button>
               </>
             ) : null}
           </div>

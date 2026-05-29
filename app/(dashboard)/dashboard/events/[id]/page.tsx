@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-button";
 import { EventCover } from "@/components/dashboard/event-cover";
 import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
-import { EventPocketBoothFrameForm } from "@/components/dashboard/event-pocket-booth-frame-form";
+import { EventVirtualBoothFrameForm } from "@/components/dashboard/event-virtual-booth-frame-form";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
 import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
 import { QrCode } from "@/components/public/qr-code";
@@ -118,10 +118,11 @@ export default async function DashboardEventPage({
         initialRequireGuestUploadApproval={
           detail.event.requireGuestUploadApproval
         }
+        initialGalleryLayout={detail.event.galleryLayout}
         hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
       />
 
-      <EventPocketBoothFrameForm
+      <EventVirtualBoothFrameForm
         eventId={detail.event.id}
         initialFrameUrl={detail.event.frameUrl ?? ""}
       />

@@ -3,12 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  DEFAULT_GALLERY_LAYOUT,
+  type GalleryLayout,
+} from "@/lib/gallery/layout";
+
 type EventGallerySettingsFormProps = {
   eventId: string;
   initialAllowPublicDelete: boolean;
   initialRequireDeletePin: boolean;
   initialAllowGuestUpload: boolean;
   initialRequireGuestUploadApproval: boolean;
+  initialGalleryLayout?: GalleryLayout;
   hasDeletePin: boolean;
 };
 
@@ -22,9 +28,13 @@ export function EventGallerySettingsForm({
   initialRequireDeletePin,
   initialAllowGuestUpload,
   initialRequireGuestUploadApproval,
+  initialGalleryLayout = DEFAULT_GALLERY_LAYOUT,
   hasDeletePin,
 }: EventGallerySettingsFormProps) {
   const router = useRouter();
+  const [galleryLayout, setGalleryLayout] = useState<GalleryLayout>(
+    initialGalleryLayout,
+  );
   const [allowPublicDelete, setAllowPublicDelete] = useState(
     initialAllowPublicDelete,
   );
@@ -71,6 +81,7 @@ export function EventGallerySettingsForm({
           deletePin: trimmedPin || undefined,
           allowGuestUpload,
           requireGuestUploadApproval,
+          galleryLayout,
         }),
       });
       const payload = (await response.json()) as { error?: string };
@@ -109,6 +120,51 @@ export function EventGallerySettingsForm({
       </div>
 
       <div className="mt-6 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
+            Visual da Galeria
+          </p>
+          <fieldset className="mt-4 space-y-3">
+            <legend className="sr-only">Visual da Galeria</legend>
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 p-4 transition hover:border-white/20">
+              <input
+                type="radio"
+                name="galleryLayout"
+                value="premium"
+                checked={galleryLayout === "premium"}
+                disabled={isSaving}
+                onChange={() => setGalleryLayout("premium")}
+                className="mt-1 size-4 accent-amber-300"
+              />
+              <span>
+                <span className="block font-bold">Premium</span>
+                <span className="mt-1 block text-sm leading-6 text-white/50">
+                  Layout elegante e corporativo, com cards e destaque visual por
+                  mídia.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 p-4 transition hover:border-white/20">
+              <input
+                type="radio"
+                name="galleryLayout"
+                value="social"
+                checked={galleryLayout === "social"}
+                disabled={isSaving}
+                onChange={() => setGalleryLayout("social")}
+                className="mt-1 size-4 accent-amber-300"
+              />
+              <span>
+                <span className="block font-bold">Social Feed</span>
+                <span className="mt-1 block text-sm leading-6 text-white/50">
+                  Mosaico estilo Instagram, com foco total nas mídias e grade
+                  compacta.
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        </div>
+
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
             Uploads dos convidados

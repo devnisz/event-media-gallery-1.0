@@ -1,3 +1,5 @@
+import type { GalleryLayout } from "@/lib/gallery/layout";
+
 export type GalleryEventRecord = {
   id: string;
   name: string;
@@ -19,8 +21,10 @@ export type GalleryEventRecord = {
   allowGuestUpload: boolean;
   /** Quando ligado, uploads guest ficam pendentes ate aprovacao no dashboard. */
   requireGuestUploadApproval: boolean;
-  /** Moldura PNG opcional da Cabine de Bolso (URL pública). */
+  /** Moldura PNG opcional da Cabine Virtual (URL pública). */
   frameUrl: string;
+  /** Layout publico da galeria: premium (padrao) ou social. */
+  galleryLayout: GalleryLayout;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

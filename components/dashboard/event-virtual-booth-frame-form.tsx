@@ -3,15 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ChangeEvent } from "react";
 
-type EventPocketBoothFrameFormProps = {
+type EventVirtualBoothFrameFormProps = {
   eventId: string;
   initialFrameUrl: string;
 };
 
-export function EventPocketBoothFrameForm({
+export function EventVirtualBoothFrameForm({
   eventId,
   initialFrameUrl,
-}: EventPocketBoothFrameFormProps) {
+}: EventVirtualBoothFrameFormProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [frameUrl, setFrameUrl] = useState(initialFrameUrl.trim());
@@ -30,7 +30,7 @@ export function EventPocketBoothFrameForm({
       formData.append("file", file);
 
       const response = await fetch(
-        `/api/events/${encodeURIComponent(eventId)}/pocket-booth-frame`,
+        `/api/events/${encodeURIComponent(eventId)}/virtual-booth-frame`,
         {
           method: "POST",
           body: formData,
@@ -46,7 +46,7 @@ export function EventPocketBoothFrameForm({
       }
 
       setFrameUrl(payload.frameUrl?.trim() ?? "");
-      setMessage("Moldura da Cabine de Bolso atualizada.");
+      setMessage("Moldura da Cabine Virtual atualizada.");
       router.refresh();
     } catch (uploadError) {
       setError(
@@ -66,7 +66,7 @@ export function EventPocketBoothFrameForm({
 
     try {
       const response = await fetch(
-        `/api/events/${encodeURIComponent(eventId)}/pocket-booth-frame`,
+        `/api/events/${encodeURIComponent(eventId)}/virtual-booth-frame`,
         { method: "DELETE" },
       );
       const payload = (await response.json()) as { error?: string };
@@ -105,14 +105,14 @@ export function EventPocketBoothFrameForm({
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
-        Cabine de Bolso
+        Cabine Virtual
       </p>
       <h2 className="mt-3 text-2xl font-black tracking-tight">
-        Moldura da Cabine de Bolso
+        Fotos da Cabine Virtual
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
-        Envie um PNG transparente para sobrepor nas fotos capturadas na galeria
-        pública. Opcional — uma moldura oficial por evento.
+        Envie um PNG transparente como moldura oficial. As fotos capturadas na
+        galeria pública serão personalizadas automaticamente.
       </p>
 
       <input
@@ -129,7 +129,7 @@ export function EventPocketBoothFrameForm({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={frameUrl}
-            alt="Prévia da moldura da Cabine de Bolso"
+            alt="Prévia da moldura da Cabine Virtual"
             className="mx-auto max-h-56 w-full object-contain"
           />
         </div>

@@ -20,7 +20,7 @@ import {
   deleteR2ObjectsByKeys,
   tryCreateR2DeletionClient,
 } from "@/lib/r2/removal";
-import { buildPocketBoothFrameKey } from "@/lib/r2/upload";
+import { buildVirtualBoothFrameKey } from "@/lib/r2/upload";
 
 export class EventNotFoundDeletionError extends Error {
   constructor() {
@@ -119,8 +119,8 @@ export async function deleteEventAndRelatedAssets(
     }
 
     if (event.frameUrl?.trim()) {
-      const frameKey = buildPocketBoothFrameKey(event.id);
-      push(`R2: removendo moldura da Cabine de Bolso "${frameKey}"…`);
+      const frameKey = buildVirtualBoothFrameKey(event.id);
+      push(`R2: removendo moldura da Cabine Virtual "${frameKey}"…`);
 
       try {
         const frameDel = await deleteR2ObjectsByKeys(r2.client, r2.bucket, [

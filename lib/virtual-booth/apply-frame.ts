@@ -88,7 +88,7 @@ export async function composePhotoWithFrame(
     );
   });
 
-  const baseName = photoFile.name.replace(/\.[^.]+$/, "") || "cabine-bolso";
+  const baseName = photoFile.name.replace(/\.[^.]+$/, "") || "cabine-virtual";
 
   return new File([blob], `${baseName}.jpg`, {
     type: "image/jpeg",
