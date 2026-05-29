@@ -2,11 +2,9 @@
 
 import { useState, type MouseEvent } from "react";
 
-import {
-  getOrCreateVisitorKey,
-  isMediaLikedLocally,
-  setMediaLikedLocally,
-} from "@/lib/likes/visitor-client";
+import { formatLikeCount } from "@/lib/likes/format";
+import { toggleMediaLikeClient } from "@/lib/likes/toggle-client";
+import { isMediaLikedLocally } from "@/lib/likes/visitor-client";
 
 type MediaLikeButtonProps = {
   mediaId: string;
@@ -15,22 +13,6 @@ type MediaLikeButtonProps = {
   variant?: "tile" | "overlay";
   onCountChange?: (mediaId: string, likesCount: number, liked: boolean) => void;
 };
-
-function formatLikeCount(count: number): string {
-  if (count >= 1_000_000) {
-    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  }
-
-  if (count >= 10_000) {
-    return `${Math.round(count / 1000)}k`;
-  }
-
-  if (count >= 1_000) {
-    return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  }
-
-  return String(count);
-}
 
 export function MediaLikeButton({
   mediaId,
@@ -59,7 +41,6 @@ export function MediaLikeButton({
     setIsPending(true);
     setIsAnimating(true);
 
-    const visitorKey = getOrCreateVisitorKey();
     const previousLiked = liked;
     const previousCount = likesCount;
     const optimisticLiked = !liked;
@@ -70,42 +51,17 @@ export function MediaLikeButton({
 
     setLiked(optimisticLiked);
     setLikesCount(optimisticCount);
-    setMediaLikedLocally(mediaId, optimisticLiked);
     onCountChange?.(mediaId, optimisticCount, optimisticLiked);
 
     try {
-      const response = await fetch(
-        `/api/media/${encodeURIComponent(mediaId)}/like`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ visitorKey }),
-        },
-      );
-      const payload = (await response.json()) as {
-        error?: string;
-        liked?: boolean;
-        likesCount?: number;
-      };
+      const result = await toggleMediaLikeClient(mediaId);
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Não foi possível curtir.");
-      }
-
-      const nextLiked = payload.liked === true;
-      const nextCount =
-        typeof payload.likesCount === "number"
-          ? Math.max(0, payload.likesCount)
-          : optimisticCount;
-
-      setLiked(nextLiked);
-      setLikesCount(nextCount);
-      setMediaLikedLocally(mediaId, nextLiked);
-      onCountChange?.(mediaId, nextCount, nextLiked);
+      setLiked(result.liked);
+      setLikesCount(result.likesCount);
+      onCountChange?.(mediaId, result.likesCount, result.liked);
     } catch {
       setLiked(previousLiked);
       setLikesCount(previousCount);
-      setMediaLikedLocally(mediaId, previousLiked);
       onCountChange?.(mediaId, previousCount, previousLiked);
     } finally {
       setIsPending(false);

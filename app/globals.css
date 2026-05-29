@@ -181,6 +181,44 @@ body {
   }
 }
 
+@keyframes live-moments-heart-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  18% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes live-moments-like-count-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
 @keyframes media-like-pop {
   0% {
     transform: scale(1);
@@ -222,6 +260,14 @@ body {
 
 .animate-media-like-pop {
   animation: media-like-pop 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-live-moments-heart-burst {
+  animation: live-moments-heart-burst 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-live-moments-like-count-flash {
+  animation: live-moments-like-count-flash 2.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-live-moments-live-glow {
@@ -283,6 +329,8 @@ dialog::backdrop {
   .animate-live-moments-preview-fade,
   .animate-live-moments-live-glow,
   .animate-media-like-pop,
+  .animate-live-moments-heart-burst,
+  .animate-live-moments-like-count-flash,
   .animate-glow-new,
   .animate-slide-in-media,
   .animate-gallery-fade-in,

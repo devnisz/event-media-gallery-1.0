@@ -13,7 +13,7 @@ import {
   getLiveMomentLabel,
   type LiveMomentItem,
 } from "@/lib/live-moments/media";
-import { MediaLikeButton } from "@/components/public/media-like-button";
+import { LiveMomentsLikeSurface } from "./live-moments-like-surface";
 import { LiveMomentsMedia } from "./live-moments-media";
 import { LiveMomentsProgress } from "./live-moments-progress";
 
@@ -212,44 +212,46 @@ export function LiveMomentsViewer({
             onClick={goNext}
           />
 
-          <div className="pointer-events-none relative z-10 flex max-h-[78dvh] w-full max-w-3xl items-center justify-center">
-            <LiveMomentsMedia
-              item={current}
-              paused={paused}
-              onProgress={setSegmentProgress}
-              onSegmentEnd={goNext}
-            />
-          </div>
+          {allowLikes ? (
+            <LiveMomentsLikeSurface
+              key={`${current.id}-${current.likesCount}`}
+              mediaId={current.id}
+              initialCount={current.likesCount}
+              onCountChange={onLikeCountChange}
+            >
+              <LiveMomentsMedia
+                item={current}
+                paused={paused}
+                onProgress={setSegmentProgress}
+                onSegmentEnd={goNext}
+              />
+            </LiveMomentsLikeSurface>
+          ) : (
+            <div className="pointer-events-none relative z-10 flex max-h-[78dvh] w-full max-w-3xl items-center justify-center">
+              <LiveMomentsMedia
+                item={current}
+                paused={paused}
+                onProgress={setSegmentProgress}
+                onSegmentEnd={goNext}
+              />
+            </div>
+          )}
         </div>
 
-        <div className="relative z-10 flex items-center justify-between px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-          <p className="pointer-events-none text-sm font-semibold text-white/90">
+        <div className="pointer-events-none relative z-10 flex items-center justify-between px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+          <p className="text-sm font-semibold text-white/90">
             <span aria-hidden className="mr-1.5">
               {getLiveMomentIcon(current.kind)}
             </span>
             {getLiveMomentLabel(current.kind)}
           </p>
-          <div className="flex items-center gap-3">
-            {allowLikes ? (
-              <MediaLikeButton
-                key={`${current.id}-${current.likesCount}`}
-                mediaId={current.id}
-                initialCount={current.likesCount}
-                allowLikes={allowLikes}
-                variant="overlay"
-                onCountChange={onLikeCountChange}
-              />
-            ) : null}
-            {timeLabel ? (
-              <p className="pointer-events-none text-xs font-medium text-white/45">
-                {timeLabel}
-              </p>
-            ) : (
-              <span className="pointer-events-none text-xs text-white/30">
-                {clampedIndex + 1} / {items.length}
-              </span>
-            )}
-          </div>
+          {timeLabel ? (
+            <p className="text-xs font-medium text-white/45">{timeLabel}</p>
+          ) : (
+            <span className="text-xs text-white/30">
+              {clampedIndex + 1} / {items.length}
+            </span>
+          )}
         </div>
 
         {paused ? (
