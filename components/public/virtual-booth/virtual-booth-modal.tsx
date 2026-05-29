@@ -108,7 +108,10 @@ export function VirtualBoothModal({
   const [step, setStep] = useState<ModalStep>("menu");
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
-  const [countdownDisplay, setCountdownDisplay] = useState("Prepare-se para a foto");
+  const [countdownDisplay, setCountdownDisplay] = useState("");
+  const [countdownPhase, setCountdownPhase] = useState<"prepare" | "tick" | "snap">(
+    "prepare",
+  );
   const [flashVisible, setFlashVisible] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [composedFile, setComposedFile] = useState<File | null>(null);
@@ -196,7 +199,8 @@ export function VirtualBoothModal({
     setStep("menu");
     setCameraStream(null);
     setCameraReady(false);
-    setCountdownDisplay("Prepare-se para a foto");
+    setCountdownDisplay("");
+    setCountdownPhase("prepare");
     setFlashVisible(false);
     setSourceFile(null);
     setComposedFile(null);
@@ -356,18 +360,22 @@ export function VirtualBoothModal({
     countdownTimersRef.current = [];
     setErrorMessage("");
     setFlashVisible(false);
-    setCountdownDisplay("Prepare-se para a foto");
+    setCountdownDisplay("");
+    setCountdownPhase("prepare");
     setStep("countdown");
 
     const sequence = [
-      { delay: 900, value: "3" },
-      { delay: 1800, value: "2" },
-      { delay: 2700, value: "1" },
-      { delay: 3600, value: "📸" },
+      { delay: 900, phase: "tick" as const, value: "3" },
+      { delay: 1800, phase: "tick" as const, value: "2" },
+      { delay: 2700, phase: "tick" as const, value: "1" },
+      { delay: 3600, phase: "snap" as const, value: "📸" },
     ];
 
-    sequence.forEach(({ delay, value }) => {
-      const timer = window.setTimeout(() => setCountdownDisplay(value), delay);
+    sequence.forEach(({ delay, phase, value }) => {
+      const timer = window.setTimeout(() => {
+        setCountdownPhase(phase);
+        setCountdownDisplay(value);
+      }, delay);
       countdownTimersRef.current.push(timer);
     });
 
@@ -535,7 +543,7 @@ export function VirtualBoothModal({
                     : "Use boa luz, olhe para a câmera e toque em capturar."}
                 </p>
 
-                <div className="relative mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+                <div className="relative mt-5 flex min-h-[min(52vh,30rem)] items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
                   <div
                     aria-hidden
                     className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_20%,rgba(251,191,36,0.16),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.06),transparent_35%,rgba(0,0,0,0.28))]"
@@ -546,7 +554,7 @@ export function VirtualBoothModal({
                     muted
                     playsInline
                     onCanPlay={() => setCameraReady(true)}
-                    className="aspect-[3/4] max-h-[min(58vh,34rem)] w-full scale-x-[-1] object-cover"
+                    className="max-h-[min(58vh,34rem)] w-full scale-x-[-1] object-contain"
                   />
 
                   {!cameraReady ? (
@@ -562,17 +570,25 @@ export function VirtualBoothModal({
 
                   {step === "countdown" ? (
                     <div className="absolute inset-0 z-30 grid place-items-center bg-black/18 px-6 text-center backdrop-blur-[1px]">
-                      <div className="relative">
-                        <div
-                          aria-hidden
-                          className="absolute inset-0 -z-10 rounded-full bg-amber-200/25 blur-3xl"
-                        />
-                        <p
-                          key={countdownDisplay}
-                          className="animate-count-pop text-balance text-5xl font-black tracking-tight text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.65)] sm:text-7xl"
-                        >
-                          {countdownDisplay}
-                        </p>
+                      <div className="relative flex flex-col items-center gap-4">
+                        {countdownPhase === "prepare" ? (
+                          <p className="max-w-[14rem] text-[0.7rem] font-medium leading-relaxed tracking-[0.18em] text-white/55 uppercase">
+                            Prepare-se para a foto
+                          </p>
+                        ) : (
+                          <>
+                            <div
+                              aria-hidden
+                              className="absolute inset-0 -z-10 rounded-full bg-amber-200/20 blur-3xl"
+                            />
+                            <p
+                              key={countdownDisplay}
+                              className="animate-count-pop text-6xl font-black leading-none tracking-tight text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.65)] sm:text-8xl"
+                            >
+                              {countdownDisplay}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   ) : null}
