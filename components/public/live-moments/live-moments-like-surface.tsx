@@ -10,7 +10,10 @@ import {
 
 import { formatLikeCount } from "@/lib/likes/format";
 import { toggleMediaLikeClient } from "@/lib/likes/toggle-client";
-import { isMediaLikedLocally } from "@/lib/likes/visitor-client";
+import {
+  isMediaLikedLocally,
+  setMediaLikedLocally,
+} from "@/lib/likes/visitor-client";
 
 const DOUBLE_TAP_MS = 320;
 const DOUBLE_TAP_MAX_DISTANCE_PX = 48;
@@ -39,6 +42,7 @@ export function LiveMomentsLikeSurface({
     null,
   );
   const countFlashTimerRef = useRef<number | null>(null);
+  const displayCount = Math.max(likesCount, Math.max(0, initialCount));
 
   const flashCount = useCallback(() => {
     setCountFlashVisible(true);
@@ -62,6 +66,7 @@ export function LiveMomentsLikeSurface({
     (nextLiked: boolean, nextCount: number) => {
       setLiked(nextLiked);
       setLikesCount(nextCount);
+      setMediaLikedLocally(mediaId, nextLiked);
       onCountChange?.(mediaId, nextCount, nextLiked);
     },
     [mediaId, onCountChange],
@@ -189,7 +194,7 @@ export function LiveMomentsLikeSurface({
           <span aria-hidden className="mr-1">
             ❤️
           </span>
-          <span className="tabular-nums">{formatLikeCount(likesCount)}</span>
+          <span className="tabular-nums">{formatLikeCount(displayCount)}</span>
         </p>
       ) : null}
 

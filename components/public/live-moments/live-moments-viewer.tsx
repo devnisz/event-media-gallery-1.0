@@ -214,7 +214,7 @@ export function LiveMomentsViewer({
 
           {allowLikes ? (
             <LiveMomentsLikeSurface
-              key={`${current.id}-${current.likesCount}`}
+              key={current.id}
               mediaId={current.id}
               initialCount={current.likesCount}
               onCountChange={onLikeCountChange}
