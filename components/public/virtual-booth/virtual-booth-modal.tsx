@@ -6,14 +6,19 @@ import {
   useId,
   useRef,
   useState,
-  type ChangeEvent,
 } from "react";
 import { uploadGuestMediaFile } from "@/lib/guest-upload/upload-client";
 import { composePhotoWithFrame } from "@/lib/virtual-booth/apply-frame";
 import {
-  buildVirtualBoothPhotoFile,
   canCapturePhoto,
+  capturePhotoFromVideo,
+  startVirtualBoothPhotoStream,
+  stopMediaStream,
 } from "@/lib/virtual-booth/camera";
+import {
+  ALWAYS_ON_GLAM_FILTER,
+  applyGlamFilter,
+} from "@/lib/virtual-booth/glam-filter";
 
 const BRAND_LABEL = "Cabine Virtual";
 
@@ -48,6 +53,8 @@ const OPTIONS: VirtualBoothOption[] = [
 type ModalStep =
   | "menu"
   | "no-camera"
+  | "camera"
+  | "countdown"
   | "composing"
   | "final-preview"
   | "uploading"
@@ -67,6 +74,22 @@ function revokeObjectUrl(url: string | null) {
   }
 }
 
+function getCameraErrorMessage(error: unknown) {
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+      return "Permita o acesso à câmera para usar a Cabine Virtual.";
+    }
+
+    if (error.name === "NotFoundError") {
+      return "Nenhuma câmera foi encontrada neste dispositivo.";
+    }
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível iniciar a câmera.";
+}
+
 export function VirtualBoothModal({
   open,
   eventId,
@@ -76,11 +99,17 @@ export function VirtualBoothModal({
 }: VirtualBoothModalProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const countdownTimersRef = useRef<number[]>([]);
   const capturePreviewUrlRef = useRef<string | null>(null);
   const composedPreviewUrlRef = useRef<string | null>(null);
   const titleId = useId();
   const [step, setStep] = useState<ModalStep>("menu");
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [countdownDisplay, setCountdownDisplay] = useState("Prepare-se para a foto");
+  const [flashVisible, setFlashVisible] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [composedFile, setComposedFile] = useState<File | null>(null);
   const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(
@@ -92,6 +121,7 @@ export function VirtualBoothModal({
   const [useFramedPreview, setUseFramedPreview] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [composingMessage, setComposingMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const officialFrameUrl = frameUrl.trim();
@@ -132,16 +162,42 @@ export function VirtualBoothModal({
 
   useEffect(() => {
     return () => {
+      countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      countdownTimersRef.current = [];
+      stopMediaStream(cameraStreamRef.current);
       revokeObjectUrl(capturePreviewUrlRef.current);
       revokeObjectUrl(composedPreviewUrlRef.current);
     };
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video || !cameraStream || (step !== "camera" && step !== "countdown")) {
+      return;
+    }
+
+    video.srcObject = cameraStream;
+    void video.play();
+
+    return () => {
+      video.srcObject = null;
+    };
+  }, [cameraStream, step]);
+
   function resetState() {
+    countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    countdownTimersRef.current = [];
+    stopMediaStream(cameraStreamRef.current);
+    cameraStreamRef.current = null;
     revokeObjectUrl(capturePreviewUrl);
     revokeObjectUrl(composedPreviewUrl);
 
     setStep("menu");
+    setCameraStream(null);
+    setCameraReady(false);
+    setCountdownDisplay("Prepare-se para a foto");
+    setFlashVisible(false);
     setSourceFile(null);
     setComposedFile(null);
     setCapturePreviewUrl(null);
@@ -149,11 +205,12 @@ export function VirtualBoothModal({
     setUseFramedPreview(true);
     setUploadProgress(0);
     setUploadMessage("");
+    setComposingMessage("");
     setErrorMessage("");
   }
 
   function handleClose() {
-    if (step === "uploading" || step === "composing") {
+    if (step === "uploading" || step === "composing" || step === "countdown") {
       return;
     }
 
@@ -176,7 +233,20 @@ export function VirtualBoothModal({
       return;
     }
 
-    cameraInputRef.current?.click();
+    setStep("camera");
+    setCameraReady(false);
+
+    try {
+      const stream = await startVirtualBoothPhotoStream();
+      cameraStreamRef.current = stream;
+      setCameraStream(stream);
+    } catch (error) {
+      stopMediaStream(cameraStreamRef.current);
+      cameraStreamRef.current = null;
+      setCameraStream(null);
+      setStep("no-camera");
+      setErrorMessage(getCameraErrorMessage(error));
+    }
   }
 
   function handleOptionClick(optionId: string) {
@@ -192,6 +262,7 @@ export function VirtualBoothModal({
 
   async function applyOfficialFrameAutomatically(source: File) {
     setStep("composing");
+    setComposingMessage("Aplicando a moldura oficial do evento...");
     setErrorMessage("");
 
     try {
@@ -217,22 +288,24 @@ export function VirtualBoothModal({
     }
   }
 
-  function handleCaptureChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file || !file.type.startsWith("image/")) {
-      setErrorMessage("Selecione uma foto válida para continuar.");
-      return;
-    }
-
+  async function prepareCapturedPhoto(file: File) {
+    setStep("composing");
+    setComposingMessage("Aplicando filtro Glam automático...");
+    setErrorMessage("");
     revokeObjectUrl(capturePreviewUrl);
     revokeObjectUrl(composedPreviewUrl);
 
-    const normalizedFile = buildVirtualBoothPhotoFile(file);
-    const nextCaptureUrl = URL.createObjectURL(normalizedFile);
+    let enhancedFile = file;
 
-    setSourceFile(normalizedFile);
+    try {
+      enhancedFile = await applyGlamFilter(file, ALWAYS_ON_GLAM_FILTER);
+    } catch {
+      enhancedFile = file;
+    }
+
+    const nextCaptureUrl = URL.createObjectURL(enhancedFile);
+
+    setSourceFile(enhancedFile);
     setCapturePreviewUrl(nextCaptureUrl);
     setComposedFile(null);
     setComposedPreviewUrl(null);
@@ -240,11 +313,71 @@ export function VirtualBoothModal({
     setErrorMessage("");
 
     if (hasOfficialFrame) {
-      void applyOfficialFrameAutomatically(normalizedFile);
+      await applyOfficialFrameAutomatically(enhancedFile);
       return;
     }
 
     setStep("final-preview");
+  }
+
+  async function captureCurrentFrame() {
+    const video = videoRef.current;
+
+    if (!video) {
+      setStep("camera");
+      setErrorMessage("A câmera ainda não está pronta para capturar.");
+      return;
+    }
+
+    try {
+      const capturedFile = await capturePhotoFromVideo(video, { mirror: true });
+      stopMediaStream(cameraStreamRef.current);
+      cameraStreamRef.current = null;
+      setCameraStream(null);
+      setCameraReady(false);
+      await prepareCapturedPhoto(capturedFile);
+    } catch (error) {
+      setStep("camera");
+      setFlashVisible(false);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível capturar a foto.",
+      );
+    }
+  }
+
+  function startCountdown() {
+    if (!cameraReady) {
+      return;
+    }
+
+    countdownTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    countdownTimersRef.current = [];
+    setErrorMessage("");
+    setFlashVisible(false);
+    setCountdownDisplay("Prepare-se para a foto");
+    setStep("countdown");
+
+    const sequence = [
+      { delay: 900, value: "3" },
+      { delay: 1800, value: "2" },
+      { delay: 2700, value: "1" },
+      { delay: 3600, value: "📸" },
+    ];
+
+    sequence.forEach(({ delay, value }) => {
+      const timer = window.setTimeout(() => setCountdownDisplay(value), delay);
+      countdownTimersRef.current.push(timer);
+    });
+
+    countdownTimersRef.current.push(
+      window.setTimeout(() => setFlashVisible(true), 3720),
+      window.setTimeout(() => {
+        void captureCurrentFrame();
+      }, 3820),
+      window.setTimeout(() => setFlashVisible(false), 4050),
+    );
   }
 
   async function handlePublishPhoto() {
@@ -277,15 +410,6 @@ export function VirtualBoothModal({
 
   return (
     <>
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
-        className="sr-only"
-        onChange={handleCaptureChange}
-      />
-
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
@@ -295,7 +419,8 @@ export function VirtualBoothModal({
           if (
             event.target === dialogRef.current &&
             step !== "uploading" &&
-            step !== "composing"
+            step !== "composing" &&
+            step !== "countdown"
           ) {
             handleClose();
           }
@@ -308,7 +433,7 @@ export function VirtualBoothModal({
           />
 
           <div className="relative p-6 sm:p-8">
-            {step !== "uploading" && step !== "composing" ? (
+            {step !== "uploading" && step !== "composing" && step !== "countdown" ? (
               <button
                 type="button"
                 onClick={handleClose}
@@ -380,7 +505,8 @@ export function VirtualBoothModal({
                   Foto indisponível
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-white/55">
-                  Captura de foto disponível apenas em dispositivos com câmera.
+                  {errorMessage ||
+                    "Captura de foto disponível apenas em dispositivos com câmera."}
                 </p>
                 <button
                   type="button"
@@ -389,6 +515,93 @@ export function VirtualBoothModal({
                 >
                   Voltar
                 </button>
+              </>
+            ) : null}
+
+            {step === "camera" || step === "countdown" ? (
+              <>
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
+                  {BRAND_LABEL}
+                </p>
+                <h2
+                  id={titleId}
+                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
+                >
+                  {step === "countdown" ? "Prepare-se" : "Enquadre sua foto"}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-white/45">
+                  {step === "countdown"
+                    ? "A captura acontece automaticamente no final da contagem."
+                    : "Use boa luz, olhe para a câmera e toque em capturar."}
+                </p>
+
+                <div className="relative mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_20%,rgba(251,191,36,0.16),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.06),transparent_35%,rgba(0,0,0,0.28))]"
+                  />
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    onCanPlay={() => setCameraReady(true)}
+                    className="aspect-[3/4] max-h-[min(58vh,34rem)] w-full scale-x-[-1] object-cover"
+                  />
+
+                  {!cameraReady ? (
+                    <div className="absolute inset-0 z-20 grid place-items-center bg-slate-950/80 px-6 text-center">
+                      <div>
+                        <div className="mx-auto size-10 animate-pulse rounded-full border-2 border-amber-200/80 border-t-transparent" />
+                        <p className="mt-4 text-sm font-semibold text-white/70">
+                          Iniciando câmera...
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {step === "countdown" ? (
+                    <div className="absolute inset-0 z-30 grid place-items-center bg-black/18 px-6 text-center backdrop-blur-[1px]">
+                      <div className="relative">
+                        <div
+                          aria-hidden
+                          className="absolute inset-0 -z-10 rounded-full bg-amber-200/25 blur-3xl"
+                        />
+                        <p
+                          key={countdownDisplay}
+                          className="animate-count-pop text-balance text-5xl font-black tracking-tight text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.65)] sm:text-7xl"
+                        >
+                          {countdownDisplay}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {flashVisible ? (
+                    <div
+                      aria-hidden
+                      className="absolute inset-0 z-40 bg-white/95 transition-opacity duration-150"
+                    />
+                  ) : null}
+                </div>
+
+                {errorMessage ? (
+                  <p className="mt-4 text-sm font-semibold text-red-200">
+                    {errorMessage}
+                  </p>
+                ) : null}
+
+                {step === "camera" ? (
+                  <button
+                    type="button"
+                    onClick={startCountdown}
+                    disabled={!cameraReady}
+                    className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    <span aria-hidden>📸</span>
+                    Capturar
+                  </button>
+                ) : null}
               </>
             ) : null}
 
@@ -404,7 +617,7 @@ export function VirtualBoothModal({
                   Preparando sua foto
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
-                  Aplicando a moldura oficial do evento...
+                  {composingMessage || "Ajustando detalhes da imagem..."}
                 </p>
                 <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
                   <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400" />
