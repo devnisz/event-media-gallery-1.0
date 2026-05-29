@@ -68,6 +68,32 @@ export function getLiveMomentLabel(kind: LiveMomentKind): string {
   }
 }
 
+const LIVE_MOMENTS_PREVIEW_COUNT = 4;
+
+export function pickLiveMomentPreviews(
+  moments: LiveMomentItem[],
+  count = LIVE_MOMENTS_PREVIEW_COUNT,
+): LiveMomentItem[] {
+  return moments.slice(0, Math.max(0, count));
+}
+
+/** URL para thumbnail do card (prioriza poster; vídeo sem thumb retorna null). */
+export function resolveLiveMomentPreviewUrl(item: LiveMomentItem): string | null {
+  const thumb = item.thumbnailUrl?.trim();
+
+  if (thumb) {
+    return thumb;
+  }
+
+  if (item.kind === "image" || item.kind === "boomerang") {
+    const url = item.url?.trim();
+
+    return url || null;
+  }
+
+  return null;
+}
+
 export function getLiveMomentIcon(kind: LiveMomentKind): string {
   switch (kind) {
     case "image":

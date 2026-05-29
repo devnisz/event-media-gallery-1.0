@@ -20,7 +20,19 @@ create table if not exists public.events (
   frame_url text not null default '',
   gallery_layout text not null default 'premium',
   owner_user_id uuid references auth.users (id) on delete set null,
-  live_moments_enabled boolean not null default false
+  cabine_virtual_enabled boolean not null default true,
+  cabine_virtual_photo_enabled boolean not null default true,
+  cabine_virtual_boomerang_enabled boolean not null default true,
+  cabine_virtual_video_enabled boolean not null default false,
+  cabine_virtual_video_max_duration_seconds integer not null default 10,
+  cabine_virtual_camera_enabled boolean not null default true,
+  cabine_virtual_gallery_import_enabled boolean not null default true,
+  live_moments_enabled boolean not null default false,
+  constraint events_cabine_virtual_video_duration_check
+    check (
+      cabine_virtual_video_max_duration_seconds >= 5
+      and cabine_virtual_video_max_duration_seconds <= 30
+    )
 );
 
 create index if not exists events_slug_idx on public.events (slug);

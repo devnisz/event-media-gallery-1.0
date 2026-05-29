@@ -109,12 +109,21 @@ function formatSupabaseErrorForThrow(
   ].filter(Boolean);
 
   const detail = parts.join(" | ");
-  const mentionsLiveMoments =
-    /live_moments_enabled/i.test(detail) ||
+  const missingColumn = detail.match(
+    /Could not find the '([^']+)' column of 'events'/i,
+  )?.[1];
+  const needsEventsSchemaUpdate =
+    missingColumn !== undefined ||
+    /PGRST204/i.test(detail) ||
+    /cabine_virtual_|live_moments_enabled/i.test(detail) ||
     /column.*events.*does not exist/i.test(detail);
 
-  if (mentionsLiveMoments) {
-    return `${detail}. Execute no Supabase (SQL Editor) a migration supabase/migrations/20260529160000_event_live_moments.sql ou rode: alter table public.events add column if not exists live_moments_enabled boolean not null default false;`;
+  if (needsEventsSchemaUpdate) {
+    const columnHint = missingColumn
+      ? ` Coluna ausente: ${missingColumn}.`
+      : "";
+
+    return `${detail}.${columnHint} Execute no Supabase (SQL Editor) o arquivo supabase/apply-event-feature-columns.sql (cabine virtual + momentos ao vivo). Depois, no projeto Supabase: Settings → API → Reload schema (ou aguarde ~1 min) e tente salvar de novo.`;
   }
 
   return detail;
