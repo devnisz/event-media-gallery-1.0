@@ -10,7 +10,7 @@ type MediaLikeButtonProps = {
   mediaId: string;
   initialCount: number;
   allowLikes: boolean;
-  variant?: "tile" | "overlay";
+  variant?: "tile" | "overlay" | "icon";
   onCountChange?: (mediaId: string, likesCount: number, liked: boolean) => void;
 };
 
@@ -69,6 +69,7 @@ export function MediaLikeButton({
     }
   }
 
+  const isIcon = variant === "icon";
   const isOverlay = variant === "overlay";
 
   return (
@@ -79,20 +80,24 @@ export function MediaLikeButton({
       disabled={isPending}
       onClick={(event) => void handleClick(event)}
       className={
-        isOverlay
-          ? "inline-flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold text-white/90 backdrop-blur-md transition hover:bg-black/55 disabled:opacity-60"
-          : "inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60"
+        isIcon
+          ? "grid size-11 place-items-center rounded-full bg-black/35 text-xl backdrop-blur-md transition hover:bg-black/50 active:scale-95 disabled:opacity-60 sm:size-12"
+          : isOverlay
+            ? "inline-flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold text-white/90 backdrop-blur-md transition hover:bg-black/55 disabled:opacity-60"
+            : "inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60"
       }
     >
       <span
         aria-hidden
         className={`leading-none transition duration-300 ${
           isAnimating ? "animate-media-like-pop" : ""
-        } ${liked ? "scale-110" : "scale-100"}`}
+        } ${liked && !isIcon ? "scale-110" : "scale-100"}`}
       >
         {liked ? "❤️" : "🤍"}
       </span>
-      <span className="tabular-nums">{formatLikeCount(likesCount)}</span>
+      {!isIcon ? (
+        <span className="tabular-nums">{formatLikeCount(likesCount)}</span>
+      ) : null}
     </button>
   );
 }

@@ -7,6 +7,7 @@ export type GalleryGridSharedProps = {
   allowPublicDelete: boolean;
   requireDeletePin: boolean;
   allowLikes: boolean;
+  allowMediaShare: boolean;
   onDeleted: (id: string) => void;
   onLikeCountChange?: (
     mediaId: string,

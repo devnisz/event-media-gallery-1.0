@@ -107,6 +107,7 @@ export async function createEventRecordWithPersistence(
     cabineVirtualGalleryImportEnabled: true,
     liveMomentsEnabled: false,
     allowLikes: false,
+    allowMediaShare: true,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
@@ -225,6 +226,28 @@ export async function setEventCoverIfEmpty(
 
   events[idx] = { ...events[idx], coverImage: trimmed };
   await writeEvents(events);
+}
+
+export async function updateEventInteractionsSettings(
+  eventId: string,
+  settings: { allowLikes: boolean; allowMediaShare: boolean },
+): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
+  const events = await readEvents();
+  const idx = events.findIndex((e) => e.id === eventId);
+
+  if (idx === -1) {
+    throw new Error("Evento não encontrado.");
+  }
+
+  events[idx] = {
+    ...events[idx],
+    allowLikes: settings.allowLikes,
+    allowMediaShare: settings.allowMediaShare,
+  };
+
+  const persistence = await writeEvents(events);
+
+  return { event: events[idx], persistence };
 }
 
 export async function updateEventLikesSettings(

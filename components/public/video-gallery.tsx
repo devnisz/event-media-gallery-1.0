@@ -39,6 +39,7 @@ type VideoGalleryProps = {
   cabineConfig: CabineVirtualEventConfig;
   liveMomentsEnabled: boolean;
   allowLikes: boolean;
+  allowMediaShare: boolean;
 };
 
 const NEW_MEDIA_GLOW_MS = 8000;
@@ -174,6 +175,7 @@ export function VideoGallery({
   cabineConfig,
   liveMomentsEnabled,
   allowLikes,
+  allowMediaShare,
 }: VideoGalleryProps) {
   const isSocialLayout = isSocialGalleryLayout(galleryLayout);
   const [videos, setVideos] = useState(initialVideos);
@@ -306,6 +308,7 @@ export function VideoGallery({
     allowPublicDelete,
     requireDeletePin,
     allowLikes,
+    allowMediaShare,
     onDeleted: handleDeleted,
     onLikeCountChange: handleLikeCountChange,
   };
@@ -330,6 +333,7 @@ export function VideoGallery({
           <LiveMomentsEntry
             media={videos}
             allowLikes={allowLikes}
+            allowMediaShare={allowMediaShare}
             onLikeCountChange={handleLikeCountChange}
           />
         ) : null}

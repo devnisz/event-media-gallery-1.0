@@ -53,6 +53,7 @@ type EventRow = {
   cabine_virtual_gallery_import_enabled?: boolean | null;
   live_moments_enabled?: boolean | null;
   allow_likes?: boolean | null;
+  allow_media_share?: boolean | null;
 };
 
 export type PersistEventsOutcome = {
@@ -116,7 +117,7 @@ function formatSupabaseErrorForThrow(
   const needsEventsSchemaUpdate =
     missingColumn !== undefined ||
     /PGRST204/i.test(detail) ||
-    /cabine_virtual_|live_moments_enabled|allow_likes/i.test(detail) ||
+    /cabine_virtual_|live_moments_enabled|allow_likes|allow_media_share/i.test(detail) ||
     /column.*events.*does not exist/i.test(detail);
 
   if (needsEventsSchemaUpdate) {
@@ -189,6 +190,9 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     ...(typeof row.allow_likes === "boolean"
       ? { allowLikes: row.allow_likes }
       : {}),
+    ...(typeof row.allow_media_share === "boolean"
+      ? { allowMediaShare: row.allow_media_share }
+      : {}),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -225,6 +229,7 @@ function eventToRow(e: GalleryEventRecord): EventRow {
       e.cabineVirtualGalleryImportEnabled !== false,
     live_moments_enabled: e.liveMomentsEnabled === true,
     allow_likes: e.allowLikes === true,
+    allow_media_share: e.allowMediaShare !== false,
   };
 }
 

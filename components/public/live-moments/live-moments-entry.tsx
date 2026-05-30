@@ -12,6 +12,7 @@ type LiveMomentsEntryProps = {
   media: EventMedia[];
   sortOrder?: LiveMomentsSortOrder;
   allowLikes?: boolean;
+  allowMediaShare?: boolean;
   onLikeCountChange?: (
     mediaId: string,
     likesCount: number,
@@ -23,6 +24,7 @@ export function LiveMomentsEntry({
   media,
   sortOrder = "newest-first",
   allowLikes = false,
+  allowMediaShare = true,
   onLikeCountChange,
 }: LiveMomentsEntryProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -49,6 +51,7 @@ export function LiveMomentsEntry({
         <LiveMomentsViewer
           items={moments}
           allowLikes={allowLikes}
+          allowMediaShare={allowMediaShare}
           onLikeCountChange={onLikeCountChange}
           onClose={() => setViewerOpen(false)}
         />

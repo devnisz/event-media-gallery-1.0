@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { AmbientBackground } from "@/components/public/ambient-background";
 import { VideoGallery } from "@/components/public/video-gallery";
-import { resolveLikesConfig } from "@/lib/likes/config";
+import { getPublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
 import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
 import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { getEventBySlug } from "@/services/eventService";
@@ -37,12 +37,13 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
 
   const cabineConfig = resolveCabineVirtualConfig(event);
   const liveMomentsConfig = resolveLiveMomentsConfig(event);
-  const likesConfig = resolveLikesConfig(event);
+  const gallerySettings = getPublicGalleryEventSettings(event);
 
-  const eventVideos = await getEventVideosForEventSlug(slug, event.id, {
-    allowPublicDelete: event.allowPublicDelete,
-    requireDeletePin: event.allowPublicDelete && event.requireDeletePin,
-  });
+  const eventVideos = await getEventVideosForEventSlug(
+    slug,
+    event.id,
+    gallerySettings,
+  );
 
   return (
     <main className="relative min-h-dvh overflow-hidden text-white">
@@ -61,7 +62,8 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
         galleryLayout={event.galleryLayout}
         cabineConfig={cabineConfig}
         liveMomentsEnabled={liveMomentsConfig.enabled}
-        allowLikes={likesConfig.enabled}
+        allowLikes={gallerySettings.allowLikes}
+        allowMediaShare={gallerySettings.allowMediaShare}
       />
     </main>
   );

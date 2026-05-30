@@ -3,15 +3,15 @@ import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-bu
 import { EventCover } from "@/components/dashboard/event-cover";
 import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
 import { EventVirtualBoothFrameForm } from "@/components/dashboard/event-virtual-booth-frame-form";
-import { EventLikesSettingsForm } from "@/components/dashboard/event-likes-settings-form";
+import { EventInteractionsSettingsForm } from "@/components/dashboard/event-interactions-settings-form";
 import { EventLiveMomentsSettingsForm } from "@/components/dashboard/event-live-moments-settings-form";
-import { resolveLikesConfig } from "@/lib/likes/config";
+import { getPublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
 import { EventVirtualBoothSettingsForm } from "@/components/dashboard/event-virtual-booth-settings-form";
 import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
 import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
 import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
-import { QrCode } from "@/components/public/qr-code";
+import { EventQrCard } from "@/components/dashboard/event-qr-card";
 import { getDashboardEventDetail } from "@/lib/dashboard/queries";
 import { routes } from "@/lib/routes";
 import { requireSessionUser } from "@/lib/auth/session";
@@ -43,7 +43,7 @@ export default async function DashboardEventPage({
   const detail = await getDashboardEventDetail(user.id, decodeURIComponent(id));
   const cabineConfig = resolveCabineVirtualConfig(detail.event);
   const liveMomentsConfig = resolveLiveMomentsConfig(detail.event);
-  const likesConfig = resolveLikesConfig(detail.event);
+  const gallerySettings = getPublicGalleryEventSettings(detail.event);
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 pb-16">
@@ -111,9 +111,9 @@ export default async function DashboardEventPage({
               name={detail.event.name}
               className="h-64"
             />
-            <QrCode
-              label={detail.event.name}
-              value={detail.publicUrl}
+            <EventQrCard
+              eventName={detail.event.name}
+              publicUrl={detail.publicUrl}
             />
           </div>
         </div>
@@ -136,9 +136,10 @@ export default async function DashboardEventPage({
         initialLiveMomentsEnabled={liveMomentsConfig.enabled}
       />
 
-      <EventLikesSettingsForm
+      <EventInteractionsSettingsForm
         eventId={detail.event.id}
-        initialAllowLikes={likesConfig.enabled}
+        initialAllowLikes={gallerySettings.allowLikes}
+        initialAllowMediaShare={gallerySettings.allowMediaShare}
       />
 
       <EventVirtualBoothSettingsForm

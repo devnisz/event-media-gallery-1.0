@@ -1,11 +1,13 @@
+import type { PublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
 import type { EventMedia, GalleryMediaRecord } from "@/types/media";
 import { inferFileType, inferMediaKind } from "@/utils/mediaInference";
 import { buildPublicPageUrl } from "@/lib/media/publicPageUrl";
 
-export type PublicDeleteSettings = {
-  allowPublicDelete: boolean;
-  requireDeletePin: boolean;
-};
+/** @deprecated Use `PublicGalleryEventSettings`. */
+export type PublicDeleteSettings = Pick<
+  PublicGalleryEventSettings,
+  "allowPublicDelete" | "requireDeletePin"
+>;
 
 export type RawMediaRecord = {
   id: string;
@@ -303,9 +305,11 @@ export function toEventMedia(
   record: GalleryMediaRecord,
   eventName: string,
   index: number,
-  publicDeleteSettings: PublicDeleteSettings = {
+  gallerySettings: PublicGalleryEventSettings = {
     allowPublicDelete: false,
     requireDeletePin: false,
+    allowLikes: false,
+    allowMediaShare: true,
   },
 ): EventMedia {
   const pageUrl = buildPublicPageUrl(`/video/${encodeURIComponent(record.id)}`);
@@ -340,8 +344,10 @@ export function toEventMedia(
     likesCount: record.likesCount ?? 0,
     deletedAt: record.deletedAt,
     reviewStatus: record.reviewStatus,
-    allowPublicDelete: publicDeleteSettings.allowPublicDelete,
-    requireDeletePin: publicDeleteSettings.requireDeletePin,
+    allowPublicDelete: gallerySettings.allowPublicDelete,
+    requireDeletePin: gallerySettings.requireDeletePin,
+    allowLikes: gallerySettings.allowLikes,
+    allowMediaShare: gallerySettings.allowMediaShare,
     ...(uploadedAt ? { uploadedAt } : {}),
     sortAt,
   };

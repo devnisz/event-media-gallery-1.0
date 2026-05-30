@@ -50,6 +50,7 @@ export function hydrateAssignTokens(
       cabineVirtualGalleryImportEnabled: cabineConfig.galleryImportEnabled,
       liveMomentsEnabled: e.liveMomentsEnabled === true,
       allowLikes: e.allowLikes === true,
+      allowMediaShare: e.allowMediaShare !== false,
     };
 
     if (trimmedExisting) {

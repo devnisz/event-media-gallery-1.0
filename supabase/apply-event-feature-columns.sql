@@ -41,3 +41,6 @@ alter table public.events
 
 alter table public.events
   add column if not exists allow_likes boolean not null default false;
+
+alter table public.events
+  add column if not exists allow_media_share boolean not null default true;

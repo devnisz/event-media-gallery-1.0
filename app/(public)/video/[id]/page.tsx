@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { AmbientBackground } from "@/components/public/ambient-background";
-import { DownloadButton } from "@/components/public/download-button";
+import { EventGalleryEntryCta } from "@/components/public/event-gallery-entry-cta";
 import { PublicMediaDeleteButton } from "@/components/public/public-media-delete-button";
 import { QrCode } from "@/components/public/qr-code";
+import { VideoPageActions } from "@/components/public/video-page-actions";
 import { VideoPlayer } from "@/components/public/video-player";
 import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName";
 import { routes } from "@/lib/routes";
@@ -44,6 +45,8 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
   }
 
   const eventHref = routes.event(video.eventSlug);
+  const allowLikes = video.allowLikes === true;
+  const allowMediaShare = video.allowMediaShare !== false;
   const isVideo = video.mediaType === "video";
 
   const downloadLabel =
@@ -56,94 +59,85 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
           : "Baixar vídeo";
 
   const bodyCopy = isVideo
-    ? "No celular, o som pode iniciar silenciado para uma reprodução suave — use os controles quando quiser ouvir."
-    : "Imersão em tela ampla, com carregamento cuidadoso. Em GIFs, o movimento da captura é preservado.";
+    ? "No celular, o som pode iniciar silenciado — use os controles quando quiser ouvir."
+    : "Movimento e detalhes preservados nesta captura do evento.";
 
   return (
-    <main className="relative min-h-dvh overflow-hidden px-5 pb-56 pt-6 text-white sm:px-8 lg:px-12">
+    <main className="relative min-h-dvh overflow-hidden px-4 pb-8 pt-4 text-white sm:px-6 sm:pb-10 sm:pt-5 lg:px-10 lg:pb-28">
       <AmbientBackground />
 
-      <div className="mx-auto flex min-h-[calc(100dvh-14rem)] w-full max-w-[1800px] flex-col gap-6">
-        <header className="animate-rise flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <Link
-              href={eventHref}
-              className="inline-flex min-h-14 items-center rounded-full border border-white/10 bg-white/10 px-6 text-base font-semibold text-white backdrop-blur-2xl transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/40 active:scale-95"
-            >
-              Voltar ao evento
-            </Link>
-            <Link
-              href={routes.home}
-              className="inline-flex min-h-14 items-center rounded-full border border-white/10 bg-black/35 px-6 text-base font-semibold text-white/78 backdrop-blur-2xl transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/35 active:scale-95"
-            >
-              Início
-            </Link>
-          </div>
-          <div className="hidden rounded-full border border-white/10 bg-black/35 px-5 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white/55 backdrop-blur-2xl sm:block">
-            Compartilhar com elegância
-          </div>
+      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-5 sm:gap-6">
+        <header className="animate-rise flex items-center justify-end">
+          <Link
+            href={routes.home}
+            className="inline-flex min-h-10 items-center rounded-full border border-white/10 bg-black/30 px-4 text-sm font-semibold text-white/65 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
+          >
+            Início
+          </Link>
         </header>
 
-        <section className="grid flex-1 items-center gap-8 xl:grid-cols-[1fr_24rem]">
-          <div className="animate-rise min-w-0 [animation-delay:80ms]">
+        <section className="grid flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start xl:gap-8">
+          <div className="animate-rise flex min-w-0 flex-col gap-4 [animation-delay:60ms] sm:gap-5">
             <VideoPlayer video={video} autoPlay />
+
+            <EventGalleryEntryCta
+              eventName={video.event}
+              eventHref={eventHref}
+            />
+
+            <div className="flex justify-center lg:hidden">
+              <VideoPageActions
+                video={video}
+                downloadLabel={downloadLabel}
+                downloadFileName={suggestedDownloadFileName(video)}
+                allowLikes={allowLikes}
+                allowMediaShare={allowMediaShare}
+              />
+            </div>
           </div>
 
-          <aside className="animate-rise min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-7 backdrop-blur-2xl [animation-delay:140ms]">
-            <p className="break-words text-sm font-semibold uppercase tracking-[0.32em] text-amber-200">
+          <aside className="animate-rise min-w-0 rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl sm:p-6 [animation-delay:120ms] xl:sticky xl:top-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-200/90">
               {video.event}
             </p>
-            <h1 className="mt-4 break-words text-lg font-black tracking-[-0.03em] text-white md:text-3xl md:tracking-[-0.04em]">
+            <h1 className="mt-3 break-words text-xl font-black tracking-tight text-white sm:text-2xl">
               {video.title}
             </h1>
-            <p className="mt-5 text-sm leading-7 text-white/60 md:text-base md:leading-8">
-              {bodyCopy}
-            </p>
-            <div className="mt-8 flex flex-col gap-4">
-              <Link
-                href={eventHref}
-                className="inline-flex min-h-14 items-center justify-center rounded-full border border-white/15 px-8 text-base font-semibold text-white/82 transition hover:bg-white/10 active:scale-[0.98]"
-              >
-                Ver todas as mídias do evento
-              </Link>
-              {video.allowPublicDelete ? (
+            <p className="mt-4 text-sm leading-6 text-white/55">{bodyCopy}</p>
+
+            <div className="mt-6 hidden lg:block">
+              <VideoPageActions
+                video={video}
+                downloadLabel={downloadLabel}
+                downloadFileName={suggestedDownloadFileName(video)}
+                allowLikes={allowLikes}
+                allowMediaShare={allowMediaShare}
+              />
+            </div>
+
+            {video.allowPublicDelete ? (
+              <div className="mt-6 border-t border-white/10 pt-6">
                 <PublicMediaDeleteButton
                   mediaId={video.id}
                   title={video.title}
                   eventHref={eventHref}
                   requireDeletePin={video.requireDeletePin}
                 />
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </aside>
         </section>
       </div>
 
-      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-slate-950/80 px-4 py-3 shadow-[0_-20px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:px-8 sm:py-4">
-        <div className="mx-auto flex max-w-[1800px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-          <div className="hidden lg:block">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/45">
-              Convite especial
-            </p>
-            <p className="mt-1 text-xl font-semibold text-white">
-              Quem escaneia revive o momento dentro da experiência completa da
-              galeria.
-            </p>
-          </div>
-          <div className="flex items-center justify-between gap-3 sm:justify-end">
+      <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-30 hidden border-t border-white/10 bg-slate-950/85 px-6 py-4 backdrop-blur-2xl xl:pointer-events-auto xl:block">
+        <div className="mx-auto flex max-w-[1800px] justify-end">
+          <div className="pointer-events-auto">
             <QrCode
               label="Abrir na galeria"
               value={video.qrUrl}
               imagePath={video.qrCode}
               compact
             />
-            <div className="min-w-0 flex-1 sm:w-72 sm:flex-none">
-              <DownloadButton
-                href={routes.mediaDownload(video.id)}
-                label={downloadLabel}
-                fileName={suggestedDownloadFileName(video)}
-              />
-            </div>
           </div>
         </div>
       </footer>

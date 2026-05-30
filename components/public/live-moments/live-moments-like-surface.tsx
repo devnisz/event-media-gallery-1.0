@@ -8,8 +8,10 @@ import {
   type ReactNode,
 } from "react";
 
+import { MediaShareButton } from "@/components/public/media-share-button";
 import { formatLikeCount } from "@/lib/likes/format";
 import { toggleMediaLikeClient } from "@/lib/likes/toggle-client";
+import type { LiveMomentKind } from "@/lib/live-moments/media";
 import {
   isMediaLikedLocally,
   setMediaLikedLocally,
@@ -21,14 +23,20 @@ const COUNT_FLASH_MS = 2400;
 
 type LiveMomentsLikeSurfaceProps = {
   mediaId: string;
+  mediaKind: LiveMomentKind;
   initialCount: number;
+  allowLikes: boolean;
+  allowMediaShare: boolean;
   onCountChange?: (mediaId: string, likesCount: number, liked: boolean) => void;
   children: ReactNode;
 };
 
 export function LiveMomentsLikeSurface({
   mediaId,
+  mediaKind,
   initialCount,
+  allowLikes,
+  allowMediaShare,
   onCountChange,
   children,
 }: LiveMomentsLikeSurfaceProps) {
@@ -198,24 +206,36 @@ export function LiveMomentsLikeSurface({
         </p>
       ) : null}
 
-      <button
-        type="button"
-        data-live-moments-like-control
-        aria-label={liked ? "Descurtir" : "Curtir"}
-        aria-pressed={liked}
-        disabled={isPending}
-        onClick={(event) => void handleHeartClick(event)}
-        className="absolute bottom-3 right-3 z-30 grid size-11 place-items-center rounded-full bg-black/35 text-xl backdrop-blur-md transition hover:bg-black/50 active:scale-95 disabled:opacity-60 sm:bottom-4 sm:right-4 sm:size-12 sm:text-2xl"
-      >
-        <span
-          aria-hidden
-          className={`leading-none transition duration-300 ${
-            heartPop ? "animate-media-like-pop" : ""
-          }`}
-        >
-          {liked ? "❤️" : "🤍"}
-        </span>
-      </button>
+      <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2 sm:bottom-4 sm:right-4">
+        {allowMediaShare ? (
+          <MediaShareButton
+            mediaId={mediaId}
+            mediaType={mediaKind}
+            allowMediaShare={allowMediaShare}
+            variant="icon"
+          />
+        ) : null}
+        {allowLikes ? (
+          <button
+            type="button"
+            data-live-moments-like-control
+            aria-label={liked ? "Descurtir" : "Curtir"}
+            aria-pressed={liked}
+            disabled={isPending}
+            onClick={(event) => void handleHeartClick(event)}
+            className="grid size-11 place-items-center rounded-full bg-black/35 text-xl backdrop-blur-md transition hover:bg-black/50 active:scale-95 disabled:opacity-60 sm:size-12"
+          >
+            <span
+              aria-hidden
+              className={`leading-none transition duration-300 ${
+                heartPop ? "animate-media-like-pop" : ""
+              }`}
+            >
+              {liked ? "❤️" : "🤍"}
+            </span>
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

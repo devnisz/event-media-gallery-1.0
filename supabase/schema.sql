@@ -29,6 +29,7 @@ create table if not exists public.events (
   cabine_virtual_gallery_import_enabled boolean not null default true,
   live_moments_enabled boolean not null default false,
   allow_likes boolean not null default false,
+  allow_media_share boolean not null default true,
   constraint events_cabine_virtual_video_duration_check
     check (
       cabine_virtual_video_max_duration_seconds >= 5

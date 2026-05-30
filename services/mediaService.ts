@@ -12,13 +12,16 @@ import type {
   GalleryMediaRecord,
   MediaReviewStatus,
 } from "@/types/media";
+import {
+  getPublicGalleryEventSettings,
+  type PublicGalleryEventSettings,
+} from "@/lib/gallery/public-event-settings";
 import { galleryPublicPath } from "@/lib/paths";
 import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 import {
   isMediaLike,
   toEventMedia,
   toGalleryRecord,
-  type PublicDeleteSettings,
 } from "@/lib/media/galleryMapping";
 import { ensureUniqueSlug } from "@/utils/slug";
 import { getSupabaseServerKeyMode } from "@/lib/supabase/server";
@@ -324,17 +327,6 @@ async function resolveEventNameMap(): Promise<Map<string, string>> {
   return map;
 }
 
-function getPublicDeleteSettings(
-  event: GalleryEventRecord | undefined,
-): PublicDeleteSettings {
-  const allowPublicDelete = event?.allowPublicDelete === true;
-
-  return {
-    allowPublicDelete,
-    requireDeletePin: allowPublicDelete && event?.requireDeletePin === true,
-  };
-}
-
 function normalizeSlugPart(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -342,7 +334,7 @@ function normalizeSlugPart(value: string): string {
 export async function getEventVideosForEventSlug(
   eventSlug: string,
   resolvedEventId?: string,
-  publicDeleteSettings?: PublicDeleteSettings,
+  gallerySettings?: PublicGalleryEventSettings,
 ): Promise<EventMedia[]> {
   const parsed = await readPersistedMediaRawForEventSlug(
     eventSlug,
@@ -373,7 +365,7 @@ export async function getEventVideosForEventSlug(
     nameMap.get(eventSlug) ?? nameMap.get(filtered[0].eventId) ?? "Evento";
 
   return filtered.map((item, index) =>
-    toEventMedia(item, eventName, index, publicDeleteSettings),
+    toEventMedia(item, eventName, index, gallerySettings),
   );
 }
 
@@ -392,12 +384,12 @@ export async function getEventVideos(): Promise<EventMedia[]> {
 
   const events = await readEvents();
   const nameMap = new Map<string, string>();
-  const settingsMap = new Map<string, PublicDeleteSettings>();
+  const settingsMap = new Map<string, PublicGalleryEventSettings>();
 
   for (const event of events) {
     nameMap.set(event.id, event.name);
     nameMap.set(event.slug, event.name);
-    const settings = getPublicDeleteSettings(event);
+    const settings = getPublicGalleryEventSettings(event);
     settingsMap.set(event.id, settings);
     settingsMap.set(event.slug, settings);
   }
@@ -430,7 +422,7 @@ export async function getMediaById(id: string): Promise<EventMedia | undefined> 
   const eventName =
     event?.name ??
     "Evento";
-  const settings = getPublicDeleteSettings(event);
+  const settings = getPublicGalleryEventSettings(event);
 
   const index = galleryMedia.indexOf(item);
 

@@ -21,6 +21,7 @@ type LiveMomentsViewerProps = {
   items: LiveMomentItem[];
   initialIndex?: number;
   allowLikes?: boolean;
+  allowMediaShare?: boolean;
   onLikeCountChange?: (
     mediaId: string,
     likesCount: number,
@@ -45,6 +46,7 @@ export function LiveMomentsViewer({
   items,
   initialIndex = 0,
   allowLikes = false,
+  allowMediaShare = true,
   onLikeCountChange,
   onClose,
 }: LiveMomentsViewerProps) {
@@ -212,11 +214,14 @@ export function LiveMomentsViewer({
             onClick={goNext}
           />
 
-          {allowLikes ? (
+          {allowLikes || allowMediaShare ? (
             <LiveMomentsLikeSurface
               key={current.id}
               mediaId={current.id}
+              mediaKind={current.kind}
               initialCount={current.likesCount}
+              allowLikes={allowLikes}
+              allowMediaShare={allowMediaShare}
               onCountChange={onLikeCountChange}
             >
               <LiveMomentsMedia

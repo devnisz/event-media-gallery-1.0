@@ -40,6 +40,8 @@ export type GalleryEventRecord = {
   liveMomentsEnabled?: boolean;
   /** Permite curtidas (❤️) na galeria publica. */
   allowLikes?: boolean;
+  /** Permite compartilhar midias individuais (/video/id). Padrao: true. */
+  allowMediaShare?: boolean;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

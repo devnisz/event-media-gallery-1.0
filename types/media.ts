@@ -77,6 +77,8 @@ export type EventMedia = {
   reviewStatus?: MediaReviewStatus;
   allowPublicDelete: boolean;
   requireDeletePin: boolean;
+  allowLikes?: boolean;
+  allowMediaShare?: boolean;
   /** ISO para exibição opcional em Momentos ao Vivo. */
   uploadedAt?: string;
   /** Epoch ms para ordenação (derivado do registro). */
