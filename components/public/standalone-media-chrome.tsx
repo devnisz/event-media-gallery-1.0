@@ -16,6 +16,8 @@ import {
 } from "@/components/public/public-media-delete-button";
 import type { EventMedia } from "@/types/media";
 
+const chromeControlClass = "pointer-events-auto";
+
 export type StandaloneMediaChromeProps = {
   media: EventMedia;
   eventHref: string;
@@ -84,8 +86,12 @@ export function StandaloneMediaChrome({
     <>
       <button
         type="button"
-        onClick={onBackToGallery}
-        className="absolute left-3 top-3 z-30 inline-flex min-h-9 items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-[13px] font-semibold text-white/92 shadow-sm backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98]"
+        data-no-swipe
+        onClick={(event) => {
+          event.stopPropagation();
+          onBackToGallery();
+        }}
+        className={`${chromeControlClass} absolute left-3 top-3 z-30 inline-flex min-h-9 items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-[13px] font-semibold text-white/92 shadow-sm backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98]`}
       >
         <span aria-hidden>←</span>
         Galeria
@@ -101,9 +107,10 @@ export function StandaloneMediaChrome({
       ) : null}
 
       {showDeleteMenu ? (
-        <div ref={menuRef} className="absolute right-3 top-3 z-30">
+        <div ref={menuRef} className={`${chromeControlClass} absolute right-3 top-3 z-30`}>
           <button
             type="button"
+            data-no-swipe
             aria-label="Mais opções"
             aria-expanded={menuOpen}
             aria-haspopup="menu"
@@ -115,7 +122,8 @@ export function StandaloneMediaChrome({
           {menuOpen ? (
             <div
               role="menu"
-              className="absolute right-0 top-[calc(100%+0.5rem)] z-40 min-w-[12.5rem] overflow-hidden rounded-2xl border border-white/10 bg-black/75 py-1 shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+              data-no-swipe
+              className={`${chromeControlClass} absolute right-0 top-[calc(100%+0.5rem)] z-40 min-w-[12.5rem] overflow-hidden rounded-2xl border border-white/10 bg-black/75 py-1 shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-xl`}
             >
               <button
                 type="button"
@@ -153,7 +161,7 @@ export function StandaloneMediaChrome({
         />
       ) : null}
 
-      <div className="absolute bottom-3 left-3 z-30 flex items-center gap-2">
+      <div className={`${chromeControlClass} absolute bottom-3 left-3 z-30 flex items-center gap-2`}>
         {allowMediaShare ? (
           <MediaShareButton
             mediaId={media.id}
@@ -170,7 +178,7 @@ export function StandaloneMediaChrome({
       </div>
 
       {allowLikes ? (
-        <div className="absolute bottom-3 right-3 z-30">
+        <div className={`${chromeControlClass} absolute bottom-3 right-3 z-30`}>
           <MediaLikeButton
             key={media.id}
             mediaId={media.id}

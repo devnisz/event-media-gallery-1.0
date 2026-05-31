@@ -59,6 +59,7 @@ export function MediaStage({
           </div>
           {skeleton}
           <video
+            data-no-swipe
             className={`absolute inset-0 z-10 h-full w-full bg-black object-contain transition-opacity duration-700 ease-out ${
               loadState === "ready" ? "opacity-100" : "opacity-0"
             }`}

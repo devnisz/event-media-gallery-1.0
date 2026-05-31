@@ -26,6 +26,8 @@ const RUBBER_BAND = 0.32;
 const COMMIT_RATIO = 0.22;
 const MIN_COMMIT_PX = 56;
 const HORIZONTAL_LOCK_RATIO = 0.85;
+const AXIS_LOCK_PX = 8;
+const SNAP_TRANSITION = `transform ${SNAP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
 
 type MediaViewerNavigatorProps = {
   items: EventMedia[];
@@ -56,6 +58,18 @@ function centerSlideIndex(activeIndex: number): number {
   return activeIndex > 0 ? 1 : 0;
 }
 
+function isSwipeBlockedTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest(
+      "button, a, input, textarea, select, label, video, [role='button'], [data-no-swipe]",
+    ),
+  );
+}
+
 export function MediaViewerNavigator({
   items,
   initialIndex,
@@ -66,13 +80,19 @@ export function MediaViewerNavigator({
 }: MediaViewerNavigatorProps) {
   const router = useRouter();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const activeIndexRef = useRef(0);
   const isCommittingRef = useRef(false);
+  const isDraggingHorizontallyRef = useRef(false);
+  const dragOffsetRef = useRef(0);
+  const baseTranslateRef = useRef(0);
+  const dragRafRef = useRef<number | null>(null);
   const dragRef = useRef({
     pointerId: -1,
     startX: 0,
     startY: 0,
     axis: null as "x" | "y" | null,
+    captured: false,
   });
 
   const safeInitial = Math.min(
@@ -82,8 +102,6 @@ export function MediaViewerNavigator({
 
   const [activeIndex, setActiveIndex] = useState(safeInitial);
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [transitionEnabled, setTransitionEnabled] = useState(true);
 
   const total = items.length;
@@ -95,8 +113,7 @@ export function MediaViewerNavigator({
     () => buildSlides(items, activeIndex),
     [activeIndex, items],
   );
-  const centerIndex = centerSlideIndex(activeIndex);
-  const baseTranslate = -centerIndex * viewportWidth;
+  const baseTranslate = -centerSlideIndex(activeIndex) * viewportWidth;
 
   const galleryReturnHref = buildGalleryReturnHref(
     eventHref,
@@ -104,9 +121,39 @@ export function MediaViewerNavigator({
     current?.id ?? "",
   );
 
+  const applyTrackTransform = useCallback((transition: string) => {
+    const track = trackRef.current;
+
+    if (!track) {
+      return;
+    }
+
+    track.style.transition = transition;
+    track.style.transform = `translate3d(${baseTranslateRef.current + dragOffsetRef.current}px, 0, 0)`;
+  }, []);
+
+  const scheduleDragTransform = useCallback(() => {
+    if (dragRafRef.current !== null) {
+      return;
+    }
+
+    dragRafRef.current = window.requestAnimationFrame(() => {
+      dragRafRef.current = null;
+      applyTrackTransform("none");
+    });
+  }, [applyTrackTransform]);
+
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    baseTranslateRef.current = baseTranslate;
+
+    if (!isDraggingHorizontallyRef.current && !isCommittingRef.current) {
+      applyTrackTransform(transitionEnabled ? SNAP_TRANSITION : "none");
+    }
+  }, [applyTrackTransform, baseTranslate, transitionEnabled]);
 
   useEffect(() => {
     const node = viewportRef.current;
@@ -126,6 +173,15 @@ export function MediaViewerNavigator({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(
+    () => () => {
+      if (dragRafRef.current !== null) {
+        window.cancelAnimationFrame(dragRafRef.current);
+      }
+    },
+    [],
+  );
+
   const applyRubberBand = useCallback(
     (delta: number) => {
       if (delta > 0 && !canGoPrev) {
@@ -141,18 +197,21 @@ export function MediaViewerNavigator({
     [canGoNext, canGoPrev],
   );
 
-  const finishIndexChange = useCallback((nextIndex: number) => {
-    setTransitionEnabled(false);
-    setActiveIndex(nextIndex);
-    setDragOffset(0);
-    isCommittingRef.current = false;
+  const finishIndexChange = useCallback(
+    (nextIndex: number) => {
+      dragOffsetRef.current = 0;
+      setTransitionEnabled(false);
+      setActiveIndex(nextIndex);
+      isCommittingRef.current = false;
 
-    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setTransitionEnabled(true);
+        requestAnimationFrame(() => {
+          setTransitionEnabled(true);
+        });
       });
-    });
-  }, []);
+    },
+    [],
+  );
 
   const commitTo = useCallback(
     (direction: 1 | -1) => {
@@ -171,28 +230,32 @@ export function MediaViewerNavigator({
       }
 
       isCommittingRef.current = true;
-      setTransitionEnabled(true);
-      setDragOffset(direction === 1 ? -width : width);
+      isDraggingHorizontallyRef.current = false;
+      dragOffsetRef.current = direction === 1 ? -width : width;
+      applyTrackTransform(SNAP_TRANSITION);
 
       window.setTimeout(() => {
         finishIndexChange(activeIndexRef.current + direction);
       }, SNAP_MS);
     },
-    [canGoNext, canGoPrev, finishIndexChange, viewportWidth],
+    [applyTrackTransform, canGoNext, canGoPrev, finishIndexChange, viewportWidth],
   );
 
   const snapBack = useCallback(() => {
-    setTransitionEnabled(true);
-    setDragOffset(0);
-  }, []);
+    dragOffsetRef.current = 0;
+    applyTrackTransform(SNAP_TRANSITION);
+  }, [applyTrackTransform]);
 
   const returnToGallery = useCallback(() => {
-    if (current) {
-      setGalleryFocusMedia(eventSlug, current.id);
+    const mediaId = items[activeIndexRef.current]?.id;
+
+    if (mediaId) {
+      setGalleryFocusMedia(eventSlug, mediaId);
     }
 
-    router.push(galleryReturnHref);
-  }, [current, eventSlug, galleryReturnHref, router]);
+    const href = buildGalleryReturnHref(eventHref, eventSlug, mediaId ?? "");
+    router.push(href);
+  }, [eventHref, eventSlug, items, router]);
 
   useEffect(() => {
     if (!current) {
@@ -222,7 +285,7 @@ export function MediaViewerNavigator({
         return;
       }
 
-      if (isDragging || isCommittingRef.current) {
+      if (isDraggingHorizontallyRef.current || isCommittingRef.current) {
         return;
       }
 
@@ -240,7 +303,20 @@ export function MediaViewerNavigator({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canGoNext, canGoPrev, commitTo, isDragging, returnToGallery]);
+  }, [canGoNext, canGoPrev, commitTo, returnToGallery]);
+
+  const releasePointerCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        dragRef.current.captured &&
+        event.currentTarget.hasPointerCapture(event.pointerId)
+      ) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        dragRef.current.captured = false;
+      }
+    },
+    [],
+  );
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -248,7 +324,7 @@ export function MediaViewerNavigator({
         return;
       }
 
-      if (event.button !== 0) {
+      if (event.button !== 0 || isSwipeBlockedTarget(event.target)) {
         return;
       }
 
@@ -257,10 +333,8 @@ export function MediaViewerNavigator({
         startX: event.clientX,
         startY: event.clientY,
         axis: null,
+        captured: false,
       };
-      setIsDragging(true);
-      setTransitionEnabled(false);
-      event.currentTarget.setPointerCapture(event.pointerId);
     },
     [total],
   );
@@ -278,10 +352,7 @@ export function MediaViewerNavigator({
       const deltaY = event.clientY - dragRef.current.startY;
 
       if (dragRef.current.axis === null) {
-        if (
-          Math.abs(deltaX) < 8 &&
-          Math.abs(deltaY) < 8
-        ) {
+        if (Math.abs(deltaX) < AXIS_LOCK_PX && Math.abs(deltaY) < AXIS_LOCK_PX) {
           return;
         }
 
@@ -289,6 +360,13 @@ export function MediaViewerNavigator({
           Math.abs(deltaX) >= Math.abs(deltaY) * HORIZONTAL_LOCK_RATIO
             ? "x"
             : "y";
+
+        if (dragRef.current.axis === "x" && !dragRef.current.captured) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragRef.current.captured = true;
+          isDraggingHorizontallyRef.current = true;
+          setTransitionEnabled(false);
+        }
       }
 
       if (dragRef.current.axis === "y") {
@@ -296,15 +374,20 @@ export function MediaViewerNavigator({
       }
 
       event.preventDefault();
-      setDragOffset(applyRubberBand(deltaX));
+      dragOffsetRef.current = applyRubberBand(deltaX);
+      scheduleDragTransform();
     },
-    [applyRubberBand],
+    [applyRubberBand, scheduleDragTransform],
   );
 
   const endPointerDrag = useCallback(
-    (clientX: number) => {
+    (clientX: number, event?: ReactPointerEvent<HTMLDivElement>) => {
       if (isCommittingRef.current) {
         return;
+      }
+
+      if (event) {
+        releasePointerCapture(event);
       }
 
       const axis = dragRef.current.axis;
@@ -313,7 +396,7 @@ export function MediaViewerNavigator({
 
       dragRef.current.pointerId = -1;
       dragRef.current.axis = null;
-      setIsDragging(false);
+      isDraggingHorizontallyRef.current = false;
 
       if (axis === "y" || axis === null || width <= 0) {
         snapBack();
@@ -336,7 +419,14 @@ export function MediaViewerNavigator({
       snapBack();
       setTransitionEnabled(true);
     },
-    [canGoNext, canGoPrev, commitTo, snapBack, viewportWidth],
+    [
+      canGoNext,
+      canGoPrev,
+      commitTo,
+      releasePointerCapture,
+      snapBack,
+      viewportWidth,
+    ],
   );
 
   const onPointerUp = useCallback(
@@ -345,11 +435,7 @@ export function MediaViewerNavigator({
         return;
       }
 
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-
-      endPointerDrag(event.clientX);
+      endPointerDrag(event.clientX, event);
     },
     [endPointerDrag],
   );
@@ -360,7 +446,7 @@ export function MediaViewerNavigator({
         return;
       }
 
-      endPointerDrag(event.clientX);
+      endPointerDrag(event.clientX, event);
     },
     [endPointerDrag],
   );
@@ -387,8 +473,6 @@ export function MediaViewerNavigator({
     );
   }
 
-  const trackTranslate = baseTranslate + dragOffset;
-
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col">
       {canGoPrev ? (
@@ -396,7 +480,7 @@ export function MediaViewerNavigator({
           type="button"
           aria-label="Mídia anterior"
           onClick={() => commitTo(-1)}
-          className="absolute left-0 top-0 z-20 hidden h-full w-[min(18%,5rem)] cursor-w-resize bg-transparent md:block"
+          className="absolute left-0 top-0 z-40 hidden h-full w-[min(18%,5rem)] cursor-w-resize bg-transparent md:block"
         />
       ) : null}
       {canGoNext ? (
@@ -404,7 +488,7 @@ export function MediaViewerNavigator({
           type="button"
           aria-label="Próxima mídia"
           onClick={() => commitTo(1)}
-          className="absolute right-0 top-0 z-20 hidden h-full w-[min(18%,5rem)] cursor-e-resize bg-transparent md:block"
+          className="absolute right-0 top-0 z-40 hidden h-full w-[min(18%,5rem)] cursor-e-resize bg-transparent md:block"
         />
       ) : null}
 
@@ -417,13 +501,11 @@ export function MediaViewerNavigator({
         onPointerCancel={onPointerCancel}
       >
         <div
+          ref={trackRef}
           className="flex h-full will-change-transform"
           style={{
-            transform: `translate3d(${trackTranslate}px, 0, 0)`,
-            transition:
-              isDragging || !transitionEnabled
-                ? "none"
-                : `transform ${SNAP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`,
+            transform: `translate3d(${baseTranslate}px, 0, 0)`,
+            transition: transitionEnabled ? SNAP_TRANSITION : "none",
           }}
         >
           {slides.map((slide) => {
@@ -458,21 +540,19 @@ export function MediaViewerNavigator({
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-30">
-        <div className="relative h-full w-full">
-          <StandaloneMediaChrome
-            media={current}
-            eventHref={galleryReturnHref}
-            eventSlug={eventSlug}
-            onBackToGallery={returnToGallery}
-            allowLikes={allowLikes}
-            allowMediaShare={allowMediaShare}
-            downloadHref={routes.mediaDownload(current.id)}
-            downloadFileName={suggestedDownloadFileName(current)}
-            positionIndex={activeIndex + 1}
-            positionTotal={total}
-            enableNavigation
-          />
-        </div>
+        <StandaloneMediaChrome
+          media={current}
+          eventHref={galleryReturnHref}
+          eventSlug={eventSlug}
+          onBackToGallery={returnToGallery}
+          allowLikes={allowLikes}
+          allowMediaShare={allowMediaShare}
+          downloadHref={routes.mediaDownload(current.id)}
+          downloadFileName={suggestedDownloadFileName(current)}
+          positionIndex={activeIndex + 1}
+          positionTotal={total}
+          enableNavigation
+        />
       </div>
     </div>
   );
