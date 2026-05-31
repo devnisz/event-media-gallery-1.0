@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadButton } from "@/components/public/download-button";
 import { MediaDownloadIconButton } from "@/components/public/media-download-icon-button";
 import { MediaLikeButton } from "@/components/public/media-like-button";
 import { MediaShareButton } from "@/components/public/media-share-button";
@@ -15,7 +16,7 @@ type MediaViewerActionsProps = {
   downloadLabel: string;
   allowLikes: boolean;
   allowMediaShare: boolean;
-  layout?: "row" | "footer";
+  layout?: "row" | "footer" | "stack";
   onLikeCountChange?: (
     mediaId: string,
     likesCount: number,
@@ -33,6 +34,40 @@ export function MediaViewerActions({
   layout = "row",
   onLikeCountChange,
 }: MediaViewerActionsProps) {
+  if (layout === "stack") {
+    return (
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-2.5">
+        {allowMediaShare ? (
+          <MediaShareButton
+            mediaId={media.id}
+            mediaType={media.mediaType}
+            allowMediaShare={allowMediaShare}
+            variant="pill"
+            fullWidth
+          />
+        ) : null}
+        <DownloadButton
+          href={downloadHref}
+          label={downloadLabel}
+          fileName={downloadFileName}
+          variant="secondary"
+        />
+        {allowLikes ? (
+          <div className="flex justify-center pt-1">
+            <MediaLikeButton
+              key={`${media.id}-${media.likesCount ?? 0}`}
+              mediaId={media.id}
+              initialCount={media.likesCount ?? 0}
+              allowLikes={allowLikes}
+              variant="icon"
+              onCountChange={onLikeCountChange}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   const isFooter = layout === "footer";
 
   return (

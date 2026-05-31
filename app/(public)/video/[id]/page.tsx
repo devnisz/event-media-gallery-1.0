@@ -47,7 +47,6 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
   const eventHref = routes.event(video.eventSlug);
   const allowLikes = video.allowLikes === true;
   const allowMediaShare = video.allowMediaShare !== false;
-  const isVideo = video.mediaType === "video";
 
   const downloadLabel =
     video.mediaType === "boomerang"
@@ -58,15 +57,11 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
           ? "Baixar imagem"
           : "Baixar vídeo";
 
-  const bodyCopy = isVideo
-    ? "No celular, o som pode iniciar silenciado — use os controles quando quiser ouvir."
-    : "Movimento e detalhes preservados nesta captura do evento.";
-
   return (
-    <main className="relative min-h-dvh overflow-hidden px-4 pb-8 pt-4 text-white sm:px-6 sm:pb-10 sm:pt-5 lg:px-10 lg:pb-28">
+    <main className="relative min-h-dvh overflow-hidden px-4 pb-10 pt-4 text-white sm:px-6 sm:pb-14 sm:pt-5">
       <AmbientBackground />
 
-      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-5 sm:gap-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <header className="animate-rise flex items-center justify-end">
           <Link
             href={routes.home}
@@ -76,57 +71,32 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
           </Link>
         </header>
 
-        <section className="grid flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start xl:gap-8">
-          <div className="animate-rise flex min-w-0 flex-col gap-4 [animation-delay:60ms] sm:gap-5">
-            <VideoPlayer video={video} autoPlay />
+        <div className="animate-rise flex flex-col gap-5 [animation-delay:60ms] sm:gap-6">
+          <VideoPlayer video={video} autoPlay />
 
-            <EventGalleryEntryCta
-              eventName={video.event}
-              eventHref={eventHref}
-            />
+          <VideoPageActions
+            video={video}
+            downloadLabel={downloadLabel}
+            downloadFileName={suggestedDownloadFileName(video)}
+            allowLikes={allowLikes}
+            allowMediaShare={allowMediaShare}
+          />
 
-            <div className="flex justify-center lg:hidden">
-              <VideoPageActions
-                video={video}
-                downloadLabel={downloadLabel}
-                downloadFileName={suggestedDownloadFileName(video)}
-                allowLikes={allowLikes}
-                allowMediaShare={allowMediaShare}
-              />
-            </div>
+          <div className="flex justify-center">
+            <EventGalleryEntryCta eventHref={eventHref} />
           </div>
 
-          <aside className="animate-rise min-w-0 rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl sm:p-6 [animation-delay:120ms] xl:sticky xl:top-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-200/90">
-              {video.event}
-            </p>
-            <h1 className="mt-3 break-words text-xl font-black tracking-tight text-white sm:text-2xl">
-              {video.title}
-            </h1>
-            <p className="mt-4 text-sm leading-6 text-white/55">{bodyCopy}</p>
-
-            <div className="mt-6 hidden lg:block">
-              <VideoPageActions
-                video={video}
-                downloadLabel={downloadLabel}
-                downloadFileName={suggestedDownloadFileName(video)}
-                allowLikes={allowLikes}
-                allowMediaShare={allowMediaShare}
+          {video.allowPublicDelete ? (
+            <div className="flex justify-center pt-1">
+              <PublicMediaDeleteButton
+                mediaId={video.id}
+                title={video.title}
+                eventHref={eventHref}
+                requireDeletePin={video.requireDeletePin}
               />
             </div>
-
-            {video.allowPublicDelete ? (
-              <div className="mt-6 border-t border-white/10 pt-6">
-                <PublicMediaDeleteButton
-                  mediaId={video.id}
-                  title={video.title}
-                  eventHref={eventHref}
-                  requireDeletePin={video.requireDeletePin}
-                />
-              </div>
-            ) : null}
-          </aside>
-        </section>
+          ) : null}
+        </div>
       </div>
 
       <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-30 hidden border-t border-white/10 bg-slate-950/85 px-6 py-4 backdrop-blur-2xl xl:pointer-events-auto xl:block">

@@ -37,12 +37,14 @@ type DownloadButtonProps = {
    * Evite `/`, `\\` e caracteres reservados do SO.
    */
   fileName?: string;
+  variant?: "primary" | "secondary";
 };
 
 export function DownloadButton({
   href,
   label = "Baixar mídia",
   fileName,
+  variant = "primary",
 }: DownloadButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,13 +67,18 @@ export function DownloadButton({
     }
   };
 
+  const buttonClassName =
+    variant === "secondary"
+      ? "inline-flex min-h-14 w-full items-center justify-center rounded-full border border-white/20 bg-white/[0.08] px-6 text-base font-bold text-white backdrop-blur-md transition duration-300 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/20 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:min-h-[3.25rem]"
+      : "inline-flex min-h-14 w-full items-center justify-center rounded-full bg-white px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(255,255,255,0.2)] transition duration-300 hover:scale-[1.02] hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/50 active:scale-95 disabled:pointer-events-none disabled:opacity-60 sm:min-h-16 sm:px-8 sm:text-lg";
+
   return (
     <div className="flex w-full flex-col gap-2">
       <button
         type="button"
         disabled={loading}
         onClick={() => void onDownload()}
-        className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-white px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(255,255,255,0.2)] transition duration-300 hover:scale-[1.02] hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/50 active:scale-95 disabled:pointer-events-none disabled:opacity-60 sm:min-h-16 sm:px-8 sm:text-lg"
+        className={buttonClassName}
       >
         {loading ? "Baixando…" : label}
       </button>

@@ -92,7 +92,7 @@ export function PublicMediaDeleteButton({
         type="button"
         disabled={isDeleting}
         onClick={startDelete}
-        className="inline-flex min-h-14 items-center justify-center rounded-full border border-red-300/30 bg-red-500/15 px-8 text-base font-bold text-red-50 transition hover:bg-red-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex min-h-11 items-center justify-center rounded-full border border-red-300/25 bg-transparent px-6 text-sm font-semibold text-red-200/80 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isDeleting ? "Excluindo..." : "Excluir da galeria"}
       </button>

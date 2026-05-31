@@ -27,7 +27,7 @@ export function VideoPageActions({
       downloadLabel={downloadLabel}
       allowLikes={allowLikes}
       allowMediaShare={allowMediaShare}
-      layout="footer"
+      layout="stack"
     />
   );
 }
