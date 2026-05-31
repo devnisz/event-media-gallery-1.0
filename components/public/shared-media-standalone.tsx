@@ -15,6 +15,10 @@ type SharedMediaStandaloneProps = {
   positionIndex?: number;
   positionTotal?: number;
   enableNavigation?: boolean;
+  /** Carrossel: chrome fica fixo no navigator. */
+  hideChrome?: boolean;
+  /** Só a mídia ativa deve dar autoplay em vídeos. */
+  isActiveSlide?: boolean;
 };
 
 export function SharedMediaStandalone({
@@ -28,27 +32,32 @@ export function SharedMediaStandalone({
   positionIndex,
   positionTotal,
   enableNavigation = false,
+  hideChrome = false,
+  isActiveSlide = true,
 }: SharedMediaStandaloneProps) {
   return (
-    <div className="flex w-full flex-1 items-center justify-center">
+    <div className="flex h-full w-full flex-1 items-center justify-center">
       <VideoPlayer
-        key={media.id}
         video={media}
-        autoPlay
+        autoPlay={isActiveSlide}
         standalone
-        standaloneChrome={{
-          media,
-          eventHref,
-          eventSlug,
-          onBackToGallery,
-          allowLikes,
-          allowMediaShare,
-          downloadHref: routes.mediaDownload(media.id),
-          downloadFileName,
-          positionIndex,
-          positionTotal,
-          enableNavigation,
-        }}
+        standaloneChrome={
+          hideChrome
+            ? undefined
+            : {
+                media,
+                eventHref,
+                eventSlug,
+                onBackToGallery,
+                allowLikes,
+                allowMediaShare,
+                downloadHref: routes.mediaDownload(media.id),
+                downloadFileName,
+                positionIndex,
+                positionTotal,
+                enableNavigation,
+              }
+        }
       />
     </div>
   );

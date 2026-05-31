@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  type TouchEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import { SharedMediaStandalone } from "@/components/public/shared-media-standalone";
+import { StandaloneMediaChrome } from "@/components/public/standalone-media-chrome";
 import {
   buildGalleryReturnHref,
   setGalleryFocusMedia,
@@ -19,8 +21,11 @@ import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName
 import { routes } from "@/lib/routes";
 import type { EventMedia } from "@/types/media";
 
-const SWIPE_THRESHOLD_PX = 48;
-const SLIDE_MS = 280;
+const SNAP_MS = 320;
+const RUBBER_BAND = 0.32;
+const COMMIT_RATIO = 0.22;
+const MIN_COMMIT_PX = 56;
+const HORIZONTAL_LOCK_RATIO = 0.85;
 
 type MediaViewerNavigatorProps = {
   items: EventMedia[];
@@ -31,6 +36,26 @@ type MediaViewerNavigatorProps = {
   allowMediaShare: boolean;
 };
 
+function buildSlides(items: EventMedia[], index: number): EventMedia[] {
+  const slides: EventMedia[] = [];
+
+  if (index > 0) {
+    slides.push(items[index - 1]);
+  }
+
+  slides.push(items[index]);
+
+  if (index < items.length - 1) {
+    slides.push(items[index + 1]);
+  }
+
+  return slides;
+}
+
+function centerSlideIndex(activeIndex: number): number {
+  return activeIndex > 0 ? 1 : 0;
+}
+
 export function MediaViewerNavigator({
   items,
   initialIndex,
@@ -40,9 +65,15 @@ export function MediaViewerNavigator({
   allowMediaShare,
 }: MediaViewerNavigatorProps) {
   const router = useRouter();
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const touchActive = useRef(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const activeIndexRef = useRef(0);
+  const isCommittingRef = useRef(false);
+  const dragRef = useRef({
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    axis: null as "x" | "y" | null,
+  });
 
   const safeInitial = Math.min(
     Math.max(0, initialIndex),
@@ -50,14 +81,22 @@ export function MediaViewerNavigator({
   );
 
   const [activeIndex, setActiveIndex] = useState(safeInitial);
-  const [slideDirection, setSlideDirection] = useState<0 | 1 | -1>(0);
-  const activeIndexRef = useRef(safeInitial);
-  const isAnimatingRef = useRef(false);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
 
   const total = items.length;
   const current = items[activeIndex];
   const canGoPrev = activeIndex > 0;
   const canGoNext = activeIndex < total - 1;
+
+  const slides = useMemo(
+    () => buildSlides(items, activeIndex),
+    [activeIndex, items],
+  );
+  const centerIndex = centerSlideIndex(activeIndex);
+  const baseTranslate = -centerIndex * viewportWidth;
 
   const galleryReturnHref = buildGalleryReturnHref(
     eventHref,
@@ -69,36 +108,83 @@ export function MediaViewerNavigator({
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
 
-  const goToIndex = useCallback((nextIndex: number, direction: 1 | -1) => {
-    if (isAnimatingRef.current) {
+  useEffect(() => {
+    const node = viewportRef.current;
+
+    if (!node) {
       return;
     }
 
-    if (nextIndex < 0 || nextIndex >= total) {
-      return;
-    }
+    const measure = () => {
+      setViewportWidth(node.clientWidth);
+    };
 
-    if (nextIndex === activeIndexRef.current) {
-      return;
-    }
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
 
-    isAnimatingRef.current = true;
-    setSlideDirection(direction);
+    return () => observer.disconnect();
+  }, []);
 
-    window.setTimeout(() => {
-      setActiveIndex(nextIndex);
-      setSlideDirection(0);
-      isAnimatingRef.current = false;
-    }, SLIDE_MS);
-  }, [total]);
+  const applyRubberBand = useCallback(
+    (delta: number) => {
+      if (delta > 0 && !canGoPrev) {
+        return delta * RUBBER_BAND;
+      }
 
-  const goPrev = useCallback(() => {
-    goToIndex(activeIndexRef.current - 1, -1);
-  }, [goToIndex]);
+      if (delta < 0 && !canGoNext) {
+        return delta * RUBBER_BAND;
+      }
 
-  const goNext = useCallback(() => {
-    goToIndex(activeIndexRef.current + 1, 1);
-  }, [goToIndex]);
+      return delta;
+    },
+    [canGoNext, canGoPrev],
+  );
+
+  const finishIndexChange = useCallback((nextIndex: number) => {
+    setTransitionEnabled(false);
+    setActiveIndex(nextIndex);
+    setDragOffset(0);
+    isCommittingRef.current = false;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTransitionEnabled(true);
+      });
+    });
+  }, []);
+
+  const commitTo = useCallback(
+    (direction: 1 | -1) => {
+      const width = viewportRef.current?.clientWidth ?? viewportWidth;
+
+      if (!width || isCommittingRef.current) {
+        return;
+      }
+
+      if (direction === 1 && !canGoNext) {
+        return;
+      }
+
+      if (direction === -1 && !canGoPrev) {
+        return;
+      }
+
+      isCommittingRef.current = true;
+      setTransitionEnabled(true);
+      setDragOffset(direction === 1 ? -width : width);
+
+      window.setTimeout(() => {
+        finishIndexChange(activeIndexRef.current + direction);
+      }, SNAP_MS);
+    },
+    [canGoNext, canGoPrev, finishIndexChange, viewportWidth],
+  );
+
+  const snapBack = useCallback(() => {
+    setTransitionEnabled(true);
+    setDragOffset(0);
+  }, []);
 
   const returnToGallery = useCallback(() => {
     if (current) {
@@ -136,100 +222,157 @@ export function MediaViewerNavigator({
         return;
       }
 
+      if (isDragging || isCommittingRef.current) {
+        return;
+      }
+
       if (event.key === "ArrowLeft" && canGoPrev) {
         event.preventDefault();
-        goPrev();
+        commitTo(-1);
         return;
       }
 
       if (event.key === "ArrowRight" && canGoNext) {
         event.preventDefault();
-        goNext();
+        commitTo(1);
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canGoNext, canGoPrev, goNext, goPrev, returnToGallery]);
+  }, [canGoNext, canGoPrev, commitTo, isDragging, returnToGallery]);
 
-  function onTouchStart(event: TouchEvent<HTMLDivElement>) {
-    if (total <= 1) {
-      return;
-    }
+  const onPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (total <= 1 || isCommittingRef.current) {
+        return;
+      }
 
-    const touch = event.touches[0];
-    touchStartX.current = touch.clientX;
-    touchStartY.current = touch.clientY;
-    touchActive.current = true;
-  }
+      if (event.button !== 0) {
+        return;
+      }
 
-  function onTouchEnd(event: TouchEvent<HTMLDivElement>) {
-    if (!touchActive.current || total <= 1) {
-      return;
-    }
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        axis: null,
+      };
+      setIsDragging(true);
+      setTransitionEnabled(false);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [total],
+  );
 
-    touchActive.current = false;
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - touchStartX.current;
-    const deltaY = touch.clientY - touchStartY.current;
+  const onPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        dragRef.current.pointerId !== event.pointerId ||
+        isCommittingRef.current
+      ) {
+        return;
+      }
 
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) {
-      return;
-    }
+      const deltaX = event.clientX - dragRef.current.startX;
+      const deltaY = event.clientY - dragRef.current.startY;
 
-    if (Math.abs(deltaY) > Math.abs(deltaX) * 0.85) {
-      return;
-    }
+      if (dragRef.current.axis === null) {
+        if (
+          Math.abs(deltaX) < 8 &&
+          Math.abs(deltaY) < 8
+        ) {
+          return;
+        }
 
-    if (deltaX < 0 && canGoNext) {
-      goNext();
-      return;
-    }
+        dragRef.current.axis =
+          Math.abs(deltaX) >= Math.abs(deltaY) * HORIZONTAL_LOCK_RATIO
+            ? "x"
+            : "y";
+      }
 
-    if (deltaX > 0 && canGoPrev) {
-      goPrev();
-    }
-  }
+      if (dragRef.current.axis === "y") {
+        return;
+      }
+
+      event.preventDefault();
+      setDragOffset(applyRubberBand(deltaX));
+    },
+    [applyRubberBand],
+  );
+
+  const endPointerDrag = useCallback(
+    (clientX: number) => {
+      if (isCommittingRef.current) {
+        return;
+      }
+
+      const axis = dragRef.current.axis;
+      const width = viewportRef.current?.clientWidth ?? viewportWidth;
+      const deltaX = clientX - dragRef.current.startX;
+
+      dragRef.current.pointerId = -1;
+      dragRef.current.axis = null;
+      setIsDragging(false);
+
+      if (axis === "y" || axis === null || width <= 0) {
+        snapBack();
+        setTransitionEnabled(true);
+        return;
+      }
+
+      const threshold = Math.max(MIN_COMMIT_PX, width * COMMIT_RATIO);
+
+      if (deltaX <= -threshold && canGoNext) {
+        commitTo(1);
+        return;
+      }
+
+      if (deltaX >= threshold && canGoPrev) {
+        commitTo(-1);
+        return;
+      }
+
+      snapBack();
+      setTransitionEnabled(true);
+    },
+    [canGoNext, canGoPrev, commitTo, snapBack, viewportWidth],
+  );
+
+  const onPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (dragRef.current.pointerId !== event.pointerId) {
+        return;
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+
+      endPointerDrag(event.clientX);
+    },
+    [endPointerDrag],
+  );
+
+  const onPointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (dragRef.current.pointerId !== event.pointerId) {
+        return;
+      }
+
+      endPointerDrag(event.clientX);
+    },
+    [endPointerDrag],
+  );
 
   if (!current) {
     return null;
   }
 
-  const slideClass =
-    slideDirection === 1
-      ? "animate-media-slide-in-right"
-      : slideDirection === -1
-        ? "animate-media-slide-in-left"
-        : "";
-
-  return (
-    <div className="relative flex min-h-0 w-full flex-1 flex-col">
-      {total > 1 && canGoPrev ? (
-        <button
-          type="button"
-          aria-label="Mídia anterior"
-          onClick={goPrev}
-          className="absolute left-0 top-0 z-20 hidden h-full w-[min(18%,5rem)] cursor-w-resize bg-transparent md:block"
-        />
-      ) : null}
-      {total > 1 && canGoNext ? (
-        <button
-          type="button"
-          aria-label="Próxima mídia"
-          onClick={goNext}
-          className="absolute right-0 top-0 z-20 hidden h-full w-[min(18%,5rem)] cursor-e-resize bg-transparent md:block"
-        />
-      ) : null}
-
-      <div
-        className="media-viewer-swipe relative flex min-h-0 flex-1 flex-col"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        <div
-          key={current.id}
-          className={`flex min-h-0 flex-1 flex-col ${slideClass}`}
-        >
+  if (total <= 1) {
+    return (
+      <div className="relative flex min-h-0 w-full flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <SharedMediaStandalone
             media={current}
             eventHref={galleryReturnHref}
@@ -238,9 +381,96 @@ export function MediaViewerNavigator({
             downloadFileName={suggestedDownloadFileName(current)}
             allowLikes={allowLikes}
             allowMediaShare={allowMediaShare}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const trackTranslate = baseTranslate + dragOffset;
+
+  return (
+    <div className="relative flex min-h-0 w-full flex-1 flex-col">
+      {canGoPrev ? (
+        <button
+          type="button"
+          aria-label="Mídia anterior"
+          onClick={() => commitTo(-1)}
+          className="absolute left-0 top-0 z-20 hidden h-full w-[min(18%,5rem)] cursor-w-resize bg-transparent md:block"
+        />
+      ) : null}
+      {canGoNext ? (
+        <button
+          type="button"
+          aria-label="Próxima mídia"
+          onClick={() => commitTo(1)}
+          className="absolute right-0 top-0 z-20 hidden h-full w-[min(18%,5rem)] cursor-e-resize bg-transparent md:block"
+        />
+      ) : null}
+
+      <div
+        ref={viewportRef}
+        className="media-viewer-swipe relative min-h-0 flex-1 overflow-hidden"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+      >
+        <div
+          className="flex h-full will-change-transform"
+          style={{
+            transform: `translate3d(${trackTranslate}px, 0, 0)`,
+            transition:
+              isDragging || !transitionEnabled
+                ? "none"
+                : `transform ${SNAP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`,
+          }}
+        >
+          {slides.map((slide) => {
+            const isActive = slide.id === current.id;
+
+            return (
+              <div
+                key={slide.id}
+                className={`flex h-full shrink-0 items-center justify-center ${
+                  isActive ? "" : "pointer-events-none"
+                }`}
+                style={{
+                  width: viewportWidth > 0 ? viewportWidth : "100%",
+                }}
+                aria-hidden={!isActive}
+              >
+                <SharedMediaStandalone
+                  media={slide}
+                  eventHref={galleryReturnHref}
+                  eventSlug={eventSlug}
+                  onBackToGallery={returnToGallery}
+                  downloadFileName={suggestedDownloadFileName(slide)}
+                  allowLikes={allowLikes}
+                  allowMediaShare={allowMediaShare}
+                  hideChrome
+                  isActiveSlide={isActive}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 z-30">
+        <div className="relative h-full w-full">
+          <StandaloneMediaChrome
+            media={current}
+            eventHref={galleryReturnHref}
+            eventSlug={eventSlug}
+            onBackToGallery={returnToGallery}
+            allowLikes={allowLikes}
+            allowMediaShare={allowMediaShare}
+            downloadHref={routes.mediaDownload(current.id)}
+            downloadFileName={suggestedDownloadFileName(current)}
             positionIndex={activeIndex + 1}
             positionTotal={total}
-            enableNavigation={total > 1}
+            enableNavigation
           />
         </div>
       </div>
