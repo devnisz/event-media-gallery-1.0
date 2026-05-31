@@ -1,8 +1,5 @@
 "use client";
 
-import { DownloadButton } from "@/components/public/download-button";
-import { MediaShareButton } from "@/components/public/media-share-button";
-import { PublicMediaDeleteButton } from "@/components/public/public-media-delete-button";
 import { VideoPlayer } from "@/components/public/video-player";
 import { routes } from "@/lib/routes";
 import type { EventMedia } from "@/types/media";
@@ -10,7 +7,6 @@ import type { EventMedia } from "@/types/media";
 type SharedMediaStandaloneProps = {
   media: EventMedia;
   eventHref: string;
-  downloadLabel: string;
   downloadFileName: string;
   allowLikes: boolean;
   allowMediaShare: boolean;
@@ -19,53 +15,25 @@ type SharedMediaStandaloneProps = {
 export function SharedMediaStandalone({
   media,
   eventHref,
-  downloadLabel,
   downloadFileName,
   allowLikes,
   allowMediaShare,
 }: SharedMediaStandaloneProps) {
-  const downloadText = downloadLabel.startsWith("⬇")
-    ? downloadLabel
-    : `⬇ ${downloadLabel}`;
-
   return (
-    <div className="flex w-full flex-col gap-3 sm:gap-3.5">
+    <div className="flex w-full flex-1 items-center justify-center">
       <VideoPlayer
         video={media}
         autoPlay
         standalone
-        eventHref={eventHref}
-        allowLikes={allowLikes}
+        standaloneChrome={{
+          media,
+          eventHref,
+          allowLikes,
+          allowMediaShare,
+          downloadHref: routes.mediaDownload(media.id),
+          downloadFileName,
+        }}
       />
-
-      <div className="flex flex-col gap-2">
-        {allowMediaShare ? (
-          <MediaShareButton
-            mediaId={media.id}
-            mediaType={media.mediaType}
-            allowMediaShare={allowMediaShare}
-            variant="pill"
-            fullWidth
-          />
-        ) : null}
-        <DownloadButton
-          href={routes.mediaDownload(media.id)}
-          label={downloadText}
-          fileName={downloadFileName}
-          variant="secondary"
-        />
-      </div>
-
-      {media.allowPublicDelete ? (
-        <div className="flex justify-center pt-0.5">
-          <PublicMediaDeleteButton
-            mediaId={media.id}
-            title={media.title}
-            eventHref={eventHref}
-            requireDeletePin={media.requireDeletePin}
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

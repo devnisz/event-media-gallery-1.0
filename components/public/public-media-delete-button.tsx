@@ -8,6 +8,8 @@ type PublicMediaDeleteButtonProps = {
   title: string;
   eventHref: string;
   requireDeletePin: boolean;
+  appearance?: "button" | "menu";
+  onMenuAction?: () => void;
 };
 
 export function PublicMediaDeleteButton({
@@ -15,6 +17,8 @@ export function PublicMediaDeleteButton({
   title,
   eventHref,
   requireDeletePin,
+  appearance = "button",
+  onMenuAction,
 }: PublicMediaDeleteButtonProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -63,6 +67,8 @@ export function PublicMediaDeleteButton({
   }
 
   function startDelete() {
+    onMenuAction?.();
+
     if (requireDeletePin) {
       setError("");
       setDeletePin("");
@@ -72,6 +78,8 @@ export function PublicMediaDeleteButton({
 
     void deleteMedia("");
   }
+
+  const isMenu = appearance === "menu";
 
   function submitPinDelete(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,16 +95,21 @@ export function PublicMediaDeleteButton({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={isMenu ? "" : "space-y-3"}>
       <button
         type="button"
+        role={isMenu ? "menuitem" : undefined}
         disabled={isDeleting}
         onClick={startDelete}
-        className="inline-flex min-h-11 items-center justify-center rounded-full border border-red-300/25 bg-transparent px-6 text-sm font-semibold text-red-200/80 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        className={
+          isMenu
+            ? "flex w-full items-center px-4 py-3 text-left text-sm font-semibold text-red-200/90 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+            : "inline-flex min-h-11 items-center justify-center rounded-full border border-red-300/25 bg-transparent px-6 text-sm font-semibold text-red-200/80 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        }
       >
         {isDeleting ? "Excluindo..." : "Excluir da galeria"}
       </button>
-      {error ? (
+      {error && !isMenu ? (
         <p className="text-sm font-semibold leading-5 text-red-200">{error}</p>
       ) : null}
       {pinDialogOpen ? (

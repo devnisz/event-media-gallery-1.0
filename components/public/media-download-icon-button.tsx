@@ -1,6 +1,12 @@
 "use client";
 
+import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
+
+import {
+  mediaGlassActionButtonClass,
+  mediaGlassActionIconClass,
+} from "@/components/public/media-glass-action-styles";
 
 type MediaDownloadIconButtonProps = {
   href: string;
@@ -44,9 +50,16 @@ export function MediaDownloadIconButton({
         setLoading(true);
         void downloadFile(href, fileName).finally(() => setLoading(false));
       }}
-      className="grid size-11 place-items-center rounded-full bg-black/35 text-lg text-white/90 backdrop-blur-md transition hover:bg-black/50 active:scale-95 disabled:opacity-60 sm:size-12"
+      className={mediaGlassActionButtonClass}
     >
-      <span aria-hidden>{loading ? "…" : "⬇"}</span>
+      {loading ? (
+        <Loader2
+          aria-hidden
+          className={`${mediaGlassActionIconClass} animate-spin`}
+        />
+      ) : (
+        <Download aria-hidden className={mediaGlassActionIconClass} />
+      )}
     </button>
   );
 }

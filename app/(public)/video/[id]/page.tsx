@@ -44,14 +44,13 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
   const allowMediaShare = video.allowMediaShare !== false;
 
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden px-4 py-3 text-white sm:px-5 sm:py-4">
+    <main className="relative flex min-h-dvh flex-col overflow-hidden px-2 py-2 text-white sm:px-3 sm:py-3">
       <AmbientBackground />
 
-      <div className="animate-rise mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-start">
+      <div className="animate-rise flex min-h-0 w-full flex-1 flex-col">
         <SharedMediaStandalone
           media={video}
           eventHref={eventHref}
-          downloadLabel="Baixar"
           downloadFileName={suggestedDownloadFileName(video)}
           allowLikes={allowLikes}
           allowMediaShare={allowMediaShare}

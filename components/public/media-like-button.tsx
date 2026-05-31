@@ -2,6 +2,7 @@
 
 import { useState, type MouseEvent } from "react";
 
+import { mediaGlassActionButtonClass } from "@/components/public/media-glass-action-styles";
 import { formatLikeCount } from "@/lib/likes/format";
 import { toggleMediaLikeClient } from "@/lib/likes/toggle-client";
 import { isMediaLikedLocally } from "@/lib/likes/visitor-client";
@@ -81,7 +82,7 @@ export function MediaLikeButton({
       onClick={(event) => void handleClick(event)}
       className={
         isIcon
-          ? "grid size-11 place-items-center rounded-full bg-black/35 text-xl backdrop-blur-md transition hover:bg-black/50 active:scale-95 disabled:opacity-60 sm:size-12"
+          ? `${mediaGlassActionButtonClass} text-xl`
           : isOverlay
             ? "inline-flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold text-white/90 backdrop-blur-md transition hover:bg-black/55 disabled:opacity-60"
             : "inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60"
