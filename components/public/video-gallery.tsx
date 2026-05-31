@@ -9,6 +9,13 @@ import {
   type SetStateAction,
 } from "react";
 
+import {
+  GALLERY_MEDIA_PUBLISHED_EVENT,
+  type GalleryMediaPublishedDetail,
+} from "@/lib/gallery/client-refresh";
+import type { PublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
+import { toEventMedia } from "@/lib/media/galleryMapping";
+
 import { GalleryEmptyState } from "@/components/public/gallery/gallery-empty-state";
 import { PremiumGalleryGrid } from "@/components/public/gallery/premium-gallery-grid";
 import { SocialGalleryGrid } from "@/components/public/gallery/social-gallery-grid";
@@ -183,10 +190,74 @@ export function VideoGallery({
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
   const ctxRef = useRef({ eventSlug, eventId, eventName });
+  const gallerySettingsRef = useRef<PublicGalleryEventSettings>({
+    allowPublicDelete,
+    requireDeletePin,
+    allowLikes,
+    allowMediaShare,
+  });
 
   useEffect(() => {
     ctxRef.current = { eventSlug, eventId, eventName };
-  }, [eventId, eventName, eventSlug]);
+    gallerySettingsRef.current = {
+      allowPublicDelete,
+      requireDeletePin,
+      allowLikes,
+      allowMediaShare,
+    };
+  }, [
+    allowLikes,
+    allowMediaShare,
+    allowPublicDelete,
+    eventId,
+    eventName,
+    eventSlug,
+    requireDeletePin,
+  ]);
+
+  useEffect(() => {
+    function onGalleryMediaPublished(event: Event) {
+      const detail = (event as CustomEvent<GalleryMediaPublishedDetail>).detail;
+
+      if (!detail?.media) {
+        return;
+      }
+
+      const { eventSlug: es, eventId: eid, eventName: en } = ctxRef.current;
+
+      const slugMatch =
+        detail.eventSlug.trim().toLowerCase() === es.trim().toLowerCase();
+      const idMatch =
+        Boolean(eid?.trim()) &&
+        detail.eventId.trim().toLowerCase() === eid!.trim().toLowerCase();
+
+      if (!slugMatch && !idMatch) {
+        return;
+      }
+
+      const { media } = detail;
+
+      if (
+        media.reviewStatus !== "approved" ||
+        media.isHidden === true ||
+        media.deletedAt
+      ) {
+        return;
+      }
+
+      const mapped = toEventMedia(media, en, 0, gallerySettingsRef.current);
+      addOrUpdateRealtimeMedia(setVideos, mapped, setNewMediaIds);
+    }
+
+    window.addEventListener(GALLERY_MEDIA_PUBLISHED_EVENT, onGalleryMediaPublished);
+
+    return () => {
+      window.removeEventListener(
+        GALLERY_MEDIA_PUBLISHED_EVENT,
+        onGalleryMediaPublished,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
@@ -298,7 +369,7 @@ export function VideoGallery({
 
   const guestUploadSlot =
     allowGuestUpload && eventId ? (
-      <GuestUploadButton eventId={eventId} compact />
+      <GuestUploadButton eventId={eventId} eventSlug={eventSlug} compact />
     ) : null;
 
   const gridSharedProps = {
@@ -351,6 +422,7 @@ export function VideoGallery({
 
       <VirtualBoothLauncher
         eventId={eventId}
+        eventSlug={eventSlug}
         allowGuestUpload={allowGuestUpload}
         frameUrl={frameUrl}
         cabineConfig={cabineConfig}

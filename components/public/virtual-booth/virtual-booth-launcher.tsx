@@ -9,6 +9,7 @@ import { VirtualBoothModal } from "./virtual-booth-modal";
 
 type VirtualBoothLauncherProps = {
   eventId?: string;
+  eventSlug: string;
   allowGuestUpload: boolean;
   frameUrl?: string;
   cabineConfig: CabineVirtualEventConfig;
@@ -20,6 +21,7 @@ type VirtualBoothLauncherProps = {
  */
 export function VirtualBoothLauncher({
   eventId,
+  eventSlug,
   allowGuestUpload,
   frameUrl = "",
   cabineConfig,
@@ -43,6 +45,7 @@ export function VirtualBoothLauncher({
       <VirtualBoothModal
         open={open}
         eventId={eventId}
+        eventSlug={eventSlug}
         allowGuestUpload={allowGuestUpload}
         frameUrl={frameUrl}
         cabineConfig={cabineConfig}

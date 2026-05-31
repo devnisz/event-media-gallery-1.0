@@ -1,4 +1,5 @@
 import { normalizeGuestUploadMimeType } from "@/lib/guest-upload/validation";
+import type { GalleryMediaRecord } from "@/types/media";
 
 export type GuestUploadSignResponse = {
   error?: string;
@@ -126,7 +127,7 @@ export async function uploadGuestMediaFile(
   eventId: string,
   file: File,
   onProgress?: (update: GuestUploadProgressUpdate) => void,
-): Promise<void> {
+): Promise<GalleryMediaRecord> {
   const uploadMimeType = normalizeGuestUploadMimeType(file.type);
   const uploadFile =
     uploadMimeType === file.type
@@ -209,13 +210,18 @@ export async function uploadGuestMediaFile(
       }),
     },
   );
-  const completePayload = (await completeResponse.json()) as { error?: string };
+  const completePayload = (await completeResponse.json()) as {
+    error?: string;
+    media?: GalleryMediaRecord;
+  };
 
-  if (!completeResponse.ok) {
+  if (!completeResponse.ok || !completePayload.media) {
     throw new Error(
       completePayload.error ?? "Não foi possível finalizar o upload.",
     );
   }
 
   onProgress?.({ progress: 100, message: "Upload recebido. A galeria será atualizada." });
+
+  return completePayload.media;
 }

@@ -9,6 +9,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
+import { dispatchGalleryMediaPublished } from "@/lib/gallery/client-refresh";
 import { uploadGuestMediaFile } from "@/lib/guest-upload/upload-client";
 import { composePhotoWithFrame } from "@/lib/virtual-booth/apply-frame";
 import {
@@ -66,6 +67,7 @@ type ModalStep =
 type VirtualBoothModalProps = {
   open: boolean;
   eventId?: string;
+  eventSlug: string;
   allowGuestUpload: boolean;
   frameUrl?: string;
   cabineConfig: CabineVirtualEventConfig;
@@ -97,6 +99,7 @@ function getCameraErrorMessage(error: unknown) {
 export function VirtualBoothModal({
   open,
   eventId,
+  eventSlug,
   allowGuestUpload,
   frameUrl = "",
   cabineConfig,
@@ -813,11 +816,20 @@ export function VirtualBoothModal({
     setErrorMessage("");
 
     try {
-      await uploadGuestMediaFile(eventId, activePublishFile, (update) => {
-        setUploadProgress(update.progress);
-        setUploadMessage(update.message);
-      });
+      const publishedMedia = await uploadGuestMediaFile(
+        eventId,
+        activePublishFile,
+        (update) => {
+          setUploadProgress(update.progress);
+          setUploadMessage(update.message);
+        },
+      );
 
+      dispatchGalleryMediaPublished({
+        media: publishedMedia,
+        eventSlug,
+        eventId,
+      });
       router.refresh();
       setStep("success");
     } catch (error) {

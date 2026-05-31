@@ -770,6 +770,73 @@ export async function readPersistedMediaRaw(): Promise<unknown[]> {
   }
 }
 
+/** Insere ou atualiza uma única mídia sem ressincronizar a tabela inteira. */
+export async function upsertSingleGalleryMediaRecord(
+  media: GalleryMediaRecord,
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  const client = createServiceRoleSupabase();
+
+  if (!client) {
+    if (shouldPersistLegacyJsonFiles()) {
+      return;
+    }
+    throw new Error(
+      "Supabase não inicializado no servidor (verifique SUPABASE_SERVICE_ROLE_KEY).",
+    );
+  }
+
+  const eventsLoose = await readEventsLooseForHydration();
+  const ownerByEventId = new Map<string, string | null>();
+
+  for (const ev of eventsLoose) {
+    ownerByEventId.set(ev.id, ev.ownerUserId?.trim() ?? null);
+  }
+
+  const row = galleryRecordToRow(media);
+  const inherited = ownerByEventId.get(media.eventId) ?? null;
+  const explicit = media.ownerUserId?.trim() ? media.ownerUserId.trim() : null;
+  row.owner_user_id = explicit ?? inherited ?? null;
+
+  const { error: upErr } = await client.from("media").upsert(row, {
+    onConflict: "id",
+  });
+
+  if (upErr) {
+    throw upErr;
+  }
+
+  logRepository(`media upsert única no Supabase: ${media.id}`);
+
+  if (shouldDualWriteLegacyJson() && shouldPersistLegacyJsonFiles()) {
+    const raw = await readVideosJsonRaw();
+    const arr = Array.isArray(raw) ? [...raw] : [];
+    const legacyRow = buildLegacyJsonRowsFromGallery([media])[0];
+    const idx = arr.findIndex((it) => {
+      if (!it || typeof it !== "object") {
+        return false;
+      }
+      const id =
+        typeof (it as Record<string, unknown>).id === "string"
+          ? String((it as Record<string, unknown>).id).trim()
+          : "";
+      return id === media.id;
+    });
+
+    if (idx >= 0) {
+      arr[idx] = legacyRow;
+    } else {
+      arr.push(legacyRow);
+    }
+
+    await writeVideosToStorage(arr);
+    logMigration("media única dual-write JSON espelho");
+  }
+}
+
 /** Substitui todas as linhas de mídia (espelha `videos.json`). */
 export async function replaceAllMediaFromGalleryRecords(
   mediaList: GalleryMediaRecord[],

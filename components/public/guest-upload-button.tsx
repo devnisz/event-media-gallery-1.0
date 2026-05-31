@@ -2,10 +2,12 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import { dispatchGalleryMediaPublished } from "@/lib/gallery/client-refresh";
 import { uploadGuestMediaFile } from "@/lib/guest-upload/upload-client";
 
 type GuestUploadButtonProps = {
   eventId: string;
+  eventSlug: string;
   compact?: boolean;
 };
 
@@ -13,6 +15,7 @@ type UploadState = "idle" | "uploading" | "success" | "error";
 
 export function GuestUploadButton({
   eventId,
+  eventSlug,
   compact = false,
 }: GuestUploadButtonProps) {
   const router = useRouter();
@@ -27,9 +30,15 @@ export function GuestUploadButton({
     setMessage("");
 
     try {
-      await uploadGuestMediaFile(eventId, file, (update) => {
+      const publishedMedia = await uploadGuestMediaFile(eventId, file, (update) => {
         setProgress(update.progress);
         setMessage(update.message);
+      });
+
+      dispatchGalleryMediaPublished({
+        media: publishedMedia,
+        eventSlug,
+        eventId,
       });
 
       setState("success");

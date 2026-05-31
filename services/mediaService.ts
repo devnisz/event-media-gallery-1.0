@@ -5,7 +5,10 @@ import {
   readPersistedMediaRaw,
   readPersistedMediaRawForEventSlug,
   replaceAllMediaFromGalleryRecords,
+  upsertSingleGalleryMediaRecord,
 } from "@/repositories/mediaRepository";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createServiceRoleSupabase } from "@/lib/supabase/server";
 import type { GalleryEventRecord } from "@/types/event";
 import type {
   EventMedia,
@@ -590,8 +593,30 @@ export async function updateGalleryMediaState(
 export async function appendGalleryMediaRecord(
   media: GalleryMediaRecord,
 ): Promise<GalleryMediaRecord> {
+  const canUpsertSingle =
+    isSupabaseConfigured() && Boolean(createServiceRoleSupabase());
+
+  if (canUpsertSingle) {
+    await upsertSingleGalleryMediaRecord(media);
+    const galleryMedia = await readGalleryVideosRaw();
+    await reconcileEventCountsFromMediaList(galleryMedia);
+    logFrontendMedia("appendGalleryMediaRecord via upsert único", {
+      mediaId: media.id,
+      eventSlug: media.eventSlug,
+    });
+    return media;
+  }
+
   const galleryMedia = await loadGalleryVideosForMutation();
-  const next = sortGalleryMediaRecords([...galleryMedia, media]);
+  const existingIndex = galleryMedia.findIndex((item) => item.id === media.id);
+  const next =
+    existingIndex === -1
+      ? sortGalleryMediaRecords([...galleryMedia, media])
+      : sortGalleryMediaRecords(
+          galleryMedia.map((item, index) =>
+            index === existingIndex ? { ...item, ...media } : item,
+          ),
+        );
 
   await replaceGalleryMediaRecordsOnDisk(next);
   await reconcileEventCountsFromMediaList(next);
