@@ -6,11 +6,7 @@ import { SocialGalleryTile } from "./social-gallery-tile";
 export function SocialGalleryGrid({
   videos,
   newMediaIds,
-  removingIds,
-  allowPublicDelete,
-  requireDeletePin,
   allowLikes,
-  onDeleted,
   onLikeCountChange,
 }: GalleryGridSharedProps) {
   return (
@@ -20,11 +16,7 @@ export function SocialGalleryGrid({
           key={video.id}
           video={video}
           isNew={newMediaIds.has(video.id)}
-          isRemoving={removingIds.has(video.id)}
-          allowPublicDelete={allowPublicDelete}
-          requireDeletePin={requireDeletePin}
           allowLikes={allowLikes}
-          onDeleted={onDeleted}
           onLikeCountChange={onLikeCountChange}
         />
       ))}

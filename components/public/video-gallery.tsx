@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -17,6 +16,7 @@ import type { PublicGalleryEventSettings } from "@/lib/gallery/public-event-sett
 import { toEventMedia } from "@/lib/media/galleryMapping";
 
 import { GalleryEmptyState } from "@/components/public/gallery/gallery-empty-state";
+import { GalleryScrollRestore } from "@/components/public/gallery/gallery-scroll-restore";
 import { PremiumGalleryGrid } from "@/components/public/gallery/premium-gallery-grid";
 import { SocialGalleryGrid } from "@/components/public/gallery/social-gallery-grid";
 import { GalleryCompactHeader } from "@/components/public/gallery-compact-header";
@@ -187,7 +187,6 @@ export function VideoGallery({
   const isSocialLayout = isSocialGalleryLayout(galleryLayout);
   const [videos, setVideos] = useState(initialVideos);
   const [newMediaIds, setNewMediaIds] = useState<Set<string>>(new Set());
-  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
   const ctxRef = useRef({ eventSlug, eventId, eventName });
   const gallerySettingsRef = useRef<PublicGalleryEventSettings>({
@@ -341,10 +340,7 @@ export function VideoGallery({
     };
   }, [eventId, eventSlug]);
 
-  const visibleVideoCount = useMemo(
-    () => videos.length - removingIds.size,
-    [removingIds.size, videos.length],
-  );
+  const visibleVideoCount = videos.length;
 
   function handleLikeCountChange(mediaId: string, likesCount: number) {
     setVideos((prev) =>
@@ -352,19 +348,6 @@ export function VideoGallery({
         item.id === mediaId ? { ...item, likesCount } : item,
       ),
     );
-  }
-
-  function handleDeleted(id: string) {
-    setRemovingIds((current) => new Set(current).add(id));
-
-    window.setTimeout(() => {
-      setVideos((current) => current.filter((v) => v.id !== id));
-      setRemovingIds((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
-    }, 260);
   }
 
   const guestUploadSlot =
@@ -375,17 +358,14 @@ export function VideoGallery({
   const gridSharedProps = {
     videos,
     newMediaIds,
-    removingIds,
-    allowPublicDelete,
-    requireDeletePin,
     allowLikes,
     allowMediaShare,
-    onDeleted: handleDeleted,
     onLikeCountChange: handleLikeCountChange,
   };
 
   return (
     <section className="mx-auto flex w-full max-w-[1900px] flex-col">
+      <GalleryScrollRestore />
       <GalleryCompactHeader
         eventName={eventName}
         mediaCount={visibleVideoCount}

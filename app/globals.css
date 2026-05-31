@@ -306,6 +306,40 @@ body {
   animation: toast-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes media-slide-in-right {
+  from {
+    transform: translateX(16%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes media-slide-in-left {
+  from {
+    transform: translateX(-16%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-media-slide-in-right {
+  animation: media-slide-in-right 280ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+.animate-media-slide-in-left {
+  animation: media-slide-in-left 280ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+.media-viewer-swipe {
+  touch-action: pan-y pinch-zoom;
+}
+
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
@@ -337,6 +371,8 @@ dialog::backdrop {
   .animate-count-pop,
   .animate-float-soft,
   .animate-toast-in,
+  .animate-media-slide-in-right,
+  .animate-media-slide-in-left,
   .skeleton-shimmer {
     animation: none !important;
   }

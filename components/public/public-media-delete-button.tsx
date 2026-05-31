@@ -1,35 +1,60 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useState,
+  type FormEvent,
+} from "react";
+
+import {
+  buildGalleryReturnHref,
+  setGalleryFocusMedia,
+} from "@/lib/gallery/gallery-scroll-restore";
+
+export type PublicMediaDeleteHandle = {
+  startDelete: () => void;
+};
 
 type PublicMediaDeleteButtonProps = {
   mediaId: string;
   title: string;
   eventHref: string;
+  eventSlug: string;
   requireDeletePin: boolean;
-  appearance?: "button" | "menu";
-  onMenuAction?: () => void;
+  appearance?: "button" | "menu" | "headless";
 };
 
-export function PublicMediaDeleteButton({
-  mediaId,
-  title,
-  eventHref,
-  requireDeletePin,
-  appearance = "button",
-  onMenuAction,
-}: PublicMediaDeleteButtonProps) {
+const CONFIRM_MESSAGE =
+  "Tem certeza que deseja remover esta mídia da galeria?";
+
+const SUCCESS_TOAST = "Mídia removida da galeria";
+
+export const PublicMediaDeleteButton = forwardRef<
+  PublicMediaDeleteHandle,
+  PublicMediaDeleteButtonProps
+>(function PublicMediaDeleteButton(
+  {
+    mediaId,
+    title,
+    eventHref,
+    eventSlug,
+    requireDeletePin,
+    appearance = "button",
+  },
+  ref,
+) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [deletePin, setDeletePin] = useState("");
+  const [toast, setToast] = useState("");
 
   async function deleteMedia(pin: string) {
-    const confirmed = window.confirm(
-      `Excluir "${title}" da galeria?\n\nA mídia será removida da experiência pública do evento.`,
-    );
+    const confirmed = window.confirm(CONFIRM_MESSAGE);
 
     if (!confirmed) {
       return;
@@ -55,8 +80,15 @@ export function PublicMediaDeleteButton({
 
       setPinDialogOpen(false);
       setDeletePin("");
-      router.push(eventHref);
-      router.refresh();
+      setToast(SUCCESS_TOAST);
+      setGalleryFocusMedia(eventSlug, mediaId);
+
+      const returnHref = buildGalleryReturnHref(eventHref, eventSlug, mediaId);
+
+      window.setTimeout(() => {
+        router.push(returnHref);
+        router.refresh();
+      }, 1400);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Não foi possível excluir a mídia.",
@@ -66,9 +98,7 @@ export function PublicMediaDeleteButton({
     }
   }
 
-  function startDelete() {
-    onMenuAction?.();
-
+  const startDelete = useCallback(() => {
     if (requireDeletePin) {
       setError("");
       setDeletePin("");
@@ -77,9 +107,11 @@ export function PublicMediaDeleteButton({
     }
 
     void deleteMedia("");
-  }
+    // deleteMedia é estável o suficiente para o fluxo de exclusão único
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- confirmação/PIN inline
+  }, [requireDeletePin]);
 
-  const isMenu = appearance === "menu";
+  useImperativeHandle(ref, () => ({ startDelete }), [startDelete]);
 
   function submitPinDelete(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,24 +126,41 @@ export function PublicMediaDeleteButton({
     void deleteMedia(pin);
   }
 
+  const isMenu = appearance === "menu";
+  const isHeadless = appearance === "headless";
+
   return (
-    <div className={isMenu ? "" : "space-y-3"}>
-      <button
-        type="button"
-        role={isMenu ? "menuitem" : undefined}
-        disabled={isDeleting}
-        onClick={startDelete}
-        className={
-          isMenu
-            ? "flex w-full items-center px-4 py-3 text-left text-sm font-semibold text-red-200/90 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
-            : "inline-flex min-h-11 items-center justify-center rounded-full border border-red-300/25 bg-transparent px-6 text-sm font-semibold text-red-200/80 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-        }
-      >
-        {isDeleting ? "Excluindo..." : "Excluir da galeria"}
-      </button>
-      {error && !isMenu ? (
-        <p className="text-sm font-semibold leading-5 text-red-200">{error}</p>
+    <>
+      {!isHeadless ? (
+        <div className={isMenu ? "" : "space-y-3"}>
+          <button
+            type="button"
+            role={isMenu ? "menuitem" : undefined}
+            disabled={isDeleting}
+            onClick={startDelete}
+            className={
+              isMenu
+                ? "flex w-full items-center px-4 py-3 text-left text-sm font-semibold text-red-200/90 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                : "inline-flex min-h-11 items-center justify-center rounded-full border border-red-300/25 bg-transparent px-6 text-sm font-semibold text-red-200/80 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            }
+          >
+            {isDeleting ? "Excluindo..." : "Excluir da galeria"}
+          </button>
+          {error && !isMenu ? (
+            <p className="text-sm font-semibold leading-5 text-red-200">{error}</p>
+          ) : null}
+        </div>
       ) : null}
+
+      {toast ? (
+        <p
+          role="status"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[95] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-full bg-black/85 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-lg backdrop-blur-md"
+        >
+          {toast}
+        </p>
+      ) : null}
+
       {pinDialogOpen ? (
         <div
           className="fixed inset-0 z-[90] grid place-items-center bg-black/70 px-4 backdrop-blur-sm"
@@ -170,6 +219,6 @@ export function PublicMediaDeleteButton({
           </form>
         </div>
       ) : null}
-    </div>
+    </>
   );
-}
+});

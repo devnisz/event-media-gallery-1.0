@@ -8,11 +8,7 @@ import type { GalleryGridSharedProps } from "./types";
 export function PremiumGalleryGrid({
   videos,
   newMediaIds,
-  removingIds,
-  allowPublicDelete,
-  requireDeletePin,
   allowLikes,
-  onDeleted,
   onLikeCountChange,
 }: GalleryGridSharedProps) {
   const [mobileTwoCols, setMobileTwoCols] = useState(() => {
@@ -88,11 +84,7 @@ export function PremiumGalleryGrid({
             video={video}
             index={index}
             isNew={newMediaIds.has(video.id)}
-            isRemoving={removingIds.has(video.id)}
-            onDeleted={onDeleted}
             compactMobileTwoCol={mobileTwoCols}
-            allowPublicDelete={allowPublicDelete}
-            requireDeletePin={requireDeletePin}
             allowLikes={allowLikes}
             onLikeCountChange={onLikeCountChange}
             hideEventLabel
