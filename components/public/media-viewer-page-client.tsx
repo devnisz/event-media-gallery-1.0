@@ -55,15 +55,10 @@ export function MediaViewerPageClient({
     };
   }, [eventSlug]);
 
-  const initialIndex = Math.max(
-    0,
-    items.findIndex((item) => item.id === video.id),
-  );
-
   return (
     <MediaViewerNavigator
       items={items}
-      initialIndex={initialIndex}
+      initialMediaId={video.id}
       eventHref={eventHref}
       eventSlug={eventSlug}
       allowLikes={allowLikes}

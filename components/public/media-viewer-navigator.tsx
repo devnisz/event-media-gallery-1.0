@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -39,12 +40,23 @@ const CURRENT_SLOT = 1;
 
 type MediaViewerNavigatorProps = {
   items: EventMedia[];
-  initialIndex: number;
+  initialMediaId: string;
   eventHref: string;
   eventSlug: string;
   allowLikes: boolean;
   allowMediaShare: boolean;
 };
+
+function indexForMediaId(items: EventMedia[], mediaId: string): number {
+  const trimmed = mediaId.trim();
+
+  if (!trimmed) {
+    return 0;
+  }
+
+  const index = items.findIndex((item) => item.id === trimmed);
+  return index >= 0 ? index : 0;
+}
 
 type DragState = {
   pointerId: number;
@@ -88,7 +100,7 @@ function applyRubberBand(
 
 export function MediaViewerNavigator({
   items,
-  initialIndex,
+  initialMediaId,
   eventHref,
   eventSlug,
   allowLikes,
@@ -105,16 +117,11 @@ export function MediaViewerNavigator({
   const mountLoggedRef = useRef(false);
   const viewportMeasuredRef = useRef(false);
 
-  const safeInitial = Math.min(
-    Math.max(0, initialIndex),
-    Math.max(0, items.length - 1),
-  );
+  const focalMediaIdRef = useRef(initialMediaId.trim());
 
-  const focalMediaIdRef = useRef(
-    items[safeInitial]?.id ?? items[0]?.id ?? "",
+  const [activeIndex, setActiveIndex] = useState(() =>
+    indexForMediaId(items, initialMediaId),
   );
-
-  const [activeIndex, setActiveIndex] = useState(safeInitial);
   const [viewportWidth, setViewportWidth] = useState(0);
 
   const total = items.length;
@@ -166,29 +173,22 @@ export function MediaViewerNavigator({
     mountLoggedRef.current = true;
     markMediaOpenPhase("viewer-mounted", {
       itemCount: items.length,
-      initialIndex: safeInitial,
+      initialMediaId: initialMediaId.trim(),
+      initialIndex: indexForMediaId(items, initialMediaId),
       isCarousel: items.length > 1,
     });
 
     if (items.length <= 1) {
       notifyMediaOpenCarouselReady({ mode: "single-item" });
     }
-  }, [items.length, safeInitial]);
+  }, [initialMediaId, items.length]);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
 
-  useEffect(() => {
-    const currentId = items[activeIndex]?.id;
-
-    if (currentId) {
-      focalMediaIdRef.current = currentId;
-    }
-  }, [activeIndex, items]);
-
-  useEffect(() => {
-    const focalId = focalMediaIdRef.current;
+  useLayoutEffect(() => {
+    const focalId = focalMediaIdRef.current.trim();
 
     if (!focalId) {
       return;
@@ -196,9 +196,19 @@ export function MediaViewerNavigator({
 
     const nextIndex = items.findIndex((item) => item.id === focalId);
 
-    if (nextIndex >= 0 && nextIndex !== activeIndexRef.current) {
-      setActiveIndex(nextIndex);
+    if (nextIndex >= 0) {
+      if (nextIndex !== activeIndexRef.current) {
+        setActiveIndex(nextIndex);
+      }
+      return;
     }
+
+    if (items.length === 0) {
+      return;
+    }
+
+    focalMediaIdRef.current = items[0].id;
+    setActiveIndex(0);
   }, [items]);
 
   useEffect(() => {
@@ -268,7 +278,16 @@ export function MediaViewerNavigator({
 
       window.setTimeout(() => {
         flushSync(() => {
-          setActiveIndex((index) => index + direction);
+          setActiveIndex((index) => {
+            const nextIndex = index + direction;
+            const nextMediaId = items[nextIndex]?.id;
+
+            if (nextMediaId) {
+              focalMediaIdRef.current = nextMediaId;
+            }
+
+            return nextIndex;
+          });
         });
 
         resetTrackToRest(false);
