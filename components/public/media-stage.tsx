@@ -133,6 +133,7 @@ export function MediaStage({
   const poster = posterUrl(media);
   const showPoster = Boolean(poster) && loadState !== "ready";
   const carouselShell = standalone && inCarousel;
+  const showInstantPoster = carouselShell || standalone;
 
   if (media.mediaType === "video") {
     const videoShellClass = standalone
@@ -153,7 +154,7 @@ export function MediaStage({
           ) : null}
           <div
             className={`absolute inset-0 z-[1] ${
-              carouselShell || showPoster ? "opacity-100" : "opacity-35"
+              showInstantPoster || showPoster ? "opacity-100" : "opacity-35"
             }`}
             aria-hidden
           >
@@ -201,7 +202,7 @@ export function MediaStage({
       {standalone && standaloneChrome ? (
         <StandaloneMediaChrome {...standaloneChrome} />
       ) : null}
-      {poster && showPoster && poster !== media.url ? (
+      {poster && (showPoster || showInstantPoster) && poster !== media.url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={poster}
@@ -217,7 +218,7 @@ export function MediaStage({
         decoding="async"
         loading={inCarousel ? "eager" : "lazy"}
         className={`relative z-10 w-full object-contain transition-opacity duration-300 ease-out ${imageMaxHeight} ${
-          inCarousel || loadState === "ready" ? "opacity-100" : "opacity-0"
+          showInstantPoster || loadState === "ready" ? "opacity-100" : "opacity-0"
         }`}
         onLoad={markReady}
         onError={onErr}

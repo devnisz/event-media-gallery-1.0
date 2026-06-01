@@ -110,6 +110,10 @@ export function MediaViewerNavigator({
     Math.max(0, items.length - 1),
   );
 
+  const focalMediaIdRef = useRef(
+    items[safeInitial]?.id ?? items[0]?.id ?? "",
+  );
+
   const [activeIndex, setActiveIndex] = useState(safeInitial);
   const [viewportWidth, setViewportWidth] = useState(0);
 
@@ -174,6 +178,28 @@ export function MediaViewerNavigator({
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    const currentId = items[activeIndex]?.id;
+
+    if (currentId) {
+      focalMediaIdRef.current = currentId;
+    }
+  }, [activeIndex, items]);
+
+  useEffect(() => {
+    const focalId = focalMediaIdRef.current;
+
+    if (!focalId) {
+      return;
+    }
+
+    const nextIndex = items.findIndex((item) => item.id === focalId);
+
+    if (nextIndex >= 0 && nextIndex !== activeIndexRef.current) {
+      setActiveIndex(nextIndex);
+    }
+  }, [items]);
 
   useEffect(() => {
     if (isDraggingRef.current || isAnimatingRef.current) {

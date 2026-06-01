@@ -6,6 +6,7 @@ import {
   galleryMediaElementId,
   setGalleryFocusMedia,
 } from "@/lib/gallery/gallery-scroll-restore";
+import { setGalleryOpenPreviewFromVideo } from "@/lib/gallery/gallery-open-preview";
 import { startMediaOpenTrace } from "@/lib/gallery/media-open-perf";
 import { routes } from "@/lib/routes";
 import { MediaBadge } from "./media-badge";
@@ -62,6 +63,7 @@ export function VideoCard({
         href={routes.video(video.id)}
         onClick={() => {
           startMediaOpenTrace(video.id);
+          setGalleryOpenPreviewFromVideo(video);
           setGalleryFocusMedia(video.eventSlug, video.id);
         }}
         className={`relative block rounded-[2rem] outline-none transition duration-300 focus-visible:ring-4 focus-visible:ring-amber-300/40 active:scale-[0.98] ${

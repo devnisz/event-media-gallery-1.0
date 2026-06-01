@@ -9,6 +9,7 @@ import {
   galleryMediaElementId,
   setGalleryFocusMedia,
 } from "@/lib/gallery/gallery-scroll-restore";
+import { setGalleryOpenPreviewFromVideo } from "@/lib/gallery/gallery-open-preview";
 import { startMediaOpenTrace } from "@/lib/gallery/media-open-perf";
 import { routes } from "@/lib/routes";
 import type { EventVideo } from "@/types/video";
@@ -61,6 +62,7 @@ export function SocialGalleryTile({
         href={routes.video(video.id)}
         onClick={() => {
           startMediaOpenTrace(video.id);
+          setGalleryOpenPreviewFromVideo(video);
           setGalleryFocusMedia(video.eventSlug, video.id);
         }}
         className="relative block h-full w-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-300/50"
