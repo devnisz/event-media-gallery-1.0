@@ -12,6 +12,8 @@ import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { EventMediaManager } from "@/components/dashboard/event-media-manager";
 import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
 import { EventQrCard } from "@/components/dashboard/event-qr-card";
+import { EventEngagementDashboard } from "@/components/dashboard/engagement/event-engagement-dashboard";
+import { buildEventEngagementMetrics } from "@/lib/dashboard/engagement-metrics";
 import { getDashboardEventDetail } from "@/lib/dashboard/queries";
 import { routes } from "@/lib/routes";
 import { requireSessionUser } from "@/lib/auth/session";
@@ -44,6 +46,7 @@ export default async function DashboardEventPage({
   const cabineConfig = resolveCabineVirtualConfig(detail.event);
   const liveMomentsConfig = resolveLiveMomentsConfig(detail.event);
   const gallerySettings = getPublicGalleryEventSettings(detail.event);
+  const engagementMetrics = buildEventEngagementMetrics(detail.media);
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 pb-16">
@@ -118,6 +121,8 @@ export default async function DashboardEventPage({
           </div>
         </div>
       </section>
+
+      <EventEngagementDashboard metrics={engagementMetrics} />
 
       <EventGallerySettingsForm
         eventId={detail.event.id}
