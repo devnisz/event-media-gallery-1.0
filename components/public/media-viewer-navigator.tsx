@@ -16,6 +16,10 @@ import {
   buildGalleryReturnHref,
   setGalleryFocusMedia,
 } from "@/lib/gallery/gallery-scroll-restore";
+import {
+  markMediaOpenPhase,
+  notifyMediaOpenCarouselReady,
+} from "@/lib/gallery/media-open-perf";
 import { preloadEventMedia } from "@/lib/gallery/preload-media";
 import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName";
 import { routes } from "@/lib/routes";
@@ -98,6 +102,8 @@ export function MediaViewerNavigator({
   const isDraggingRef = useRef(false);
   const dragRafRef = useRef<number | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const mountLoggedRef = useRef(false);
+  const viewportMeasuredRef = useRef(false);
 
   const safeInitial = Math.min(
     Math.max(0, initialIndex),
@@ -149,6 +155,23 @@ export function MediaViewerNavigator({
   );
 
   useEffect(() => {
+    if (mountLoggedRef.current) {
+      return;
+    }
+
+    mountLoggedRef.current = true;
+    markMediaOpenPhase("viewer-mounted", {
+      itemCount: items.length,
+      initialIndex: safeInitial,
+      isCarousel: items.length > 1,
+    });
+
+    if (items.length <= 1) {
+      notifyMediaOpenCarouselReady({ mode: "single-item" });
+    }
+  }, [items.length, safeInitial]);
+
+  useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
 
@@ -158,6 +181,10 @@ export function MediaViewerNavigator({
     }
 
     resetTrackToRest(false);
+
+    if (viewportWidth > 0 && viewportMeasuredRef.current) {
+      notifyMediaOpenCarouselReady({ viewportWidth });
+    }
   }, [activeIndex, resetTrackToRest, viewportWidth]);
 
   useEffect(() => {
@@ -168,7 +195,14 @@ export function MediaViewerNavigator({
     }
 
     const measure = () => {
-      setViewportWidth(node.clientWidth);
+      const width = node.clientWidth;
+
+      if (width > 0 && !viewportMeasuredRef.current) {
+        viewportMeasuredRef.current = true;
+        markMediaOpenPhase("carousel-viewport-measured", { width });
+      }
+
+      setViewportWidth(width);
     };
 
     measure();
@@ -252,9 +286,9 @@ export function MediaViewerNavigator({
       return;
     }
 
-    preloadEventMedia(items[activeIndex - 1]);
-    preloadEventMedia(current);
-    preloadEventMedia(items[activeIndex + 1]);
+    preloadEventMedia(items[activeIndex - 1], "prev");
+    preloadEventMedia(current, "current");
+    preloadEventMedia(items[activeIndex + 1], "next");
     setGalleryFocusMedia(eventSlug, current.id);
 
     const nextUrl = routes.video(current.id);
@@ -476,6 +510,7 @@ export function MediaViewerNavigator({
           downloadFileName={suggestedDownloadFileName(current)}
           allowLikes={allowLikes}
           allowMediaShare={allowMediaShare}
+          perfSlot="standalone"
         />
       </div>
     );
@@ -522,6 +557,7 @@ export function MediaViewerNavigator({
             media={prevMedia}
             width={slideWidth}
             isActive={false}
+            perfSlot="adjacent"
             eventHref={galleryReturnHref}
             eventSlug={eventSlug}
             onBackToGallery={returnToGallery}
@@ -533,6 +569,7 @@ export function MediaViewerNavigator({
             media={current}
             width={slideWidth}
             isActive
+            perfSlot="current"
             eventHref={galleryReturnHref}
             eventSlug={eventSlug}
             onBackToGallery={returnToGallery}
@@ -544,6 +581,7 @@ export function MediaViewerNavigator({
             media={nextMedia}
             width={slideWidth}
             isActive={false}
+            perfSlot="adjacent"
             eventHref={galleryReturnHref}
             eventSlug={eventSlug}
             onBackToGallery={returnToGallery}
@@ -576,6 +614,7 @@ type CarouselSlotProps = {
   media: EventMedia | null;
   width: number | string;
   isActive: boolean;
+  perfSlot: "current" | "adjacent";
   eventHref: string;
   eventSlug: string;
   onBackToGallery: () => void;
@@ -587,6 +626,7 @@ function CarouselSlot({
   media,
   width,
   isActive,
+  perfSlot,
   eventHref,
   eventSlug,
   onBackToGallery,
@@ -613,6 +653,7 @@ function CarouselSlot({
           hideChrome
           inCarousel
           isActiveSlide={isActive}
+          perfSlot={perfSlot}
         />
       ) : null}
     </div>

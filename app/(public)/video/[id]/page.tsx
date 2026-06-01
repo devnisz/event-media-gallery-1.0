@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { AmbientBackground } from "@/components/public/ambient-background";
+import { MediaOpenPerfAnchor } from "@/components/public/media-open-perf-anchor";
 import { MediaViewerNavigator } from "@/components/public/media-viewer-navigator";
+import {
+  createMediaOpenServerTimer,
+  measureMediaOpenServer,
+} from "@/lib/gallery/media-open-perf-server";
 import { getPublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
 import { routes } from "@/lib/routes";
 import { safeDecodeURIComponentSegment } from "@/lib/utils/safe-decode-uri";
@@ -34,28 +39,42 @@ export async function generateMetadata({ params }: VideoPageProps) {
 }
 
 export default async function StandaloneVideoPage({ params }: VideoPageProps) {
-  await connection();
+  const pageTimer = createMediaOpenServerTimer();
+
+  await measureMediaOpenServer("connection()", () => connection());
 
   const { id } = await params;
   const decodedId = safeDecodeURIComponentSegment(id);
-  const video = await getVideoById(decodedId);
+
+  const video = await measureMediaOpenServer(
+    "getVideoById",
+    () => getVideoById(decodedId),
+    { id: decodedId },
+  );
 
   if (!video) {
     notFound();
   }
 
-  const event = await getEventBySlug(video.eventSlug);
+  const event = await measureMediaOpenServer(
+    "getEventBySlug",
+    () => getEventBySlug(video.eventSlug),
+    { slug: video.eventSlug },
+  );
 
   if (!event) {
     notFound();
   }
 
   const gallerySettings = getPublicGalleryEventSettings(event);
-  const eventVideos = await getEventVideosForEventSlug(
-    video.eventSlug,
-    event.id,
-    gallerySettings,
+
+  const eventVideos = await measureMediaOpenServer(
+    "getEventVideosForEventSlug",
+    () =>
+      getEventVideosForEventSlug(video.eventSlug, event.id, gallerySettings),
   );
+
+  pageTimer.finish({ mediaId: video.id, count: eventVideos.length });
 
   const initialIndex = eventVideos.findIndex((item) => item.id === video.id);
   const navigatorItems = initialIndex >= 0 ? eventVideos : [video];
@@ -66,6 +85,7 @@ export default async function StandaloneVideoPage({ params }: VideoPageProps) {
 
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden px-2 py-2 text-white sm:px-3 sm:py-3">
+      <MediaOpenPerfAnchor />
       <AmbientBackground />
 
       <div className="animate-rise flex min-h-0 w-full flex-1 flex-col">

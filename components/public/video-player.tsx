@@ -1,5 +1,6 @@
 "use client";
 
+import type { MediaPerfSlot } from "@/components/public/shared-media-standalone";
 import type { EventMedia } from "@/types/media";
 import type { StandaloneMediaChromeProps } from "./standalone-media-chrome";
 import { MediaStage } from "./media-stage";
@@ -9,6 +10,7 @@ type VideoPlayerProps = {
   autoPlay?: boolean;
   standalone?: boolean;
   inCarousel?: boolean;
+  perfSlot?: MediaPerfSlot;
   standaloneChrome?: StandaloneMediaChromeProps;
 };
 
@@ -18,6 +20,7 @@ export function VideoPlayer({
   autoPlay = false,
   standalone = false,
   inCarousel = false,
+  perfSlot,
   standaloneChrome,
 }: VideoPlayerProps) {
   return (
@@ -26,6 +29,7 @@ export function VideoPlayer({
       autoPlay={autoPlay}
       standalone={standalone}
       inCarousel={inCarousel}
+      perfSlot={perfSlot}
       standaloneChrome={standaloneChrome}
     />
   );

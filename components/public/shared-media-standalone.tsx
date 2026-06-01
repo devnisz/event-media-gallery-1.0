@@ -4,6 +4,8 @@ import { VideoPlayer } from "@/components/public/video-player";
 import { routes } from "@/lib/routes";
 import type { EventMedia } from "@/types/media";
 
+export type MediaPerfSlot = "current" | "adjacent" | "standalone";
+
 type SharedMediaStandaloneProps = {
   media: EventMedia;
   eventHref: string;
@@ -21,6 +23,8 @@ type SharedMediaStandaloneProps = {
   isActiveSlide?: boolean;
   /** Carrossel lateral: poster contínuo e preload agressivo. */
   inCarousel?: boolean;
+  /** Instrumentação temporária de abertura. */
+  perfSlot?: MediaPerfSlot;
 };
 
 export function SharedMediaStandalone({
@@ -37,6 +41,7 @@ export function SharedMediaStandalone({
   hideChrome = false,
   isActiveSlide = true,
   inCarousel = false,
+  perfSlot,
 }: SharedMediaStandaloneProps) {
   return (
     <div className="flex h-full w-full flex-1 items-center justify-center">
@@ -45,6 +50,7 @@ export function SharedMediaStandalone({
         autoPlay={isActiveSlide}
         standalone
         inCarousel={inCarousel}
+        perfSlot={perfSlot}
         standaloneChrome={
           hideChrome
             ? undefined

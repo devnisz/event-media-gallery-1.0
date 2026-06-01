@@ -6,6 +6,7 @@ import {
   galleryMediaElementId,
   setGalleryFocusMedia,
 } from "@/lib/gallery/gallery-scroll-restore";
+import { startMediaOpenTrace } from "@/lib/gallery/media-open-perf";
 import { routes } from "@/lib/routes";
 import { MediaBadge } from "./media-badge";
 import { MediaLikeButton } from "./media-like-button";
@@ -59,7 +60,10 @@ export function VideoCard({
     >
       <Link
         href={routes.video(video.id)}
-        onClick={() => setGalleryFocusMedia(video.eventSlug, video.id)}
+        onClick={() => {
+          startMediaOpenTrace(video.id);
+          setGalleryFocusMedia(video.eventSlug, video.id);
+        }}
         className={`relative block rounded-[2rem] outline-none transition duration-300 focus-visible:ring-4 focus-visible:ring-amber-300/40 active:scale-[0.98] ${
           c ? "max-md:rounded-lg" : ""
         }`}

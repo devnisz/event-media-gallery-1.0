@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MediaPerfSlot } from "@/components/public/shared-media-standalone";
 import { readyMediaCache } from "@/lib/gallery/preload-media";
+import {
+  markMediaOpenPhase,
+  notifyMediaOpenCurrentMediaReady,
+} from "@/lib/gallery/media-open-perf";
 import type { EventMedia } from "@/types/media";
 import {
   StandaloneMediaChrome,
@@ -16,6 +21,8 @@ type MediaStageProps = {
   standalone?: boolean;
   /** Carrossel lateral: poster persistente e preload agressivo. */
   inCarousel?: boolean;
+  /** Instrumentação temporária de abertura. */
+  perfSlot?: MediaPerfSlot;
   standaloneChrome?: StandaloneMediaChromeProps;
 };
 
@@ -56,13 +63,56 @@ export function MediaStage({
   autoPlay = false,
   standalone = false,
   inCarousel = false,
+  perfSlot,
   standaloneChrome,
 }: MediaStageProps) {
+  const renderedLoggedRef = useRef(false);
   const [loadStateById, setLoadStateById] = useState<Record<string, LoadState>>(
     {},
   );
 
   const loadState = resolveLoadState(media, loadStateById);
+  const isPrimaryPerfTarget =
+    perfSlot === "current" || perfSlot === "standalone";
+
+  const notifyReady = useCallback(
+    (source: string) => {
+      if (!isPrimaryPerfTarget) {
+        return;
+      }
+
+      notifyMediaOpenCurrentMediaReady({
+        mediaId: media.id,
+        mediaType: media.mediaType,
+        source,
+      });
+    },
+    [isPrimaryPerfTarget, media.id, media.mediaType],
+  );
+
+  useEffect(() => {
+    if (!isPrimaryPerfTarget || renderedLoggedRef.current) {
+      return;
+    }
+
+    renderedLoggedRef.current = true;
+    markMediaOpenPhase("current-media-rendered", {
+      mediaId: media.id,
+      mediaType: media.mediaType,
+      cached: readyMediaCache.has(media.id),
+      loadState,
+    });
+
+    if (loadState === "ready") {
+      notifyReady("cache-on-render");
+    }
+  }, [
+    isPrimaryPerfTarget,
+    loadState,
+    media.id,
+    media.mediaType,
+    notifyReady,
+  ]);
 
   const markReady = useCallback(() => {
     readyMediaCache.add(media.id);
@@ -73,7 +123,8 @@ export function MediaStage({
 
       return { ...current, [media.id]: "ready" };
     });
-  }, [media.id]);
+    notifyReady("media-decode");
+  }, [media.id, notifyReady]);
 
   const onErr = useCallback(() => {
     setLoadStateById((current) => ({ ...current, [media.id]: "error" }));
