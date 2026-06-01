@@ -207,30 +207,49 @@ function buildCabineBreakdown(published: GalleryMediaRecord[]): CabineBreakdownI
   }));
 }
 
-function sumMediaViews(published: GalleryMediaRecord[]): number {
-  return published.reduce((sum, item) => sum + Math.max(0, item.viewCount ?? 0), 0);
+function sumMediaMetric(
+  published: GalleryMediaRecord[],
+  key: "viewCount" | "downloadCount" | "shareCount",
+): number {
+  return published.reduce(
+    (sum, item) => sum + Math.max(0, item[key] ?? 0),
+    0,
+  );
+}
+
+function resolveEventTotal(
+  eventValue: number | undefined,
+  mediaSum: number,
+): number {
+  return Math.max(Math.max(0, eventValue ?? 0), mediaSum);
 }
 
 export function buildEventEngagementMetrics(
   input: BuildEventEngagementMetricsInput | GalleryMediaRecord[],
 ): EventEngagementMetrics {
   const media = Array.isArray(input) ? input : input.media;
+  const published = media.filter(isPublishedMedia);
+
   const eventViewCount = Array.isArray(input)
     ? 0
     : Math.max(0, input.eventViewCount ?? 0);
   const eventDownloadCount = Array.isArray(input)
     ? 0
-    : Math.max(0, input.eventDownloadCount ?? 0);
+    : resolveEventTotal(
+        input.eventDownloadCount,
+        sumMediaMetric(published, "downloadCount"),
+      );
   const eventShareCount = Array.isArray(input)
     ? 0
-    : Math.max(0, input.eventShareCount ?? 0);
-
-  const published = media.filter(isPublishedMedia);
+    : resolveEventTotal(
+        input.eventShareCount,
+        sumMediaMetric(published, "shareCount"),
+      );
   const totalLikes = published.reduce(
     (sum, item) => sum + Math.max(0, item.likesCount ?? 0),
     0,
   );
-  const totalMediaViews = sumMediaViews(published);
+  const totalMediaViews = sumMediaMetric(published, "viewCount");
   const publishedCount = published.length;
 
   const topMedia = sortTopMedia(published.map(toTopMediaItem), "likes");

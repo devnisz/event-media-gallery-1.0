@@ -669,8 +669,26 @@ export async function updateGalleryMediaState(
   const next = [...galleryMedia];
   next[index] = nextItem;
 
-  await replaceGalleryMediaRecordsOnDisk(sortGalleryMediaRecords(next));
-  await reconcileEventCountsFromMediaList(next);
+  const sorted = sortGalleryMediaRecords(next);
+
+  if (isSupabaseConfigured() && createServiceRoleSupabase()) {
+    try {
+      await upsertSingleGalleryMediaRecord(nextItem);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const missingEngagementColumn =
+        /view_count|download_count|share_count|PGRST204|does not exist/i.test(
+          message,
+        );
+
+      if (!missingEngagementColumn) {
+        throw err;
+      }
+    }
+  }
+
+  await replaceGalleryMediaRecordsOnDisk(sorted);
+  await reconcileEventCountsFromMediaList(sorted);
 
   return nextItem;
 }

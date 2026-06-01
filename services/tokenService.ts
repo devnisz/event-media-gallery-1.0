@@ -13,6 +13,27 @@ import { generateUniqueUploadToken } from "@/utils/generateUploadToken";
 
 export type { StoredEventLoose } from "@/types/event";
 
+function engagementFieldsFromLoose(
+  e: StoredEventLoose,
+): Pick<GalleryEventRecord, "viewCount" | "downloadCount" | "shareCount"> {
+  const fields: Pick<GalleryEventRecord, "viewCount" | "downloadCount" | "shareCount"> =
+    {};
+
+  if (typeof e.viewCount === "number" && Number.isFinite(e.viewCount)) {
+    fields.viewCount = Math.max(0, Math.trunc(e.viewCount));
+  }
+
+  if (typeof e.downloadCount === "number" && Number.isFinite(e.downloadCount)) {
+    fields.downloadCount = Math.max(0, Math.trunc(e.downloadCount));
+  }
+
+  if (typeof e.shareCount === "number" && Number.isFinite(e.shareCount)) {
+    fields.shareCount = Math.max(0, Math.trunc(e.shareCount));
+  }
+
+  return fields;
+}
+
 export function hydrateAssignTokens(
   events: StoredEventLoose[],
 ): { next: GalleryEventRecord[]; changed: boolean } {
@@ -66,6 +87,7 @@ export function hydrateAssignTokens(
         galleryLayout: normalizeGalleryLayout(e.galleryLayout),
         ...gallerySettings,
         ...cabineFields,
+        ...engagementFieldsFromLoose(e),
         ...(e.ownerUserId?.trim()
           ? { ownerUserId: e.ownerUserId.trim() }
           : {}),
@@ -89,6 +111,7 @@ export function hydrateAssignTokens(
       galleryLayout: normalizeGalleryLayout(e.galleryLayout),
       ...gallerySettings,
       ...cabineFields,
+      ...engagementFieldsFromLoose(e),
       ...(e.ownerUserId?.trim()
         ? { ownerUserId: e.ownerUserId.trim() }
         : {}),

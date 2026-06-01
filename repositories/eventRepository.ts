@@ -242,9 +242,15 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     live_moments_enabled: e.liveMomentsEnabled === true,
     allow_likes: e.allowLikes === true,
     allow_media_share: e.allowMediaShare !== false,
-    view_count: Math.max(0, Math.trunc(e.viewCount ?? 0)),
-    download_count: Math.max(0, Math.trunc(e.downloadCount ?? 0)),
-    share_count: Math.max(0, Math.trunc(e.shareCount ?? 0)),
+    ...(typeof e.viewCount === "number"
+      ? { view_count: Math.max(0, Math.trunc(e.viewCount)) }
+      : {}),
+    ...(typeof e.downloadCount === "number"
+      ? { download_count: Math.max(0, Math.trunc(e.downloadCount)) }
+      : {}),
+    ...(typeof e.shareCount === "number"
+      ? { share_count: Math.max(0, Math.trunc(e.shareCount)) }
+      : {}),
   };
 }
 

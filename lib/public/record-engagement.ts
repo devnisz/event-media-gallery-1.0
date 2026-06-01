@@ -1,9 +1,10 @@
-import { normalizeVisitorKey } from "@/lib/likes/visitor";
+import { isEngagementSchemaError } from "@/lib/analytics/supabase-errors";
 import {
   readAnalyticsSessions,
   upsertViewSession,
   writeAnalyticsSessions,
 } from "@/lib/analytics/storage";
+import { normalizeVisitorKey } from "@/lib/likes/visitor";
 import {
   incrementMediaDownloadOnSupabase,
   incrementMediaShareOnSupabase,
@@ -56,10 +57,12 @@ export async function recordEventGalleryView(
         eventId: event.id,
       };
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Não foi possível registrar visualização.";
+      if (!isEngagementSchemaError(err)) {
+        const message =
+          err instanceof Error ? err.message : "Não foi possível registrar visualização.";
 
-      return { ok: false, status: 500, error: message };
+        return { ok: false, status: 500, error: message };
+      }
     }
   }
 
@@ -117,10 +120,12 @@ export async function recordMediaView(
         eventSlug: media.eventSlug,
       };
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Não foi possível registrar visualização.";
+      if (!isEngagementSchemaError(err)) {
+        const message =
+          err instanceof Error ? err.message : "Não foi possível registrar visualização.";
 
-      return { ok: false, status: 500, error: message };
+        return { ok: false, status: 500, error: message };
+      }
     }
   }
 
@@ -177,10 +182,12 @@ export async function recordMediaDownload(
         eventSlug: media.eventSlug,
       };
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Não foi possível registrar download.";
+      if (!isEngagementSchemaError(err)) {
+        const message =
+          err instanceof Error ? err.message : "Não foi possível registrar download.";
 
-      return { ok: false, status: 500, error: message };
+        return { ok: false, status: 500, error: message };
+      }
     }
   }
 
@@ -222,12 +229,14 @@ export async function recordMediaShare(
         eventSlug: media.eventSlug,
       };
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível registrar compartilhamento.";
+      if (!isEngagementSchemaError(err)) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível registrar compartilhamento.";
 
-      return { ok: false, status: 500, error: message };
+        return { ok: false, status: 500, error: message };
+      }
     }
   }
 
