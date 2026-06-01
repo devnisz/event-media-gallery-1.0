@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { flushSync } from "react-dom";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -21,13 +21,17 @@ import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName
 import { routes } from "@/lib/routes";
 import type { EventMedia } from "@/types/media";
 
-const SNAP_MS = 320;
-const RUBBER_BAND = 0.32;
+const SNAP_MS = 300;
+const SNAP_EASING = "cubic-bezier(0.25, 0.1, 0.25, 1)";
+const SNAP_TRANSITION = `transform ${SNAP_MS}ms ${SNAP_EASING}`;
 const COMMIT_RATIO = 0.22;
 const MIN_COMMIT_PX = 56;
-const HORIZONTAL_LOCK_RATIO = 0.85;
+const RUBBER_BAND = 0.35;
 const AXIS_LOCK_PX = 8;
-const SNAP_TRANSITION = `transform ${SNAP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
+const HORIZONTAL_LOCK_RATIO = 0.85;
+
+/** Índice fixo da mídia atual no trilho [anterior, atual, próxima]. */
+const CURRENT_SLOT = 1;
 
 type MediaViewerNavigatorProps = {
   items: EventMedia[];
@@ -38,25 +42,13 @@ type MediaViewerNavigatorProps = {
   allowMediaShare: boolean;
 };
 
-function buildSlides(items: EventMedia[], index: number): EventMedia[] {
-  const slides: EventMedia[] = [];
-
-  if (index > 0) {
-    slides.push(items[index - 1]);
-  }
-
-  slides.push(items[index]);
-
-  if (index < items.length - 1) {
-    slides.push(items[index + 1]);
-  }
-
-  return slides;
-}
-
-function centerSlideIndex(activeIndex: number): number {
-  return activeIndex > 0 ? 1 : 0;
-}
+type DragState = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  axis: "x" | "y" | null;
+  captured: boolean;
+};
 
 function isSwipeBlockedTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) {
@@ -68,6 +60,26 @@ function isSwipeBlockedTarget(target: EventTarget | null): boolean {
       "button, a, input, textarea, select, label, video, [role='button'], [data-no-swipe]",
     ),
   );
+}
+
+function restTranslate(viewportWidth: number): number {
+  return -CURRENT_SLOT * viewportWidth;
+}
+
+function applyRubberBand(
+  delta: number,
+  canGoPrev: boolean,
+  canGoNext: boolean,
+): number {
+  if (delta > 0 && !canGoPrev) {
+    return delta * RUBBER_BAND;
+  }
+
+  if (delta < 0 && !canGoNext) {
+    return delta * RUBBER_BAND;
+  }
+
+  return delta;
 }
 
 export function MediaViewerNavigator({
@@ -82,18 +94,10 @@ export function MediaViewerNavigator({
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const activeIndexRef = useRef(0);
-  const isCommittingRef = useRef(false);
-  const isDraggingHorizontallyRef = useRef(false);
-  const dragOffsetRef = useRef(0);
-  const baseTranslateRef = useRef(0);
+  const isAnimatingRef = useRef(false);
+  const isDraggingRef = useRef(false);
   const dragRafRef = useRef<number | null>(null);
-  const dragRef = useRef({
-    pointerId: -1,
-    startX: 0,
-    startY: 0,
-    axis: null as "x" | "y" | null,
-    captured: false,
-  });
+  const dragRef = useRef<DragState | null>(null);
 
   const safeInitial = Math.min(
     Math.max(0, initialIndex),
@@ -102,18 +106,14 @@ export function MediaViewerNavigator({
 
   const [activeIndex, setActiveIndex] = useState(safeInitial);
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [transitionEnabled, setTransitionEnabled] = useState(true);
 
   const total = items.length;
   const current = items[activeIndex];
+  const prevMedia = activeIndex > 0 ? items[activeIndex - 1] : null;
+  const nextMedia =
+    activeIndex < total - 1 ? items[activeIndex + 1] : null;
   const canGoPrev = activeIndex > 0;
   const canGoNext = activeIndex < total - 1;
-
-  const slides = useMemo(
-    () => buildSlides(items, activeIndex),
-    [activeIndex, items],
-  );
-  const baseTranslate = -centerSlideIndex(activeIndex) * viewportWidth;
 
   const galleryReturnHref = buildGalleryReturnHref(
     eventHref,
@@ -121,39 +121,44 @@ export function MediaViewerNavigator({
     current?.id ?? "",
   );
 
-  const applyTrackTransform = useCallback((transition: string) => {
-    const track = trackRef.current;
+  const setTrackPosition = useCallback(
+    (translateX: number, animate: boolean) => {
+      const track = trackRef.current;
 
-    if (!track) {
-      return;
-    }
+      if (!track) {
+        return;
+      }
 
-    track.style.transition = transition;
-    track.style.transform = `translate3d(${baseTranslateRef.current + dragOffsetRef.current}px, 0, 0)`;
-  }, []);
+      track.style.transition = animate ? SNAP_TRANSITION : "none";
+      track.style.transform = `translate3d(${translateX}px, 0, 0)`;
+    },
+    [],
+  );
 
-  const scheduleDragTransform = useCallback(() => {
-    if (dragRafRef.current !== null) {
-      return;
-    }
+  const resetTrackToRest = useCallback(
+    (animate = false) => {
+      const width = viewportRef.current?.clientWidth ?? viewportWidth;
 
-    dragRafRef.current = window.requestAnimationFrame(() => {
-      dragRafRef.current = null;
-      applyTrackTransform("none");
-    });
-  }, [applyTrackTransform]);
+      if (width <= 0) {
+        return;
+      }
+
+      setTrackPosition(restTranslate(width), animate);
+    },
+    [setTrackPosition, viewportWidth],
+  );
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
 
   useEffect(() => {
-    baseTranslateRef.current = baseTranslate;
-
-    if (!isDraggingHorizontallyRef.current && !isCommittingRef.current) {
-      applyTrackTransform(transitionEnabled ? SNAP_TRANSITION : "none");
+    if (isDraggingRef.current || isAnimatingRef.current) {
+      return;
     }
-  }, [applyTrackTransform, baseTranslate, transitionEnabled]);
+
+    resetTrackToRest(false);
+  }, [activeIndex, resetTrackToRest, viewportWidth]);
 
   useEffect(() => {
     const node = viewportRef.current;
@@ -182,45 +187,43 @@ export function MediaViewerNavigator({
     [],
   );
 
-  const applyRubberBand = useCallback(
-    (delta: number) => {
-      if (delta > 0 && !canGoPrev) {
-        return delta * RUBBER_BAND;
-      }
-
-      if (delta < 0 && !canGoNext) {
-        return delta * RUBBER_BAND;
-      }
-
-      return delta;
-    },
-    [canGoNext, canGoPrev],
-  );
-
-  const finishIndexChange = useCallback(
-    (nextIndex: number) => {
-      dragOffsetRef.current = 0;
-      setTransitionEnabled(false);
-      setActiveIndex(nextIndex);
-      isCommittingRef.current = false;
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTransitionEnabled(true);
-        });
-      });
-    },
-    [],
-  );
-
-  const commitTo = useCallback(
+  const completeTransition = useCallback(
     (direction: 1 | -1) => {
       const width = viewportRef.current?.clientWidth ?? viewportWidth;
 
-      if (!width || isCommittingRef.current) {
+      if (width <= 0 || isAnimatingRef.current) {
         return;
       }
 
+      isAnimatingRef.current = true;
+      isDraggingRef.current = false;
+      dragRef.current = null;
+
+      const target =
+        direction === 1
+          ? restTranslate(width) - width
+          : restTranslate(width) + width;
+
+      setTrackPosition(target, true);
+
+      window.setTimeout(() => {
+        flushSync(() => {
+          setActiveIndex((index) => index + direction);
+        });
+
+        resetTrackToRest(false);
+        isAnimatingRef.current = false;
+      }, SNAP_MS);
+    },
+    [resetTrackToRest, setTrackPosition, viewportWidth],
+  );
+
+  const snapBack = useCallback(() => {
+    resetTrackToRest(true);
+  }, [resetTrackToRest]);
+
+  const commitTo = useCallback(
+    (direction: 1 | -1) => {
       if (direction === 1 && !canGoNext) {
         return;
       }
@@ -229,22 +232,10 @@ export function MediaViewerNavigator({
         return;
       }
 
-      isCommittingRef.current = true;
-      isDraggingHorizontallyRef.current = false;
-      dragOffsetRef.current = direction === 1 ? -width : width;
-      applyTrackTransform(SNAP_TRANSITION);
-
-      window.setTimeout(() => {
-        finishIndexChange(activeIndexRef.current + direction);
-      }, SNAP_MS);
+      completeTransition(direction);
     },
-    [applyTrackTransform, canGoNext, canGoPrev, finishIndexChange, viewportWidth],
+    [canGoNext, canGoPrev, completeTransition],
   );
-
-  const snapBack = useCallback(() => {
-    dragOffsetRef.current = 0;
-    applyTrackTransform(SNAP_TRANSITION);
-  }, [applyTrackTransform]);
 
   const returnToGallery = useCallback(() => {
     const mediaId = items[activeIndexRef.current]?.id;
@@ -253,8 +244,7 @@ export function MediaViewerNavigator({
       setGalleryFocusMedia(eventSlug, mediaId);
     }
 
-    const href = buildGalleryReturnHref(eventHref, eventSlug, mediaId ?? "");
-    router.push(href);
+    router.push(buildGalleryReturnHref(eventHref, eventSlug, mediaId ?? ""));
   }, [eventHref, eventSlug, items, router]);
 
   useEffect(() => {
@@ -285,7 +275,7 @@ export function MediaViewerNavigator({
         return;
       }
 
-      if (isDraggingHorizontallyRef.current || isCommittingRef.current) {
+      if (isDraggingRef.current || isAnimatingRef.current) {
         return;
       }
 
@@ -305,14 +295,30 @@ export function MediaViewerNavigator({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [canGoNext, canGoPrev, commitTo, returnToGallery]);
 
+  const scheduleDragPosition = useCallback(
+    (translateX: number) => {
+      if (dragRafRef.current !== null) {
+        return;
+      }
+
+      dragRafRef.current = window.requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        setTrackPosition(translateX, false);
+      });
+    },
+    [setTrackPosition],
+  );
+
   const releasePointerCapture = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+
       if (
-        dragRef.current.captured &&
+        drag?.captured &&
         event.currentTarget.hasPointerCapture(event.pointerId)
       ) {
         event.currentTarget.releasePointerCapture(event.pointerId);
-        dragRef.current.captured = false;
+        drag.captured = false;
       }
     },
     [],
@@ -320,7 +326,7 @@ export function MediaViewerNavigator({
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (total <= 1 || isCommittingRef.current) {
+      if (total <= 1 || isAnimatingRef.current) {
         return;
       }
 
@@ -341,48 +347,50 @@ export function MediaViewerNavigator({
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (
-        dragRef.current.pointerId !== event.pointerId ||
-        isCommittingRef.current
-      ) {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId || isAnimatingRef.current) {
         return;
       }
 
-      const deltaX = event.clientX - dragRef.current.startX;
-      const deltaY = event.clientY - dragRef.current.startY;
+      const width = viewportRef.current?.clientWidth ?? viewportWidth;
+      const deltaX = event.clientX - drag.startX;
+      const deltaY = event.clientY - drag.startY;
 
-      if (dragRef.current.axis === null) {
+      if (drag.axis === null) {
         if (Math.abs(deltaX) < AXIS_LOCK_PX && Math.abs(deltaY) < AXIS_LOCK_PX) {
           return;
         }
 
-        dragRef.current.axis =
+        drag.axis =
           Math.abs(deltaX) >= Math.abs(deltaY) * HORIZONTAL_LOCK_RATIO
             ? "x"
             : "y";
 
-        if (dragRef.current.axis === "x" && !dragRef.current.captured) {
+        if (drag.axis === "x" && !drag.captured) {
           event.currentTarget.setPointerCapture(event.pointerId);
-          dragRef.current.captured = true;
-          isDraggingHorizontallyRef.current = true;
-          setTransitionEnabled(false);
+          drag.captured = true;
+          isDraggingRef.current = true;
         }
       }
 
-      if (dragRef.current.axis === "y") {
+      if (drag.axis === "y" || width <= 0) {
         return;
       }
 
       event.preventDefault();
-      dragOffsetRef.current = applyRubberBand(deltaX);
-      scheduleDragTransform();
+
+      const offset = applyRubberBand(deltaX, canGoPrev, canGoNext);
+      scheduleDragPosition(restTranslate(width) + offset);
     },
-    [applyRubberBand, scheduleDragTransform],
+    [canGoNext, canGoPrev, scheduleDragPosition, viewportWidth],
   );
 
   const endPointerDrag = useCallback(
     (clientX: number, event?: ReactPointerEvent<HTMLDivElement>) => {
-      if (isCommittingRef.current) {
+      const drag = dragRef.current;
+
+      if (!drag || isAnimatingRef.current) {
         return;
       }
 
@@ -390,39 +398,36 @@ export function MediaViewerNavigator({
         releasePointerCapture(event);
       }
 
-      const axis = dragRef.current.axis;
       const width = viewportRef.current?.clientWidth ?? viewportWidth;
-      const deltaX = clientX - dragRef.current.startX;
+      const deltaX = clientX - drag.startX;
+      const axis = drag.axis;
 
-      dragRef.current.pointerId = -1;
-      dragRef.current.axis = null;
-      isDraggingHorizontallyRef.current = false;
+      dragRef.current = null;
+      isDraggingRef.current = false;
 
-      if (axis === "y" || axis === null || width <= 0) {
+      if (axis !== "x" || width <= 0) {
         snapBack();
-        setTransitionEnabled(true);
         return;
       }
 
       const threshold = Math.max(MIN_COMMIT_PX, width * COMMIT_RATIO);
 
       if (deltaX <= -threshold && canGoNext) {
-        commitTo(1);
+        completeTransition(1);
         return;
       }
 
       if (deltaX >= threshold && canGoPrev) {
-        commitTo(-1);
+        completeTransition(-1);
         return;
       }
 
       snapBack();
-      setTransitionEnabled(true);
     },
     [
       canGoNext,
       canGoPrev,
-      commitTo,
+      completeTransition,
       releasePointerCapture,
       snapBack,
       viewportWidth,
@@ -431,7 +436,9 @@ export function MediaViewerNavigator({
 
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (dragRef.current.pointerId !== event.pointerId) {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId) {
         return;
       }
 
@@ -442,7 +449,9 @@ export function MediaViewerNavigator({
 
   const onPointerCancel = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (dragRef.current.pointerId !== event.pointerId) {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId) {
         return;
       }
 
@@ -458,20 +467,20 @@ export function MediaViewerNavigator({
   if (total <= 1) {
     return (
       <div className="relative flex min-h-0 w-full flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col">
-          <SharedMediaStandalone
-            media={current}
-            eventHref={galleryReturnHref}
-            eventSlug={eventSlug}
-            onBackToGallery={returnToGallery}
-            downloadFileName={suggestedDownloadFileName(current)}
-            allowLikes={allowLikes}
-            allowMediaShare={allowMediaShare}
-          />
-        </div>
+        <SharedMediaStandalone
+          media={current}
+          eventHref={galleryReturnHref}
+          eventSlug={eventSlug}
+          onBackToGallery={returnToGallery}
+          downloadFileName={suggestedDownloadFileName(current)}
+          allowLikes={allowLikes}
+          allowMediaShare={allowMediaShare}
+        />
       </div>
     );
   }
+
+  const slideWidth = viewportWidth > 0 ? viewportWidth : "100%";
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col">
@@ -504,38 +513,42 @@ export function MediaViewerNavigator({
           ref={trackRef}
           className="flex h-full will-change-transform"
           style={{
-            transform: `translate3d(${baseTranslate}px, 0, 0)`,
-            transition: transitionEnabled ? SNAP_TRANSITION : "none",
+            transform: `translate3d(${restTranslate(viewportWidth)}px, 0, 0)`,
           }}
         >
-          {slides.map((slide) => {
-            const isActive = slide.id === current.id;
-
-            return (
-              <div
-                key={slide.id}
-                className={`flex h-full shrink-0 items-center justify-center ${
-                  isActive ? "" : "pointer-events-none"
-                }`}
-                style={{
-                  width: viewportWidth > 0 ? viewportWidth : "100%",
-                }}
-                aria-hidden={!isActive}
-              >
-                <SharedMediaStandalone
-                  media={slide}
-                  eventHref={galleryReturnHref}
-                  eventSlug={eventSlug}
-                  onBackToGallery={returnToGallery}
-                  downloadFileName={suggestedDownloadFileName(slide)}
-                  allowLikes={allowLikes}
-                  allowMediaShare={allowMediaShare}
-                  hideChrome
-                  isActiveSlide={isActive}
-                />
-              </div>
-            );
-          })}
+          <CarouselSlot
+            media={prevMedia}
+            width={slideWidth}
+            isActive={false}
+            eventHref={galleryReturnHref}
+            eventSlug={eventSlug}
+            onBackToGallery={returnToGallery}
+            allowLikes={allowLikes}
+            allowMediaShare={allowMediaShare}
+            slotKey={prevMedia?.id ?? "slot-prev-empty"}
+          />
+          <CarouselSlot
+            media={current}
+            width={slideWidth}
+            isActive
+            eventHref={galleryReturnHref}
+            eventSlug={eventSlug}
+            onBackToGallery={returnToGallery}
+            allowLikes={allowLikes}
+            allowMediaShare={allowMediaShare}
+            slotKey={current.id}
+          />
+          <CarouselSlot
+            media={nextMedia}
+            width={slideWidth}
+            isActive={false}
+            eventHref={galleryReturnHref}
+            eventSlug={eventSlug}
+            onBackToGallery={returnToGallery}
+            allowLikes={allowLikes}
+            allowMediaShare={allowMediaShare}
+            slotKey={nextMedia?.id ?? "slot-next-empty"}
+          />
         </div>
       </div>
 
@@ -554,6 +567,55 @@ export function MediaViewerNavigator({
           enableNavigation
         />
       </div>
+    </div>
+  );
+}
+
+type CarouselSlotProps = {
+  media: EventMedia | null;
+  width: number | string;
+  isActive: boolean;
+  eventHref: string;
+  eventSlug: string;
+  onBackToGallery: () => void;
+  allowLikes: boolean;
+  allowMediaShare: boolean;
+  slotKey: string;
+};
+
+function CarouselSlot({
+  media,
+  width,
+  isActive,
+  eventHref,
+  eventSlug,
+  onBackToGallery,
+  allowLikes,
+  allowMediaShare,
+  slotKey,
+}: CarouselSlotProps) {
+  return (
+    <div
+      className={`flex h-full shrink-0 items-center justify-center ${
+        isActive ? "" : "pointer-events-none"
+      }`}
+      style={{ width }}
+      aria-hidden={!isActive}
+    >
+      {media ? (
+        <SharedMediaStandalone
+          key={slotKey}
+          media={media}
+          eventHref={eventHref}
+          eventSlug={eventSlug}
+          onBackToGallery={onBackToGallery}
+          downloadFileName={suggestedDownloadFileName(media)}
+          allowLikes={allowLikes}
+          allowMediaShare={allowMediaShare}
+          hideChrome
+          isActiveSlide={isActive}
+        />
+      ) : null}
     </div>
   );
 }
