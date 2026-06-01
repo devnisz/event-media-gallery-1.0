@@ -1,21 +1,11 @@
-import Link from "next/link";
-import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-button";
-import { EventCover } from "@/components/dashboard/event-cover";
-import { EventGallerySettingsForm } from "@/components/dashboard/event-gallery-settings-form";
-import { EventVirtualBoothFrameForm } from "@/components/dashboard/event-virtual-booth-frame-form";
-import { EventInteractionsSettingsForm } from "@/components/dashboard/event-interactions-settings-form";
-import { EventLiveMomentsSettingsForm } from "@/components/dashboard/event-live-moments-settings-form";
-import { getPublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
-import { EventVirtualBoothSettingsForm } from "@/components/dashboard/event-virtual-booth-settings-form";
-import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
-import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
-import { EventMediaManager } from "@/components/dashboard/event-media-manager";
-import { PendingGuestUploads } from "@/components/dashboard/pending-guest-uploads";
-import { EventQrCard } from "@/components/dashboard/event-qr-card";
-import { EventEngagementDashboard } from "@/components/dashboard/engagement/event-engagement-dashboard";
+import { Suspense } from "react";
+
+import { EventManagementClient } from "@/components/dashboard/event-management/event-management-client";
 import { buildEventEngagementMetrics } from "@/lib/dashboard/engagement-metrics";
 import { getDashboardEventDetail } from "@/lib/dashboard/queries";
-import { routes } from "@/lib/routes";
+import { getPublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
+import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
+import { resolveCabineVirtualConfig } from "@/lib/virtual-booth/event-config";
 import { requireSessionUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -24,17 +14,17 @@ type DashboardEventPageProps = {
   params: Promise<{ id: string }>;
 };
 
-function formatDate(value: string): string {
-  const timestamp = Date.parse(value);
-
-  if (!Number.isFinite(timestamp)) {
-    return "Sem data";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
+function EventManagementFallback() {
+  return (
+    <main className="mx-auto max-w-7xl pb-16">
+      <div className="space-y-4">
+        <div className="h-4 w-32 rounded-full bg-white/10" />
+        <div className="h-24 rounded-[1.25rem] border border-white/10 bg-white/[0.04]" />
+        <div className="h-10 rounded-full bg-white/10" />
+        <div className="h-96 rounded-[1.25rem] border border-white/10 bg-white/[0.03]" />
+      </div>
+    </main>
+  );
 }
 
 export default async function DashboardEventPage({
@@ -49,157 +39,14 @@ export default async function DashboardEventPage({
   const engagementMetrics = buildEventEngagementMetrics(detail.media);
 
   return (
-    <main className="mx-auto max-w-7xl space-y-10 pb-16">
-      <section className="space-y-6">
-        <Link
-          href={routes.dashboard}
-          className="text-sm font-semibold text-white/50 hover:text-white"
-        >
-          Voltar aos eventos
-        </Link>
-
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-200">
-              Gerenciamento do evento
-            </p>
-            <h1 className="mt-3 text-4xl font-black tracking-tight">
-              {detail.event.name}
-            </h1>
-            <p className="mt-2 font-mono text-sm text-white/45">
-              {detail.event.slug}
-            </p>
-            <div className="mt-6 grid gap-3 text-sm sm:grid-cols-4">
-              <div className="rounded-2xl bg-black/25 p-4">
-                <p className="text-white/40">Mídias</p>
-                <p className="mt-1 text-2xl font-black">{detail.mediaCount}</p>
-              </div>
-              <div className="rounded-2xl bg-black/25 p-4">
-                <p className="text-white/40">Favoritas</p>
-                <p className="mt-1 text-2xl font-black">
-                  {detail.favoriteCount}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-black/25 p-4">
-                <p className="text-white/40">Ocultas</p>
-                <p className="mt-1 text-2xl font-black">{detail.hiddenCount}</p>
-              </div>
-              <div className="rounded-2xl bg-black/25 p-4">
-                <p className="text-white/40">Atualização</p>
-                <p className="mt-1 text-sm font-bold">
-                  {formatDate(detail.lastUpdatedAt)}
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-4">
-              <p className="text-sm font-semibold text-white/45">Link público</p>
-              <p className="mt-2 break-all font-mono text-sm text-amber-100">
-                {detail.publicUrl}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <CopyPublicLinkButton value={detail.publicUrl} />
-                <Link
-                  href={detail.publicPath}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 px-5 text-sm font-bold text-white/80 transition hover:bg-white/10"
-                >
-                  Abrir galeria
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            <EventCover
-              src={detail.displayCover}
-              name={detail.event.name}
-              className="h-64"
-            />
-            <EventQrCard
-              eventName={detail.event.name}
-              publicUrl={detail.publicUrl}
-            />
-          </div>
-        </div>
-      </section>
-
-      <EventEngagementDashboard metrics={engagementMetrics} />
-
-      <EventGallerySettingsForm
-        eventId={detail.event.id}
-        initialAllowPublicDelete={detail.event.allowPublicDelete}
-        initialRequireDeletePin={detail.event.requireDeletePin}
-        initialAllowGuestUpload={detail.event.allowGuestUpload}
-        initialRequireGuestUploadApproval={
-          detail.event.requireGuestUploadApproval
-        }
-        initialGalleryLayout={detail.event.galleryLayout}
-        hasDeletePin={Boolean(detail.event.deletePinHash?.trim())}
+    <Suspense fallback={<EventManagementFallback />}>
+      <EventManagementClient
+        detail={detail}
+        engagementMetrics={engagementMetrics}
+        cabineConfig={cabineConfig}
+        liveMomentsConfig={liveMomentsConfig}
+        gallerySettings={gallerySettings}
       />
-
-      <EventLiveMomentsSettingsForm
-        eventId={detail.event.id}
-        initialLiveMomentsEnabled={liveMomentsConfig.enabled}
-      />
-
-      <EventInteractionsSettingsForm
-        eventId={detail.event.id}
-        initialAllowLikes={gallerySettings.allowLikes}
-        initialAllowMediaShare={gallerySettings.allowMediaShare}
-      />
-
-      <EventVirtualBoothSettingsForm
-        eventId={detail.event.id}
-        initialCabineVirtualEnabled={cabineConfig.enabled}
-        initialCabineVirtualPhotoEnabled={cabineConfig.photo}
-        initialCabineVirtualBoomerangEnabled={cabineConfig.boomerang}
-        initialCabineVirtualVideoEnabled={cabineConfig.video}
-        initialCabineVirtualVideoMaxDurationSeconds={
-          cabineConfig.videoMaxDurationSeconds
-        }
-        initialCabineVirtualCameraEnabled={cabineConfig.cameraEnabled}
-        initialCabineVirtualGalleryImportEnabled={
-          cabineConfig.galleryImportEnabled
-        }
-      />
-
-      <EventVirtualBoothFrameForm
-        eventId={detail.event.id}
-        initialFrameUrl={detail.event.frameUrl ?? ""}
-      />
-
-      <PendingGuestUploads
-        eventId={detail.event.id}
-        initialUploads={detail.pendingGuestUploads}
-      />
-
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-        <h2 className="text-2xl font-black tracking-tight">Uploads recentes</h2>
-        {detail.recentUploads.length === 0 ? (
-          <p className="mt-4 text-white/50">Nenhum upload recebido ainda.</p>
-        ) : (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {detail.recentUploads.map((media) => (
-              <div
-                key={media.id}
-                className="rounded-2xl border border-white/10 bg-black/20 p-4"
-              >
-                <p className="line-clamp-1 font-bold">{media.name}</p>
-                <p className="mt-1 text-sm text-white/45">
-                  {media.mediaType.toUpperCase()} ·{" "}
-                  {formatDate(media.uploadedAt ?? media.createdAt ?? "")}
-                </p>
-                {media.reviewStatus !== "approved" ? (
-                  <span className="mt-3 inline-flex rounded-full bg-amber-300/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-100">
-                    {media.reviewStatus === "pending" ? "Pendente" : "Rejeitada"}
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <EventMediaManager initialMedia={detail.media} />
-    </main>
+    </Suspense>
   );
 }

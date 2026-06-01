@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 
 type EventEngagementDashboardProps = {
   metrics: EventEngagementMetrics;
+  variant?: "full" | "overview";
 };
 
 type SummaryCardConfig = {
@@ -242,10 +243,186 @@ function sortTopMedia(
   return sorted.slice(0, 10);
 }
 
+function ActivityChartCard({
+  activityData,
+}: {
+  activityData: EventEngagementMetrics["uploadActivity"];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Activity className="size-4 text-white/60" />
+          <CardTitle>Atividade do evento</CardTitle>
+        </div>
+        <CardDescription>
+          Uploads ao longo do tempo para identificar horários de pico.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {activityData.length === 0 ? (
+          <div className="flex h-64 items-center justify-center rounded-[1.25rem] border border-dashed border-white/10 text-sm text-white/40">
+            Sem uploads registrados ainda.
+          </div>
+        ) : (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={activityData}
+                margin={{ top: 8, right: 8, left: -18, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="uploadActivityFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.22)" />
+                    <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  stroke="rgba(255,255,255,0.06)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  minTickGap={24}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip
+                  cursor={{ stroke: "rgba(255,255,255,0.08)" }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={{ color: "rgba(255,255,255,0.55)" }}
+                  formatter={(value) => [
+                    formatMetricNumber(Number(value)),
+                    "Uploads",
+                  ]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="uploads"
+                  stroke="rgba(255,255,255,0.75)"
+                  strokeWidth={2}
+                  fill="url(#uploadActivityFill)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: "#f8fafc" }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopMediaCard({
+  metrics,
+  topMediaSort,
+  onTopMediaSortChange,
+}: {
+  metrics: EventEngagementMetrics;
+  topMediaSort: TopMediaSortKey;
+  onTopMediaSortChange: (value: TopMediaSortKey) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <BarChart3 className="size-4 text-white/60" />
+          <CardTitle>Top mídias</CardTitle>
+        </div>
+        <CardDescription>
+          Ranking dos 10 conteúdos com melhor desempenho.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs
+          value={topMediaSort}
+          onValueChange={(value) => onTopMediaSortChange(value as TopMediaSortKey)}
+        >
+          <TabsList className="mb-4 flex-wrap">
+            <TabsTrigger value="likes">Mais curtidas</TabsTrigger>
+            <TabsTrigger value="shares">Mais compartilhadas</TabsTrigger>
+            <TabsTrigger value="downloads">Mais baixadas</TabsTrigger>
+          </TabsList>
+
+          {(["likes", "shares", "downloads"] as const).map((sortKey) => {
+            const rankedItems = sortTopMedia(metrics.topMedia, sortKey);
+
+            return (
+              <TabsContent key={sortKey} value={sortKey} className="space-y-3">
+                {rankedItems.length === 0 ? (
+                  <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-white/40">
+                    Nenhuma mídia publicada ainda.
+                  </p>
+                ) : (
+                  rankedItems.map((item, index) => (
+                    <TopMediaRow key={item.id} rank={index + 1} item={item} />
+                  ))
+                )}
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function CabineBreakdownCard({
+  breakdown,
+}: {
+  breakdown: EventEngagementMetrics["cabineBreakdown"];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Camera className="size-4 text-white/60" />
+          <CardTitle>Formatos publicados</CardTitle>
+        </div>
+        <CardDescription>
+          Distribuição de fotos, boomerangs e vídeos no evento.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {breakdown.map((item) => (
+          <div key={item.key} className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-white/70">
+                <CabineIcon type={item.key} />
+                <span>{item.label}</span>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-white">
+                  {item.percentage}%
+                </p>
+                <p className="text-xs text-white/35">
+                  {formatMetricNumber(item.count)} mídias
+                </p>
+              </div>
+            </div>
+            <Progress value={item.percentage} />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function EventEngagementDashboard({
   metrics,
+  variant = "full",
 }: EventEngagementDashboardProps) {
   const [topMediaSort, setTopMediaSort] = useState<TopMediaSortKey>("likes");
+  const isOverview = variant === "overview";
 
   const summaryCards: SummaryCardConfig[] = [
     {
@@ -255,10 +432,10 @@ export function EventEngagementDashboard({
       icon: Eye,
     },
     {
-      id: "published",
-      label: "Mídias publicadas",
-      metric: metrics.summary.publishedMedia,
-      icon: ImageIcon,
+      id: "likes",
+      label: "Curtidas",
+      metric: metrics.summary.likes,
+      icon: Heart,
     },
     {
       id: "downloads",
@@ -273,10 +450,10 @@ export function EventEngagementDashboard({
       icon: Share2,
     },
     {
-      id: "likes",
-      label: "Curtidas",
-      metric: metrics.summary.likes,
-      icon: Heart,
+      id: "published",
+      label: "Uploads",
+      metric: metrics.summary.publishedMedia,
+      icon: ImageIcon,
     },
   ];
 
@@ -332,19 +509,21 @@ export function EventEngagementDashboard({
 
   return (
     <section className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
-          Engajamento
-        </p>
-        <h2 className="text-3xl font-black tracking-tight text-white">
-          Dashboard de Engajamento
-        </h2>
-        <p className="max-w-2xl text-sm text-white/45">
-          Visão rápida do impacto do evento. Métricas com coleta ativa usam
-          dados reais; demais indicadores já estão preparados para integração
-          futura.
-        </p>
-      </div>
+      {!isOverview ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+            Engajamento
+          </p>
+          <h2 className="text-3xl font-black tracking-tight text-white">
+            Dashboard de Engajamento
+          </h2>
+          <p className="max-w-2xl text-sm text-white/45">
+            Visão rápida do impacto do evento. Métricas com coleta ativa usam
+            dados reais; demais indicadores já estão preparados para integração
+            futura.
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {summaryCards.map((card) => (
@@ -352,6 +531,19 @@ export function EventEngagementDashboard({
         ))}
       </div>
 
+      {isOverview ? (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <ActivityChartCard activityData={activityData} />
+          <TopMediaCard
+            metrics={metrics}
+            topMediaSort={topMediaSort}
+            onTopMediaSortChange={setTopMediaSort}
+          />
+        </div>
+      ) : null}
+
+      {!isOverview ? (
+        <>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="overflow-hidden">
           <CardHeader>
@@ -595,6 +787,8 @@ export function EventEngagementDashboard({
           </div>
         </CardContent>
       </Card>
+        </>
+      ) : null}
     </section>
   );
 }
