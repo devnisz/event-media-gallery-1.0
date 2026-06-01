@@ -9,6 +9,7 @@ import {
   CABINE_VIRTUAL_VIDEO_DURATION_MIN_SECONDS,
   validateCabineVirtualSettingsInput,
 } from "@/lib/virtual-booth/event-config";
+import { cn } from "@/lib/utils";
 
 type EventVirtualBoothSettingsFormProps = {
   eventId: string;
@@ -20,6 +21,95 @@ type EventVirtualBoothSettingsFormProps = {
   initialCabineVirtualCameraEnabled: boolean;
   initialCabineVirtualGalleryImportEnabled: boolean;
 };
+
+function FeatureCard({
+  emoji,
+  title,
+  description,
+  enabled,
+  disabled,
+  onToggle,
+}: {
+  emoji: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        "w-full rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50",
+        enabled
+          ? "border-amber-300/25 bg-amber-300/[0.07] hover:border-amber-300/35"
+          : "border-white/10 bg-black/20 hover:border-white/15 hover:bg-black/30",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-2xl" aria-hidden>
+          {emoji}
+        </span>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+            enabled
+              ? "bg-emerald-400/15 text-emerald-200"
+              : "bg-white/8 text-white/40",
+          )}
+        >
+          {enabled ? "Ativado" : "Desativado"}
+        </span>
+      </div>
+      <p className="mt-3 text-sm font-bold text-white">{title}</p>
+      <p className="mt-1 text-sm leading-relaxed text-white/50">{description}</p>
+    </button>
+  );
+}
+
+function SourceCard({
+  title,
+  description,
+  enabled,
+  disabled,
+  onToggle,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        "w-full rounded-xl border p-3.5 text-left transition disabled:cursor-not-allowed disabled:opacity-50",
+        enabled
+          ? "border-white/12 bg-white/[0.05]"
+          : "border-white/8 bg-black/15 hover:bg-black/25",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-white">{title}</p>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+            enabled ? "text-emerald-200" : "text-white/35",
+          )}
+        >
+          {enabled ? "Ativado" : "Off"}
+        </span>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-white/45">{description}</p>
+    </button>
+  );
+}
 
 export function EventVirtualBoothSettingsForm({
   eventId,
@@ -114,98 +204,63 @@ export function EventVirtualBoothSettingsForm({
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-200">
-          📸 Cabine Virtual
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/90">
+          Cabine Virtual
         </p>
-        <h2 className="text-2xl font-black tracking-tight">
-          Recursos da Cabine Virtual
+        <h2 className="text-xl font-black tracking-tight text-white">
+          Recursos da cabine
         </h2>
-        <p className="max-w-3xl text-sm leading-6 text-white/50">
-          Defina quais tipos de captura os convidados podem usar na galeria
-          pública. O GIF da cabine permanece disponível internamente até novas
-          opções no painel.
+        <p className="max-w-2xl text-sm text-white/45">
+          Escolha os formatos e origens disponíveis na galeria pública.
         </p>
       </div>
 
-      <div className="mt-6 space-y-4">
-        <label className="flex items-start gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <input
-            type="checkbox"
-            checked={cabineVirtualEnabled}
-            disabled={isSaving}
-            onChange={(event) => setCabineVirtualEnabled(event.target.checked)}
-            className="mt-1 size-5 accent-amber-300"
-          />
-          <span>
-            <span className="block font-bold">Habilitar Cabine Virtual</span>
-            <span className="mt-1 block text-sm leading-6 text-white/50">
-              Quando desligado, o botão da Cabine Virtual não aparece na
-              galeria pública.
-            </span>
-          </span>
-        </label>
+      <div className="mt-5 space-y-4">
+        <FeatureCard
+          emoji="✨"
+          title="Cabine Virtual"
+          description="Exibe o botão da cabine na galeria pública para convidados."
+          enabled={cabineVirtualEnabled}
+          disabled={isSaving}
+          onToggle={() => setCabineVirtualEnabled((value) => !value)}
+        />
 
         {cabineVirtualEnabled ? (
-          <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
-              Tipos de captura
-            </p>
-
-            <label className="flex items-start gap-4">
-              <input
-                type="checkbox"
-                checked={cabineVirtualPhotoEnabled}
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <FeatureCard
+                emoji="📸"
+                title="Foto"
+                description="Captura de fotos com moldura e filtro Glam."
+                enabled={cabineVirtualPhotoEnabled}
                 disabled={isSaving}
-                onChange={(event) =>
-                  setCabineVirtualPhotoEnabled(event.target.checked)
+                onToggle={() =>
+                  setCabineVirtualPhotoEnabled((value) => !value)
                 }
-                className="mt-1 size-5 accent-amber-300"
               />
-              <span>
-                <span className="block font-bold">📸 Foto</span>
-                <span className="mt-1 block text-sm leading-6 text-white/50">
-                  Captura de foto com filtro Glam e moldura opcional.
-                </span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-4">
-              <input
-                type="checkbox"
-                checked={cabineVirtualBoomerangEnabled}
+              <FeatureCard
+                emoji="🔄"
+                title="Boomerang"
+                description="Animação curta otimizada para compartilhamento."
+                enabled={cabineVirtualBoomerangEnabled}
                 disabled={isSaving}
-                onChange={(event) =>
-                  setCabineVirtualBoomerangEnabled(event.target.checked)
+                onToggle={() =>
+                  setCabineVirtualBoomerangEnabled((value) => !value)
                 }
-                className="mt-1 size-5 accent-amber-300"
               />
-              <span>
-                <span className="block font-bold">🔄 Boomerang</span>
-                <span className="mt-1 block text-sm leading-6 text-white/50">
-                  Animação curta de vai-e-volta otimizada para compartilhamento.
-                </span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-4">
-              <input
-                type="checkbox"
-                checked={cabineVirtualVideoEnabled}
+              <FeatureCard
+                emoji="🎥"
+                title="Vídeo"
+                description="Vídeos rápidos para stories e redes sociais."
+                enabled={cabineVirtualVideoEnabled}
                 disabled={isSaving}
-                onChange={(event) =>
-                  setCabineVirtualVideoEnabled(event.target.checked)
+                onToggle={() =>
+                  setCabineVirtualVideoEnabled((value) => !value)
                 }
-                className="mt-1 size-5 accent-amber-300"
               />
-              <span>
-                <span className="block font-bold">🎥 Vídeo</span>
-                <span className="mt-1 block text-sm leading-6 text-white/50">
-                  Gravação curta pela câmera do dispositivo.
-                </span>
-              </span>
-            </label>
+            </div>
 
             {cabineVirtualVideoEnabled ? (
               <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-4">
@@ -218,7 +273,7 @@ export function EventVirtualBoothSettingsForm({
                     {CABINE_VIRTUAL_VIDEO_DURATION_MAX_SECONDS}s — padrão{" "}
                     {CABINE_VIRTUAL_VIDEO_DURATION_DEFAULT_SECONDS}s
                   </span>
-                  <div className="mt-4 flex items-center gap-4">
+                  <div className="mt-3 flex items-center gap-4">
                     <input
                       type="range"
                       min={CABINE_VIRTUAL_VIDEO_DURATION_MIN_SECONDS}
@@ -241,54 +296,38 @@ export function EventVirtualBoothSettingsForm({
               </div>
             ) : null}
 
-            <p className="pt-2 text-xs font-semibold uppercase tracking-[0.26em] text-amber-200/80">
-              Origem da mídia
-            </p>
-
-            <label className="flex items-start gap-4">
-              <input
-                type="checkbox"
-                checked={cabineVirtualCameraEnabled}
-                disabled={isSaving}
-                onChange={(event) =>
-                  setCabineVirtualCameraEnabled(event.target.checked)
-                }
-                className="mt-1 size-5 accent-amber-300"
-              />
-              <span>
-                <span className="block font-bold">Permitir captura por câmera</span>
-                <span className="mt-1 block text-sm leading-6 text-white/50">
-                  Tirar foto ou gravar vídeo ao vivo na Cabine.
-                </span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-4">
-              <input
-                type="checkbox"
-                checked={cabineVirtualGalleryImportEnabled}
-                disabled={isSaving}
-                onChange={(event) =>
-                  setCabineVirtualGalleryImportEnabled(event.target.checked)
-                }
-                className="mt-1 size-5 accent-amber-300"
-              />
-              <span>
-                <span className="block font-bold">
-                  Permitir importação da galeria
-                </span>
-                <span className="mt-1 block text-sm leading-6 text-white/50">
-                  Escolher foto ou vídeo já existente no celular.
-                </span>
-              </span>
-            </label>
+            <div>
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/35">
+                Origem da mídia
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SourceCard
+                  title="Captura por câmera"
+                  description="Tirar foto ou gravar vídeo ao vivo na cabine."
+                  enabled={cabineVirtualCameraEnabled}
+                  disabled={isSaving}
+                  onToggle={() =>
+                    setCabineVirtualCameraEnabled((value) => !value)
+                  }
+                />
+                <SourceCard
+                  title="Importação da galeria"
+                  description="Escolher foto ou vídeo já existente no celular."
+                  enabled={cabineVirtualGalleryImportEnabled}
+                  disabled={isSaving}
+                  onToggle={() =>
+                    setCabineVirtualGalleryImportEnabled((value) => !value)
+                  }
+                />
+              </div>
+            </div>
 
             {captureWarning ? (
-              <p className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
+              <p className="rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
                 {captureWarning}
               </p>
             ) : null}
-          </div>
+          </>
         ) : null}
       </div>
 
@@ -303,7 +342,7 @@ export function EventVirtualBoothSettingsForm({
         type="button"
         disabled={isSaving || Boolean(captureWarning)}
         onClick={() => void saveSettings()}
-        className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-white px-7 text-sm font-black text-slate-950 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full bg-white px-6 text-sm font-black text-slate-950 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSaving ? "Salvando..." : "Salvar Cabine Virtual"}
       </button>

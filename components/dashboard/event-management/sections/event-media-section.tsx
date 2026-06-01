@@ -14,15 +14,14 @@ export function EventMediaSection({
   pendingGuestUploads,
 }: EventMediaSectionProps) {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-rose-200">
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-rose-200/90">
           Biblioteca
         </p>
-        <h2 className="text-2xl font-black tracking-tight text-white">Mídias</h2>
+        <h2 className="text-xl font-black tracking-tight text-white">Mídias</h2>
         <p className="max-w-2xl text-sm text-white/45">
-          Gerencie uploads, moderação, favoritos e visibilidade das mídias do
-          evento.
+          Moderação, favoritos e visibilidade das mídias do evento.
         </p>
       </div>
 

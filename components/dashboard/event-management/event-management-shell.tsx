@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useTransition, type ReactNode } from "react";
 
 import { EventManagementHero } from "@/components/dashboard/event-management/event-management-hero";
+import { EventSidebarSummary } from "@/components/dashboard/event-management/event-sidebar-summary";
 import { cn } from "@/lib/utils";
 import {
   EVENT_MANAGEMENT_SECTIONS,
@@ -104,7 +105,7 @@ export function EventManagementShell({
         </Link>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <EventManagementHero
           eventName={eventName}
           eventSlug={eventSlug}
@@ -135,10 +136,15 @@ export function EventManagementShell({
 
       <div className="mt-6 flex flex-col gap-6 lg:mt-8 lg:flex-row lg:items-start lg:gap-8">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <nav
-            className="sticky top-6 space-y-1 rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-2"
-            aria-label="Seções do evento"
-          >
+          <div className="sticky top-6">
+            <EventSidebarSummary
+              mediaCount={mediaCount}
+              totalLikes={totalLikes}
+            />
+            <nav
+              className="space-y-1 rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-2"
+              aria-label="Seções do evento"
+            >
             {EVENT_MANAGEMENT_SECTIONS.map((section) => (
               <SectionNavButton
                 key={section.id}
@@ -147,7 +153,8 @@ export function EventManagementShell({
                 onSelect={setSection}
               />
             ))}
-          </nav>
+            </nav>
+          </div>
         </aside>
 
         <div className="min-w-0 flex-1">

@@ -12,65 +12,63 @@ type EventManagementHeroProps = {
   lastUpdatedAt: string;
 };
 
-function formatDate(value: string): string {
+function formatRelativeUpdate(value: string): string {
   const timestamp = Date.parse(value);
 
   if (!Number.isFinite(timestamp)) {
-    return "Sem data";
+    return "sem atualização recente";
   }
 
-  return new Intl.DateTimeFormat("pt-BR", {
+  const diffMs = Date.now() - timestamp;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return "atualizado hoje";
+  }
+
+  if (diffDays === 1) {
+    return "atualizado ontem";
+  }
+
+  if (diffDays < 7) {
+    return `atualizado há ${diffDays} dias`;
+  }
+
+  return `atualizado em ${new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
+  }).format(new Date(timestamp))}`;
 }
 
 export function EventManagementHero({
   eventName,
-  eventSlug,
   publicPath,
   mediaCount,
-  favoriteCount,
   totalLikes,
   lastUpdatedAt,
 }: EventManagementHeroProps) {
+  const statsLine = [
+    `${formatMetricNumber(mediaCount)} mídias`,
+    `${formatMetricNumber(totalLikes)} curtidas`,
+    formatRelativeUpdate(lastUpdatedAt),
+  ].join(" • ");
+
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/35">
-            Evento
-          </p>
-          <h1 className="mt-1 truncate text-2xl font-black tracking-tight text-white sm:text-[1.65rem]">
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 sm:px-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-black tracking-tight text-white sm:text-[1.35rem]">
             {eventName}
           </h1>
-          <p className="mt-1 truncate font-mono text-xs text-white/45 sm:text-sm">
-            {eventSlug}
-          </p>
+          <p className="mt-1 text-sm text-white/50">{statsLine}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <span className="rounded-full border border-white/8 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/70">
-            {formatMetricNumber(mediaCount)} mídias
-          </span>
-          <span className="rounded-full border border-white/8 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/70">
-            {formatMetricNumber(totalLikes)} curtidas
-          </span>
-          <span className="rounded-full border border-white/8 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/70">
-            {formatMetricNumber(favoriteCount)} favoritas
-          </span>
-          <Link
-            href={publicPath}
-            className="inline-flex min-h-9 items-center justify-center rounded-full border border-white/12 px-4 text-xs font-bold text-white/80 transition hover:bg-white/10"
-          >
-            Abrir galeria
-          </Link>
-        </div>
+        <Link
+          href={publicPath}
+          className="inline-flex shrink-0 min-h-9 items-center justify-center self-start rounded-full border border-white/12 bg-white/[0.06] px-4 text-xs font-bold text-white/85 transition hover:border-white/20 hover:bg-white/10 sm:self-center"
+        >
+          Abrir galeria
+        </Link>
       </div>
-
-      <p className="mt-3 text-xs text-white/35">
-        Atualizado em {formatDate(lastUpdatedAt)}
-      </p>
     </div>
   );
 }

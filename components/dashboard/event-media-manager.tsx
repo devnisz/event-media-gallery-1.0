@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { Heart, ImageIcon, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { GalleryMediaRecord } from "@/types/media";
+import type { GalleryMediaRecord, MediaKind } from "@/types/media";
 import { AdminToast, type AdminToastState } from "@/components/admin/admin-toast";
+import { formatMetricNumber } from "@/lib/dashboard/engagement-metrics";
 import { routes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 type EventMediaManagerProps = {
   initialMedia: GalleryMediaRecord[];
@@ -23,6 +26,13 @@ function mediaDate(media: GalleryMediaRecord): string {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(timestamp));
+}
+
+function mediaTypeLabel(type: MediaKind): string {
+  if (type === "video") return "Vídeo";
+  if (type === "image") return "Foto";
+  if (type === "boomerang") return "Boomerang";
+  return "GIF";
 }
 
 function mediaPreview(media: GalleryMediaRecord): string | undefined {
@@ -79,7 +89,7 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
 
   async function deleteMedia(item: GalleryMediaRecord) {
     const confirmed = window.confirm(
-      `Excluir "${item.name}"?\n\nA mídia sairá do painel e da galeria, mas o arquivo no R2 não será apagado agora.`,
+      "Excluir esta mídia?\n\nEla sairá do painel e da galeria, mas o arquivo no R2 não será apagado agora.",
     );
 
     if (!confirmed) {
@@ -114,76 +124,84 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
   return (
     <section className="space-y-5">
       <AdminToast toast={toast} />
-      <div>
-        <h2 className="text-2xl font-black tracking-tight">Mídias do evento</h2>
-        <p className="mt-2 text-sm text-white/50">
-          Oculte da galeria pública, destaque favoritas ou exclua do app sem
-          apagar arquivos do R2.
-        </p>
-      </div>
 
       {media.length === 0 ? (
-        <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.04] px-8 py-16 text-center">
-          <p className="text-xl font-black">Nenhuma mídia recebida ainda</p>
-          <p className="mt-2 text-white/50">
+        <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.04] px-8 py-14 text-center">
+          <p className="text-lg font-black">Nenhuma mídia recebida ainda</p>
+          <p className="mt-2 text-sm text-white/50">
             Assim que o watcher enviar arquivos, eles aparecerão aqui.
           </p>
         </div>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {media.map((item) => {
             const preview = mediaPreview(item);
             const busy = busyId === item.id;
+            const likes = item.likesCount ?? 0;
 
             return (
               <article
                 key={item.id}
-                className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] shadow-[0_20px_70px_rgba(0,0,0,0.24)]"
+                className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition hover:border-white/15 hover:bg-white/[0.06]"
               >
-                <div className="relative aspect-[16/10] bg-gradient-to-br from-slate-800 to-slate-950">
+                <div className="relative aspect-[4/5] bg-gradient-to-br from-slate-800 to-slate-950">
                   {preview ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={preview}
-                      alt={`Prévia de ${item.name}`}
+                      alt=""
                       className="absolute inset-0 h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.2),transparent_30%)]" />
+                    <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                      {item.mediaType === "video" ? (
+                        <Video className="size-10" />
+                      ) : (
+                        <ImageIcon className="size-10" />
+                      )}
+                    </div>
                   )}
-                  <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+
+                  <div className="absolute inset-x-0 top-0 flex flex-wrap gap-1.5 p-2.5">
                     {item.isFavorite ? (
-                      <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-950">
+                      <span className="rounded-full bg-amber-300/95 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-950">
                         Favorita
                       </span>
                     ) : null}
                     {item.isHidden ? (
-                      <span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-black uppercase tracking-wider text-white">
+                      <span className="rounded-full bg-rose-500/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
                         Oculta
                       </span>
                     ) : null}
                     {item.reviewStatus !== "approved" ? (
-                      <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-950">
+                      <span className="rounded-full bg-amber-300/95 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-950">
                         {item.reviewStatus === "pending" ? "Pendente" : "Rejeitada"}
                       </span>
                     ) : null}
                     {item.mediaSource === "guest" ? (
-                      <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-white">
+                      <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
                         Convidado
                       </span>
                     ) : null}
                   </div>
+
+                  {likes > 0 ? (
+                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                      <Heart className="size-3 fill-rose-400 text-rose-400" />
+                      {formatMetricNumber(likes)}
+                    </div>
+                  ) : null}
                 </div>
-                <div className="space-y-4 p-5">
-                  <div>
-                    <h3 className="line-clamp-2 text-lg font-black">
-                      {item.name}
-                    </h3>
-                    <p className="mt-1 text-sm text-white/45">
-                      {item.mediaType.toUpperCase()} · {mediaDate(item)}
+
+                <div className="space-y-3 p-3.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">
+                      {mediaTypeLabel(item.mediaType)}
                     </p>
+                    <p className="shrink-0 text-xs text-white/40">{mediaDate(item)}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+
+                  <div className="flex flex-wrap gap-1.5">
                     <button
                       type="button"
                       disabled={busy}
@@ -196,9 +214,14 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
                             : "Mídia destacada como favorita.",
                         )
                       }
-                      className="rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs font-bold text-amber-100 transition hover:bg-amber-300/15 disabled:opacity-50"
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-[11px] font-bold transition disabled:opacity-50",
+                        item.isFavorite
+                          ? "border border-amber-300/30 bg-amber-300/10 text-amber-100"
+                          : "border border-white/10 text-white/70 hover:bg-white/10",
+                      )}
                     >
-                      {item.isFavorite ? "Remover destaque" : "Destacar"}
+                      {item.isFavorite ? "Destaque" : "Destacar"}
                     </button>
                     <button
                       type="button"
@@ -212,13 +235,13 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
                             : "Mídia ocultada da galeria pública.",
                         )
                       }
-                      className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/80 transition hover:bg-white/10 disabled:opacity-50"
+                      className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold text-white/70 transition hover:bg-white/10 disabled:opacity-50"
                     >
                       {item.isHidden ? "Reexibir" : "Ocultar"}
                     </button>
                     <Link
                       href={routes.video(item.id)}
-                      className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/80 transition hover:bg-white/10"
+                      className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold text-white/70 transition hover:bg-white/10"
                     >
                       Abrir
                     </Link>
@@ -226,9 +249,9 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
                       type="button"
                       disabled={busy}
                       onClick={() => void deleteMedia(item)}
-                      className="rounded-full border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-100 transition hover:bg-rose-500/20 disabled:opacity-50"
+                      className="rounded-full border border-rose-300/20 px-3 py-1.5 text-[11px] font-bold text-rose-200/90 transition hover:bg-rose-500/10 disabled:opacity-50"
                     >
-                      {busy ? "Salvando..." : "Excluir"}
+                      {busy ? "…" : "Excluir"}
                     </button>
                   </div>
                 </div>

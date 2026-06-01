@@ -2,7 +2,7 @@
 
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
-import { Download, Link2 } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { CopyPublicLinkButton } from "@/components/dashboard/copy-public-link-button";
 import { EVENT_QR_PRINT_PX, shortenPublicUrl } from "@/lib/qr/event-qr";
@@ -58,7 +58,7 @@ export function EventQrSection({ eventName, publicUrl }: EventQrSectionProps) {
 
       try {
         const dataUrl = await QRCode.toDataURL(publicUrl, {
-          width: 420,
+          width: 480,
           margin: 2,
           errorCorrectionLevel: "M",
           color: {
@@ -115,34 +115,34 @@ export function EventQrSection({ eventName, publicUrl }: EventQrSectionProps) {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-200">
+    <section className="space-y-5">
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/90">
           Compartilhamento
         </p>
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-xl font-black tracking-tight text-white">
           QR Code do evento
         </h2>
-        <p className="max-w-xl text-sm text-white/45">
-          Use o QR Code para levar convidados direto à galeria pública.
+        <p className="max-w-lg text-sm text-white/45">
+          Imprima ou compartilhe para levar convidados à galeria pública.
         </p>
       </div>
 
-      <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6 sm:p-8">
-        <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-start">
-          <div className="rounded-[1.5rem] bg-white p-4 shadow-inner">
+      <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-6 sm:px-6">
+        <div className="flex flex-col items-center">
+          <div className="rounded-2xl bg-white p-3 shadow-inner">
             {previewSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewSrc}
                 alt={`QR Code da galeria ${eventName}`}
-                width={420}
-                height={420}
-                className="size-56 rounded-xl object-contain sm:size-64 lg:size-72"
+                width={480}
+                height={480}
+                className="size-52 rounded-lg object-contain sm:size-60"
               />
             ) : (
               <div
-                className="flex size-56 items-center justify-center rounded-xl bg-white/90 sm:size-64 lg:size-72"
+                className="flex size-52 items-center justify-center rounded-lg bg-white/90 sm:size-60"
                 aria-busy={!error}
               >
                 {error ? (
@@ -156,55 +156,42 @@ export function EventQrSection({ eventName, publicUrl }: EventQrSectionProps) {
             )}
           </div>
 
-          <div className="w-full min-w-0 space-y-5 text-center lg:text-left">
-            <div>
-              <p className="text-lg font-semibold text-white">{eventName}</p>
-              <p
-                className="mt-2 break-all font-mono text-sm text-white/55"
-                title={publicUrl}
-              >
-                {shortUrl}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-              <button
-                type="button"
-                onClick={() => void downloadFormat("png")}
-                disabled={!previewSrc || isDownloading !== null}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Download className="size-4" />
-                {isDownloading === "png" ? "Gerando…" : "Baixar PNG"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void downloadFormat("jpg")}
-                disabled={!previewSrc || isDownloading !== null}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Download className="size-4" />
-                {isDownloading === "jpg" ? "Gerando…" : "Baixar JPG"}
-              </button>
-              <CopyPublicLinkButton value={publicUrl} />
-            </div>
-
-            <div className="rounded-2xl border border-white/8 bg-black/20 p-4 text-left">
-              <div className="flex items-start gap-3">
-                <Link2 className="mt-0.5 size-4 shrink-0 text-white/45" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white/70">Link público</p>
-                  <p className="mt-1 break-all font-mono text-xs text-amber-100 sm:text-sm">
-                    {publicUrl}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {error ? (
-              <p className="text-sm font-semibold text-red-300">{error}</p>
-            ) : null}
+          <div className="mt-5 flex w-full flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => void downloadFormat("png")}
+              disabled={!previewSrc || isDownloading !== null}
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:min-w-[7rem]"
+            >
+              <Download className="size-3.5" />
+              {isDownloading === "png" ? "…" : "PNG"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void downloadFormat("jpg")}
+              disabled={!previewSrc || isDownloading !== null}
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:min-w-[7rem]"
+            >
+              <Download className="size-3.5" />
+              {isDownloading === "jpg" ? "…" : "JPG"}
+            </button>
+            <CopyPublicLinkButton
+              value={publicUrl}
+              label="Copiar link"
+              compact
+            />
           </div>
+
+          <p
+            className="mt-4 max-w-full truncate text-center text-xs text-white/35"
+            title={publicUrl}
+          >
+            {shortUrl}
+          </p>
+
+          {error ? (
+            <p className="mt-3 text-sm font-semibold text-red-300">{error}</p>
+          ) : null}
         </div>
       </div>
     </section>

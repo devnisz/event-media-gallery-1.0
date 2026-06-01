@@ -29,16 +29,16 @@ export function EventCabineSection({
   initialFrameUrl,
 }: EventCabineSectionProps) {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-200">
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-200/90">
           Experiência
         </p>
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-xl font-black tracking-tight text-white">
           Cabine virtual
         </h2>
         <p className="max-w-2xl text-sm text-white/45">
-          Configure foto, vídeo, boomerang, molduras e demais opções da cabine.
+          Formatos, molduras e opções da cabine na galeria pública.
         </p>
       </div>
 

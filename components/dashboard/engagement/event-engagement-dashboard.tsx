@@ -24,7 +24,6 @@ import {
   YAxis,
 } from "recharts";
 
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -63,6 +62,37 @@ const CHART_TOOLTIP_STYLE = {
   fontSize: "12px",
 };
 
+function MetricComingSoon({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={cn("space-y-2", compact && "space-y-1.5")}>
+      <div
+        className={cn(
+          "overflow-hidden rounded-lg border border-white/6 bg-white/[0.03]",
+          compact ? "h-8" : "h-10",
+        )}
+      >
+        <div
+          className="h-full w-2/5 animate-pulse bg-gradient-to-r from-white/5 via-white/10 to-white/5"
+          aria-hidden
+        />
+      </div>
+      <p
+        className={cn(
+          "font-semibold text-white/55",
+          compact ? "text-xs" : "text-sm",
+        )}
+      >
+        Em breve
+      </p>
+      {!compact ? (
+        <p className="text-xs text-white/30">
+          Coleta será ativada na próxima versão
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function MetricValue({
   metric,
   className,
@@ -70,17 +100,23 @@ function MetricValue({
   metric: EngagementMetricValue;
   className?: string;
 }) {
+  if (!metric.tracked) {
+    return (
+      <div className={className}>
+        <MetricComingSoon />
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("flex items-end gap-2", className)}>
-      <p className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-        {formatMetricNumber(metric.value)}
-      </p>
-      {!metric.tracked ? (
-        <Badge variant="muted" className="mb-1">
-          Em breve
-        </Badge>
-      ) : null}
-    </div>
+    <p
+      className={cn(
+        "text-3xl font-black tracking-tight text-white sm:text-4xl",
+        className,
+      )}
+    >
+      {formatMetricNumber(metric.value)}
+    </p>
   );
 }
 
@@ -113,6 +149,18 @@ function ReachMetricRow({
   icon: React.ComponentType<{ className?: string }>;
   share: number;
 }) {
+  if (!metric.tracked) {
+    return (
+      <div className="rounded-xl border border-white/6 bg-black/15 px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-white/55">
+          <Icon className="size-3.5" />
+          <span className="font-medium text-white/70">{label}</span>
+        </div>
+        <MetricComingSoon compact />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3 text-sm">
@@ -124,17 +172,10 @@ function ReachMetricRow({
           <span className="font-semibold text-white">
             {formatMetricNumber(metric.value)}
           </span>
-          {!metric.tracked ? (
-            <Badge variant="muted">Em breve</Badge>
-          ) : (
-            <span className="text-xs text-white/35">{share}%</span>
-          )}
+          <span className="text-xs text-white/35">{share}%</span>
         </div>
       </div>
-      <Progress
-        value={metric.tracked ? share : 0}
-        indicatorClassName={metric.tracked ? "bg-white/75" : "bg-white/15"}
-      />
+      <Progress value={share} indicatorClassName="bg-white/75" />
     </div>
   );
 }
@@ -156,7 +197,7 @@ function TopMediaRow({
           // eslint-disable-next-line @next/next/no-img-element -- URLs externas da galeria
           <img
             src={preview}
-            alt={item.name}
+            alt=""
             className="size-full object-cover"
           />
         ) : (
@@ -166,10 +207,16 @@ function TopMediaRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-white">{item.name}</p>
-        <p className="mt-0.5 text-xs uppercase tracking-wider text-white/35">
-          {item.mediaType}
+        <p className="text-sm font-semibold text-white">
+          {item.mediaType === "video"
+            ? "Vídeo"
+            : item.mediaType === "image"
+              ? "Foto"
+              : item.mediaType === "boomerang"
+                ? "Boomerang"
+                : "GIF"}
         </p>
+        <p className="mt-0.5 text-xs text-white/35">#{rank} no ranking</p>
       </div>
       <div className="hidden items-center gap-4 text-xs sm:flex">
         <StatPill icon={Heart} value={item.likes} tracked={item.likesTracked} />
@@ -510,17 +557,15 @@ export function EventEngagementDashboard({
   return (
     <section className="space-y-8">
       {!isOverview ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-200/90">
             Engajamento
           </p>
-          <h2 className="text-3xl font-black tracking-tight text-white">
-            Dashboard de Engajamento
+          <h2 className="text-xl font-black tracking-tight text-white">
+            Dashboard de engajamento
           </h2>
           <p className="max-w-2xl text-sm text-white/45">
-            Visão rápida do impacto do evento. Métricas com coleta ativa usam
-            dados reais; demais indicadores já estão preparados para integração
-            futura.
+            Impacto do evento. Métricas com coleta ativa usam dados reais.
           </p>
         </div>
       ) : null}
@@ -765,23 +810,22 @@ export function EventEngagementDashboard({
                 className="rounded-[1.25rem] border border-white/8 bg-black/20 p-5"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm text-white/45">{item.label}</p>
-                    <p className="mt-3 text-3xl font-black tracking-tight text-white">
-                      {item.tracked
-                        ? formatMetricAverage(item.value)
-                        : formatMetricNumber(item.value)}
-                    </p>
+                    <div className="mt-3">
+                      {item.tracked ? (
+                        <p className="text-3xl font-black tracking-tight text-white">
+                          {formatMetricAverage(item.value)}
+                        </p>
+                      ) : (
+                        <MetricComingSoon compact />
+                      )}
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3 text-white/50">
                     <item.icon className="size-4" />
                   </div>
                 </div>
-                {!item.tracked ? (
-                  <Badge variant="muted" className="mt-4">
-                    Em breve
-                  </Badge>
-                ) : null}
               </div>
             ))}
           </div>
