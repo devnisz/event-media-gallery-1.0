@@ -54,6 +54,9 @@ type EventRow = {
   live_moments_enabled?: boolean | null;
   allow_likes?: boolean | null;
   allow_media_share?: boolean | null;
+  view_count?: number | null;
+  download_count?: number | null;
+  share_count?: number | null;
 };
 
 export type PersistEventsOutcome = {
@@ -193,6 +196,15 @@ function rowToLoose(row: EventRow): StoredEventLoose {
     ...(typeof row.allow_media_share === "boolean"
       ? { allowMediaShare: row.allow_media_share }
       : {}),
+    ...(typeof row.view_count === "number"
+      ? { viewCount: Math.max(0, Math.trunc(row.view_count)) }
+      : {}),
+    ...(typeof row.download_count === "number"
+      ? { downloadCount: Math.max(0, Math.trunc(row.download_count)) }
+      : {}),
+    ...(typeof row.share_count === "number"
+      ? { shareCount: Math.max(0, Math.trunc(row.share_count)) }
+      : {}),
     ...(deletePinHash ? { deletePinHash } : {}),
     ...(row.owner_user_id
       ? { ownerUserId: row.owner_user_id }
@@ -230,6 +242,9 @@ function eventToRow(e: GalleryEventRecord): EventRow {
     live_moments_enabled: e.liveMomentsEnabled === true,
     allow_likes: e.allowLikes === true,
     allow_media_share: e.allowMediaShare !== false,
+    view_count: Math.max(0, Math.trunc(e.viewCount ?? 0)),
+    download_count: Math.max(0, Math.trunc(e.downloadCount ?? 0)),
+    share_count: Math.max(0, Math.trunc(e.shareCount ?? 0)),
   };
 }
 

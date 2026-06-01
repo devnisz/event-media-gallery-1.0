@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { AmbientBackground } from "@/components/public/ambient-background";
+import { EventGalleryViewTracker } from "@/components/public/event-gallery-view-tracker";
 import { VideoGallery } from "@/components/public/video-gallery";
 import { getPublicGalleryEventSettings } from "@/lib/gallery/public-event-settings";
 import { resolveLiveMomentsConfig } from "@/lib/live-moments/config";
@@ -48,6 +49,7 @@ export default async function EventGalleryPage({ params }: EventPageProps) {
   return (
     <main className="relative min-h-dvh overflow-hidden text-white">
       <AmbientBackground />
+      <EventGalleryViewTracker eventSlug={event.slug} />
 
       <VideoGallery
         key={event.slug}

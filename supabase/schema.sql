@@ -30,6 +30,9 @@ create table if not exists public.events (
   live_moments_enabled boolean not null default false,
   allow_likes boolean not null default false,
   allow_media_share boolean not null default true,
+  view_count integer not null default 0,
+  download_count integer not null default 0,
+  share_count integer not null default 0,
   constraint events_cabine_virtual_video_duration_check
     check (
       cabine_virtual_video_max_duration_seconds >= 5
@@ -60,6 +63,9 @@ create table if not exists public.media (
   is_hidden boolean not null default false,
   is_favorite boolean not null default false,
   likes_count integer not null default 0,
+  view_count integer not null default 0,
+  download_count integer not null default 0,
+  share_count integer not null default 0,
   deleted_at timestamptz,
   deleted_by text,
   media_source text not null default 'operator',

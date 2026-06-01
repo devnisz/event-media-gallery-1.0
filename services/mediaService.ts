@@ -552,9 +552,18 @@ export type MediaStatePatch = {
   isHidden?: boolean;
   isFavorite?: boolean;
   likesCount?: number;
+  viewCount?: number;
+  downloadCount?: number;
+  shareCount?: number;
   reviewStatus?: MediaReviewStatus;
   deletedAt?: string;
   deletedBy?: string;
+};
+
+export type EventEngagementPatch = {
+  viewCount?: number;
+  downloadCount?: number;
+  shareCount?: number;
 };
 
 export async function updateGalleryMediaLikesCount(
@@ -564,6 +573,82 @@ export async function updateGalleryMediaLikesCount(
   return updateGalleryMediaState(id, {
     likesCount: Math.max(0, Math.trunc(likesCount)),
   });
+}
+
+function applyEngagementDelta(
+  current: number | undefined,
+  delta: number | undefined,
+): number | undefined {
+  if (delta === undefined) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.trunc(current ?? 0) + Math.trunc(delta));
+}
+
+export async function incrementMediaEngagementCount(
+  id: string,
+  delta: Pick<EventEngagementPatch, "viewCount" | "downloadCount" | "shareCount">,
+): Promise<GalleryMediaRecord | null> {
+  const galleryMedia = await loadGalleryVideosForMutation();
+  const item = galleryMedia.find((m) => m.id === id);
+
+  if (!item) {
+    return null;
+  }
+
+  const patch: MediaStatePatch = {};
+  const viewCount = applyEngagementDelta(item.viewCount, delta.viewCount);
+  const downloadCount = applyEngagementDelta(item.downloadCount, delta.downloadCount);
+  const shareCount = applyEngagementDelta(item.shareCount, delta.shareCount);
+
+  if (viewCount !== undefined) {
+    patch.viewCount = viewCount;
+  }
+
+  if (downloadCount !== undefined) {
+    patch.downloadCount = downloadCount;
+  }
+
+  if (shareCount !== undefined) {
+    patch.shareCount = shareCount;
+  }
+
+  return updateGalleryMediaState(id, patch);
+}
+
+export async function incrementEventEngagementCount(
+  eventId: string,
+  delta: EventEngagementPatch,
+): Promise<void> {
+  const events = await readEvents();
+  const index = events.findIndex((event) => event.id === eventId);
+
+  if (index === -1) {
+    return;
+  }
+
+  const current = events[index];
+  const next: GalleryEventRecord = { ...current };
+  const viewCount = applyEngagementDelta(current.viewCount, delta.viewCount);
+  const downloadCount = applyEngagementDelta(current.downloadCount, delta.downloadCount);
+  const shareCount = applyEngagementDelta(current.shareCount, delta.shareCount);
+
+  if (viewCount !== undefined) {
+    next.viewCount = viewCount;
+  }
+
+  if (downloadCount !== undefined) {
+    next.downloadCount = downloadCount;
+  }
+
+  if (shareCount !== undefined) {
+    next.shareCount = shareCount;
+  }
+
+  const updated = [...events];
+  updated[index] = next;
+  await writeEvents(updated);
 }
 
 export async function updateGalleryMediaState(

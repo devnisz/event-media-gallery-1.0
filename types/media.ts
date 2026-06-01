@@ -36,6 +36,12 @@ export type GalleryMediaRecord = {
   isFavorite?: boolean;
   /** Total de curtidas públicas (❤️). */
   likesCount?: number;
+  /** Visualizações da mídia (viewer ou página dedicada). */
+  viewCount?: number;
+  /** Cliques em baixar. */
+  downloadCount?: number;
+  /** Cliques em compartilhar. */
+  shareCount?: number;
   /** Soft-delete: remove da experiência do app sem apagar o objeto no R2. */
   deletedAt?: string;
   deletedBy?: string;

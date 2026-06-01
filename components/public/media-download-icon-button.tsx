@@ -3,6 +3,7 @@
 import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 
+import { trackMediaDownload } from "@/lib/analytics/track-client";
 import {
   mediaGlassActionButtonClass,
   mediaGlassActionIconClass,
@@ -12,6 +13,7 @@ type MediaDownloadIconButtonProps = {
   href: string;
   fileName: string;
   label: string;
+  mediaId?: string;
 };
 
 async function downloadFile(url: string, filename: string) {
@@ -36,6 +38,7 @@ export function MediaDownloadIconButton({
   href,
   fileName,
   label,
+  mediaId,
 }: MediaDownloadIconButtonProps) {
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +51,11 @@ export function MediaDownloadIconButton({
         event.preventDefault();
         event.stopPropagation();
         setLoading(true);
+
+        if (mediaId?.trim()) {
+          trackMediaDownload(mediaId.trim());
+        }
+
         void downloadFile(href, fileName).finally(() => setLoading(false));
       }}
       className={mediaGlassActionButtonClass}

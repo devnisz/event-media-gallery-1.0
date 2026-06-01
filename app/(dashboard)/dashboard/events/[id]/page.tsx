@@ -36,7 +36,12 @@ export default async function DashboardEventPage({
   const cabineConfig = resolveCabineVirtualConfig(detail.event);
   const liveMomentsConfig = resolveLiveMomentsConfig(detail.event);
   const gallerySettings = getPublicGalleryEventSettings(detail.event);
-  const engagementMetrics = buildEventEngagementMetrics(detail.media);
+  const engagementMetrics = buildEventEngagementMetrics({
+    media: detail.media,
+    eventViewCount: detail.event.viewCount,
+    eventDownloadCount: detail.event.downloadCount,
+    eventShareCount: detail.event.shareCount,
+  });
 
   return (
     <Suspense fallback={<EventManagementFallback />}>

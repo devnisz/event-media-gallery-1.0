@@ -276,6 +276,28 @@ function rowToLegacyJson(row: SupabaseMediaRow): Record<string, unknown> {
     o.likesCount = Math.max(0, Math.trunc(likesCount));
   }
 
+  const viewCount =
+    optionalFiniteNumber(row.view_count) ?? optionalFiniteNumber(row.viewCount);
+
+  if (viewCount !== undefined) {
+    o.viewCount = Math.max(0, Math.trunc(viewCount));
+  }
+
+  const downloadCount =
+    optionalFiniteNumber(row.download_count) ??
+    optionalFiniteNumber(row.downloadCount);
+
+  if (downloadCount !== undefined) {
+    o.downloadCount = Math.max(0, Math.trunc(downloadCount));
+  }
+
+  const shareCount =
+    optionalFiniteNumber(row.share_count) ?? optionalFiniteNumber(row.shareCount);
+
+  if (shareCount !== undefined) {
+    o.shareCount = Math.max(0, Math.trunc(shareCount));
+  }
+
   const deletedAt =
     optionalIsoDate(row.deleted_at) ??
     optionalIsoDate(row.deletedAt);
@@ -361,6 +383,18 @@ function galleryRecordToRow(
     row.likes_count = Math.max(0, Math.trunc(m.likesCount));
   }
 
+  if (m.viewCount !== undefined) {
+    row.view_count = Math.max(0, Math.trunc(m.viewCount));
+  }
+
+  if (m.downloadCount !== undefined) {
+    row.download_count = Math.max(0, Math.trunc(m.downloadCount));
+  }
+
+  if (m.shareCount !== undefined) {
+    row.share_count = Math.max(0, Math.trunc(m.shareCount));
+  }
+
   if (m.deletedAt !== undefined) {
     row.deleted_at = m.deletedAt || null;
   }
@@ -421,6 +455,22 @@ function buildLegacyJsonRowsFromGallery(
 
     if (m.isFavorite !== undefined) {
       row.isFavorite = m.isFavorite;
+    }
+
+    if (m.likesCount !== undefined) {
+      row.likesCount = Math.max(0, Math.trunc(m.likesCount));
+    }
+
+    if (m.viewCount !== undefined) {
+      row.viewCount = Math.max(0, Math.trunc(m.viewCount));
+    }
+
+    if (m.downloadCount !== undefined) {
+      row.downloadCount = Math.max(0, Math.trunc(m.downloadCount));
+    }
+
+    if (m.shareCount !== undefined) {
+      row.shareCount = Math.max(0, Math.trunc(m.shareCount));
     }
 
     if (m.deletedAt) {

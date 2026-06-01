@@ -172,6 +172,7 @@ export function StandaloneMediaChrome({
         ) : null}
         <DownloadButton
           href={downloadHref}
+          mediaId={media.id}
           fileName={downloadFileName}
           variant="icon"
         />

@@ -23,6 +23,7 @@ import {
 } from "@/lib/gallery/media-open-perf";
 import { preloadEventMedia } from "@/lib/gallery/preload-media";
 import { suggestedDownloadFileName } from "@/lib/media/suggestedDownloadFileName";
+import { trackMediaView } from "@/lib/analytics/track-client";
 import { routes } from "@/lib/routes";
 import type { EventMedia } from "@/types/media";
 
@@ -116,6 +117,7 @@ export function MediaViewerNavigator({
   const dragRef = useRef<DragState | null>(null);
   const mountLoggedRef = useRef(false);
   const viewportMeasuredRef = useRef(false);
+  const lastTrackedViewIdRef = useRef<string | null>(null);
 
   const focalMediaIdRef = useRef(initialMediaId.trim());
 
@@ -186,6 +188,17 @@ export function MediaViewerNavigator({
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    const mediaId = current?.id?.trim();
+
+    if (!mediaId || lastTrackedViewIdRef.current === mediaId) {
+      return;
+    }
+
+    lastTrackedViewIdRef.current = mediaId;
+    trackMediaView(mediaId);
+  }, [current?.id]);
 
   useLayoutEffect(() => {
     const focalId = focalMediaIdRef.current.trim();

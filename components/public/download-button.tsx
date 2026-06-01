@@ -3,6 +3,7 @@
 import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 
+import { trackMediaDownload } from "@/lib/analytics/track-client";
 import {
   mediaGlassActionButtonClass,
   mediaGlassActionIconClass,
@@ -36,6 +37,8 @@ async function handleDownload(url: string, filename: string): Promise<void> {
 type DownloadButtonProps = {
   /** URL pública do arquivo (ex.: R2). */
   href: string;
+  /** Quando informado, registra métrica de download no clique. */
+  mediaId?: string;
   /** Rótulo do botão (ex.: vídeo vs imagem). */
   label?: string;
   /**
@@ -48,6 +51,7 @@ type DownloadButtonProps = {
 
 export function DownloadButton({
   href,
+  mediaId,
   label = "Baixar mídia",
   fileName,
   variant = "primary",
@@ -63,6 +67,10 @@ export function DownloadButton({
   const onDownload = async () => {
     setError(null);
     setLoading(true);
+
+    if (mediaId?.trim()) {
+      trackMediaDownload(mediaId.trim());
+    }
 
     try {
       await handleDownload(href, resolvedName);

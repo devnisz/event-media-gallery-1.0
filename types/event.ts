@@ -42,6 +42,12 @@ export type GalleryEventRecord = {
   allowLikes?: boolean;
   /** Permite compartilhar midias individuais (/video/id). Padrao: true. */
   allowMediaShare?: boolean;
+  /** Visualizações da galeria pública do evento. */
+  viewCount?: number;
+  /** Total de downloads de mídias do evento. */
+  downloadCount?: number;
+  /** Total de compartilhamentos de mídias do evento. */
+  shareCount?: number;
 };
 
 /** Linha persistida antes da migração de uploadToken (JSON legado). */

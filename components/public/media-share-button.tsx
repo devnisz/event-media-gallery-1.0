@@ -7,6 +7,7 @@ import {
   mediaGlassActionButtonClass,
   mediaGlassActionIconClass,
 } from "@/components/public/media-glass-action-styles";
+import { trackMediaShare } from "@/lib/analytics/track-client";
 import {
   buildMediaSharePayload,
   shareMediaLink,
@@ -36,6 +37,7 @@ export function MediaShareButton({
 
   async function handleShare() {
     setToast("");
+    trackMediaShare(mediaId);
 
     const payload = buildMediaSharePayload(mediaId, mediaType);
     const outcome = await shareMediaLink(payload);

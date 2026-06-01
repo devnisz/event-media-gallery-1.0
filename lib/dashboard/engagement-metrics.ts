@@ -6,7 +6,7 @@ export type EngagementMetricValue = {
   tracked: boolean;
 };
 
-export type TopMediaSortKey = "likes" | "shares" | "downloads";
+export type TopMediaSortKey = "likes" | "shares" | "downloads" | "views";
 
 export type TopMediaItem = {
   id: string;
@@ -14,9 +14,11 @@ export type TopMediaItem = {
   thumbnailUrl?: string;
   mediaType: MediaKind;
   likes: number;
+  views: number;
   downloads: number;
   shares: number;
   likesTracked: boolean;
+  viewsTracked: boolean;
   downloadsTracked: boolean;
   sharesTracked: boolean;
 };
@@ -55,13 +57,19 @@ export type EventEngagementMetrics = {
   uploadActivity: UploadActivityPoint[];
   engagementAverages: {
     likesPerMedia: number;
+    viewsPerMedia: number;
     downloadsPerMedia: number;
     sharesPerMedia: number;
     publishedMediaCount: number;
   };
 };
 
-const UNTRACKED: EngagementMetricValue = { value: 0, tracked: false };
+export type BuildEventEngagementMetricsInput = {
+  media: GalleryMediaRecord[];
+  eventViewCount?: number;
+  eventDownloadCount?: number;
+  eventShareCount?: number;
+};
 
 function mediaTimestamp(media: GalleryMediaRecord): number | null {
   const raw = media.uploadedAt ?? media.createdAt ?? media.timestamp;
@@ -101,11 +109,13 @@ function toTopMediaItem(media: GalleryMediaRecord): TopMediaItem {
     thumbnailUrl: media.thumbnailUrl ?? (media.mediaType !== "video" ? media.url : undefined),
     mediaType: media.mediaType,
     likes: Math.max(0, media.likesCount ?? 0),
-    downloads: 0,
-    shares: 0,
+    views: Math.max(0, media.viewCount ?? 0),
+    downloads: Math.max(0, media.downloadCount ?? 0),
+    shares: Math.max(0, media.shareCount ?? 0),
     likesTracked: true,
-    downloadsTracked: false,
-    sharesTracked: false,
+    viewsTracked: true,
+    downloadsTracked: true,
+    sharesTracked: true,
   };
 }
 
@@ -119,6 +129,10 @@ function sortTopMedia(items: TopMediaItem[], sortBy: TopMediaSortKey): TopMediaI
 
     if (sortBy === "shares") {
       return b.shares - a.shares;
+    }
+
+    if (sortBy === "views") {
+      return b.views - a.views;
     }
 
     return b.downloads - a.downloads;
@@ -193,14 +207,30 @@ function buildCabineBreakdown(published: GalleryMediaRecord[]): CabineBreakdownI
   }));
 }
 
+function sumMediaViews(published: GalleryMediaRecord[]): number {
+  return published.reduce((sum, item) => sum + Math.max(0, item.viewCount ?? 0), 0);
+}
+
 export function buildEventEngagementMetrics(
-  media: GalleryMediaRecord[],
+  input: BuildEventEngagementMetricsInput | GalleryMediaRecord[],
 ): EventEngagementMetrics {
+  const media = Array.isArray(input) ? input : input.media;
+  const eventViewCount = Array.isArray(input)
+    ? 0
+    : Math.max(0, input.eventViewCount ?? 0);
+  const eventDownloadCount = Array.isArray(input)
+    ? 0
+    : Math.max(0, input.eventDownloadCount ?? 0);
+  const eventShareCount = Array.isArray(input)
+    ? 0
+    : Math.max(0, input.eventShareCount ?? 0);
+
   const published = media.filter(isPublishedMedia);
   const totalLikes = published.reduce(
     (sum, item) => sum + Math.max(0, item.likesCount ?? 0),
     0,
   );
+  const totalMediaViews = sumMediaViews(published);
   const publishedCount = published.length;
 
   const topMedia = sortTopMedia(published.map(toTopMediaItem), "likes");
@@ -210,25 +240,43 @@ export function buildEventEngagementMetrics(
     tracked: true,
   };
 
+  const viewsMetric: EngagementMetricValue = {
+    value: eventViewCount,
+    tracked: true,
+  };
+
+  const downloadsMetric: EngagementMetricValue = {
+    value: eventDownloadCount,
+    tracked: true,
+  };
+
+  const sharesMetric: EngagementMetricValue = {
+    value: eventShareCount,
+    tracked: true,
+  };
+
   const publishedMetric: EngagementMetricValue = {
     value: publishedCount,
     tracked: true,
   };
 
+  const trackedTotal =
+    eventViewCount + eventDownloadCount + eventShareCount + totalLikes;
+
   return {
     summary: {
-      views: UNTRACKED,
+      views: viewsMetric,
       publishedMedia: publishedMetric,
-      downloads: UNTRACKED,
-      shares: UNTRACKED,
+      downloads: downloadsMetric,
+      shares: sharesMetric,
       likes: likesMetric,
     },
     reach: {
-      views: UNTRACKED,
-      downloads: UNTRACKED,
-      shares: UNTRACKED,
+      views: viewsMetric,
+      downloads: downloadsMetric,
+      shares: sharesMetric,
       likes: likesMetric,
-      trackedTotal: totalLikes,
+      trackedTotal,
     },
     topMedia,
     cabineBreakdown: buildCabineBreakdown(published),
@@ -238,8 +286,18 @@ export function buildEventEngagementMetrics(
         publishedCount > 0
           ? Math.round((totalLikes / publishedCount) * 10) / 10
           : 0,
-      downloadsPerMedia: 0,
-      sharesPerMedia: 0,
+      viewsPerMedia:
+        publishedCount > 0
+          ? Math.round((totalMediaViews / publishedCount) * 10) / 10
+          : 0,
+      downloadsPerMedia:
+        publishedCount > 0
+          ? Math.round((eventDownloadCount / publishedCount) * 10) / 10
+          : 0,
+      sharesPerMedia:
+        publishedCount > 0
+          ? Math.round((eventShareCount / publishedCount) * 10) / 10
+          : 0,
       publishedMediaCount: publishedCount,
     },
   };

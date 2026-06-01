@@ -46,6 +46,12 @@ export type RawMediaRecord = {
   is_favorite?: unknown;
   likesCount?: unknown;
   likes_count?: unknown;
+  viewCount?: unknown;
+  view_count?: unknown;
+  downloadCount?: unknown;
+  download_count?: unknown;
+  shareCount?: unknown;
+  share_count?: unknown;
   mediaSource?: unknown;
   media_source?: unknown;
   reviewStatus?: unknown;
@@ -255,6 +261,9 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
   const isHidden = coerceBooleanField(raw.isHidden ?? raw.is_hidden);
   const isFavorite = coerceBooleanField(raw.isFavorite ?? raw.is_favorite);
   const likesCount = coerceLikesCount(raw.likesCount ?? raw.likes_count);
+  const viewCount = coerceLikesCount(raw.viewCount ?? raw.view_count);
+  const downloadCount = coerceLikesCount(raw.downloadCount ?? raw.download_count);
+  const shareCount = coerceLikesCount(raw.shareCount ?? raw.share_count);
   const mediaSource = coerceMediaSource(raw.mediaSource ?? raw.media_source);
   const reviewStatus = coerceReviewStatus(raw.reviewStatus ?? raw.review_status);
 
@@ -276,6 +285,9 @@ export function toGalleryRecord(raw: RawMediaRecord): GalleryMediaRecord {
     ...(isHidden !== undefined ? { isHidden } : {}),
     ...(isFavorite !== undefined ? { isFavorite } : {}),
     ...(likesCount !== undefined ? { likesCount } : {}),
+    ...(viewCount !== undefined ? { viewCount } : {}),
+    ...(downloadCount !== undefined ? { downloadCount } : {}),
+    ...(shareCount !== undefined ? { shareCount } : {}),
     ...(deletedAt ? { deletedAt } : {}),
     ...(deletedByRaw ? { deletedBy: deletedByRaw } : {}),
     orderIndex:

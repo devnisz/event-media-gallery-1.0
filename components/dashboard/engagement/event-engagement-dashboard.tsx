@@ -220,6 +220,7 @@ function TopMediaRow({
       </div>
       <div className="hidden items-center gap-4 text-xs sm:flex">
         <StatPill icon={Heart} value={item.likes} tracked={item.likesTracked} />
+        <StatPill icon={Eye} value={item.views} tracked={item.viewsTracked} />
         <StatPill
           icon={Download}
           value={item.downloads}
@@ -231,8 +232,9 @@ function TopMediaRow({
           tracked={item.sharesTracked}
         />
       </div>
-      <div className="flex flex-col gap-1 text-xs sm:hidden">
+      <div className="flex flex-wrap gap-2 text-xs sm:hidden">
         <StatPill icon={Heart} value={item.likes} tracked={item.likesTracked} />
+        <StatPill icon={Eye} value={item.views} tracked={item.viewsTracked} />
       </div>
     </div>
   );
@@ -282,6 +284,10 @@ function sortTopMedia(
 
     if (sortBy === "shares") {
       return b.shares - a.shares;
+    }
+
+    if (sortBy === "views") {
+      return b.views - a.views;
     }
 
     return b.downloads - a.downloads;
@@ -396,11 +402,12 @@ function TopMediaCard({
         >
           <TabsList className="mb-4 flex-wrap">
             <TabsTrigger value="likes">Mais curtidas</TabsTrigger>
+            <TabsTrigger value="views">Mais visualizadas</TabsTrigger>
             <TabsTrigger value="shares">Mais compartilhadas</TabsTrigger>
             <TabsTrigger value="downloads">Mais baixadas</TabsTrigger>
           </TabsList>
 
-          {(["likes", "shares", "downloads"] as const).map((sortKey) => {
+          {(["likes", "views", "shares", "downloads"] as const).map((sortKey) => {
             const rankedItems = sortTopMedia(metrics.topMedia, sortKey);
 
             return (
@@ -541,15 +548,21 @@ export function EventEngagementDashboard({
       icon: Heart,
     },
     {
+      label: "Visualizações por mídia",
+      value: metrics.engagementAverages.viewsPerMedia,
+      tracked: true,
+      icon: Eye,
+    },
+    {
       label: "Downloads por mídia",
       value: metrics.engagementAverages.downloadsPerMedia,
-      tracked: false,
+      tracked: true,
       icon: Download,
     },
     {
       label: "Compartilhamentos por mídia",
       value: metrics.engagementAverages.sharesPerMedia,
-      tracked: false,
+      tracked: true,
       icon: Share2,
     },
   ];
@@ -658,11 +671,12 @@ export function EventEngagementDashboard({
             >
               <TabsList className="mb-4 flex-wrap">
                 <TabsTrigger value="likes">Mais curtidas</TabsTrigger>
+                <TabsTrigger value="views">Mais visualizadas</TabsTrigger>
                 <TabsTrigger value="shares">Mais compartilhadas</TabsTrigger>
                 <TabsTrigger value="downloads">Mais baixadas</TabsTrigger>
               </TabsList>
 
-              {(["likes", "shares", "downloads"] as const).map((sortKey) => {
+              {(["likes", "views", "shares", "downloads"] as const).map((sortKey) => {
                 const rankedItems = sortTopMedia(metrics.topMedia, sortKey);
 
                 return (
@@ -803,7 +817,7 @@ export function EventEngagementDashboard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {averageCards.map((item) => (
               <div
                 key={item.label}
@@ -812,15 +826,9 @@ export function EventEngagementDashboard({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-white/45">{item.label}</p>
-                    <div className="mt-3">
-                      {item.tracked ? (
-                        <p className="text-3xl font-black tracking-tight text-white">
-                          {formatMetricAverage(item.value)}
-                        </p>
-                      ) : (
-                        <MetricComingSoon compact />
-                      )}
-                    </div>
+                    <p className="mt-3 text-3xl font-black tracking-tight text-white">
+                      {formatMetricAverage(item.value)}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3 text-white/50">
                     <item.icon className="size-4" />

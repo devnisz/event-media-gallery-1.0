@@ -48,6 +48,7 @@ export function MediaViewerActions({
         ) : null}
         <DownloadButton
           href={downloadHref}
+          mediaId={media.id}
           label={downloadLabel}
           fileName={downloadFileName}
           variant="secondary"
@@ -100,6 +101,7 @@ export function MediaViewerActions({
         href={downloadHref}
         fileName={downloadFileName}
         label={downloadLabel}
+        mediaId={media.id}
       />
     </div>
   );
