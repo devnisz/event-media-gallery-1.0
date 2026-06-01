@@ -57,7 +57,7 @@ function isSwipeBlockedTarget(target: EventTarget | null): boolean {
 
   return Boolean(
     target.closest(
-      "button, a, input, textarea, select, label, video, [role='button'], [data-no-swipe]",
+      "button, a, input, textarea, select, label, [role='button'], [data-no-swipe]",
     ),
   );
 }
@@ -253,6 +253,7 @@ export function MediaViewerNavigator({
     }
 
     preloadEventMedia(items[activeIndex - 1]);
+    preloadEventMedia(current);
     preloadEventMedia(items[activeIndex + 1]);
     setGalleryFocusMedia(eventSlug, current.id);
 
@@ -517,6 +518,7 @@ export function MediaViewerNavigator({
           }}
         >
           <CarouselSlot
+            key="carousel-prev"
             media={prevMedia}
             width={slideWidth}
             isActive={false}
@@ -525,9 +527,9 @@ export function MediaViewerNavigator({
             onBackToGallery={returnToGallery}
             allowLikes={allowLikes}
             allowMediaShare={allowMediaShare}
-            slotKey={prevMedia?.id ?? "slot-prev-empty"}
           />
           <CarouselSlot
+            key="carousel-current"
             media={current}
             width={slideWidth}
             isActive
@@ -536,9 +538,9 @@ export function MediaViewerNavigator({
             onBackToGallery={returnToGallery}
             allowLikes={allowLikes}
             allowMediaShare={allowMediaShare}
-            slotKey={current.id}
           />
           <CarouselSlot
+            key="carousel-next"
             media={nextMedia}
             width={slideWidth}
             isActive={false}
@@ -547,7 +549,6 @@ export function MediaViewerNavigator({
             onBackToGallery={returnToGallery}
             allowLikes={allowLikes}
             allowMediaShare={allowMediaShare}
-            slotKey={nextMedia?.id ?? "slot-next-empty"}
           />
         </div>
       </div>
@@ -580,7 +581,6 @@ type CarouselSlotProps = {
   onBackToGallery: () => void;
   allowLikes: boolean;
   allowMediaShare: boolean;
-  slotKey: string;
 };
 
 function CarouselSlot({
@@ -592,7 +592,6 @@ function CarouselSlot({
   onBackToGallery,
   allowLikes,
   allowMediaShare,
-  slotKey,
 }: CarouselSlotProps) {
   return (
     <div
@@ -600,11 +599,10 @@ function CarouselSlot({
         isActive ? "" : "pointer-events-none"
       }`}
       style={{ width }}
-      aria-hidden={!isActive}
+      aria-hidden={!isActive || !media}
     >
       {media ? (
         <SharedMediaStandalone
-          key={slotKey}
           media={media}
           eventHref={eventHref}
           eventSlug={eventSlug}
@@ -613,6 +611,7 @@ function CarouselSlot({
           allowLikes={allowLikes}
           allowMediaShare={allowMediaShare}
           hideChrome
+          inCarousel
           isActiveSlide={isActive}
         />
       ) : null}

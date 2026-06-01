@@ -8,6 +8,7 @@ type VideoPlayerProps = {
   video: EventMedia;
   autoPlay?: boolean;
   standalone?: boolean;
+  inCarousel?: boolean;
   standaloneChrome?: StandaloneMediaChromeProps;
 };
 
@@ -16,6 +17,7 @@ export function VideoPlayer({
   video,
   autoPlay = false,
   standalone = false,
+  inCarousel = false,
   standaloneChrome,
 }: VideoPlayerProps) {
   return (
@@ -23,6 +25,7 @@ export function VideoPlayer({
       media={video}
       autoPlay={autoPlay}
       standalone={standalone}
+      inCarousel={inCarousel}
       standaloneChrome={standaloneChrome}
     />
   );

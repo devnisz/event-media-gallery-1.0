@@ -19,6 +19,8 @@ type SharedMediaStandaloneProps = {
   hideChrome?: boolean;
   /** Só a mídia ativa deve dar autoplay em vídeos. */
   isActiveSlide?: boolean;
+  /** Carrossel lateral: poster contínuo e preload agressivo. */
+  inCarousel?: boolean;
 };
 
 export function SharedMediaStandalone({
@@ -34,6 +36,7 @@ export function SharedMediaStandalone({
   enableNavigation = false,
   hideChrome = false,
   isActiveSlide = true,
+  inCarousel = false,
 }: SharedMediaStandaloneProps) {
   return (
     <div className="flex h-full w-full flex-1 items-center justify-center">
@@ -41,6 +44,7 @@ export function SharedMediaStandalone({
         video={media}
         autoPlay={isActiveSlide}
         standalone
+        inCarousel={inCarousel}
         standaloneChrome={
           hideChrome
             ? undefined

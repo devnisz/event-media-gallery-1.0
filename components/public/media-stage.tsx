@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { readyMediaCache } from "@/lib/gallery/preload-media";
 import type { EventMedia } from "@/types/media";
 import {
   StandaloneMediaChrome,
@@ -13,34 +14,79 @@ type MediaStageProps = {
   autoPlay?: boolean;
   /** Página pública individual: mídia em destaque + overlays flutuantes. */
   standalone?: boolean;
+  /** Carrossel lateral: poster persistente e preload agressivo. */
+  inCarousel?: boolean;
   standaloneChrome?: StandaloneMediaChromeProps;
 };
+
+function posterUrl(media: EventMedia): string | undefined {
+  const thumb = media.thumbnailUrl ?? media.thumbnail;
+  if (thumb?.trim()) {
+    return thumb.trim();
+  }
+
+  if (media.mediaType !== "video") {
+    return media.url;
+  }
+
+  return undefined;
+}
+
+type LoadState = "loading" | "ready" | "error";
+
+function resolveLoadState(
+  media: EventMedia,
+  loadStateById: Record<string, LoadState>,
+): LoadState {
+  const tracked = loadStateById[media.id];
+
+  if (tracked) {
+    return tracked;
+  }
+
+  if (readyMediaCache.has(media.id)) {
+    return "ready";
+  }
+
+  return "loading";
+}
 
 export function MediaStage({
   media,
   autoPlay = false,
   standalone = false,
+  inCarousel = false,
   standaloneChrome,
 }: MediaStageProps) {
-  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
-    "loading",
+  const [loadStateById, setLoadStateById] = useState<Record<string, LoadState>>(
+    {},
   );
 
-  const onReady = useCallback(() => setLoadState("ready"), []);
-  const onErr = useCallback(() => setLoadState("error"), []);
+  const loadState = resolveLoadState(media, loadStateById);
 
-  const skeleton =
-    loadState === "loading" ? (
-      <div
-        className="absolute inset-0 z-[5] animate-pulse bg-gradient-to-br from-white/12 via-white/[0.04] to-transparent backdrop-blur-[2px]"
-        aria-hidden
-      />
-    ) : null;
+  const markReady = useCallback(() => {
+    readyMediaCache.add(media.id);
+    setLoadStateById((current) => {
+      if (current[media.id] === "ready") {
+        return current;
+      }
+
+      return { ...current, [media.id]: "ready" };
+    });
+  }, [media.id]);
+
+  const onErr = useCallback(() => {
+    setLoadStateById((current) => ({ ...current, [media.id]: "error" }));
+  }, [media.id]);
+
+  const poster = posterUrl(media);
+  const showPoster = Boolean(poster) && loadState !== "ready";
+  const carouselShell = standalone && inCarousel;
 
   if (media.mediaType === "video") {
     const videoShellClass = standalone
-      ? "relative mx-auto aspect-[9/16] h-[min(90dvh,calc(100dvh-1rem))] w-auto max-w-[min(100vw-1rem,600px)] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_22px_80px_rgba(0,0,0,0.55)] sm:rounded-2xl"
-      : "relative aspect-[9/16] w-full max-w-[420px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_22px_80px_rgba(0,0,0,0.55)] sm:rounded-2xl xl:max-w-[min(420px,38vw)] 2xl:max-w-[400px]";
+      ? "relative mx-auto aspect-[9/16] h-[min(90dvh,calc(100dvh-1rem))] w-auto max-w-[min(100vw-1rem,600px)] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#050508] shadow-[0_22px_80px_rgba(0,0,0,0.55)] sm:rounded-2xl"
+      : "relative aspect-[9/16] w-full max-w-[420px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#050508] shadow-[0_22px_80px_rgba(0,0,0,0.55)] sm:rounded-2xl xl:max-w-[min(420px,38vw)] 2xl:max-w-[400px]";
 
     return (
       <div
@@ -54,22 +100,27 @@ export function MediaStage({
           {standalone && standaloneChrome ? (
             <StandaloneMediaChrome {...standaloneChrome} />
           ) : null}
-          <div className="pointer-events-none absolute inset-0 z-[1] opacity-35">
+          <div
+            className={`absolute inset-0 z-[1] ${
+              carouselShell || showPoster ? "opacity-100" : "opacity-35"
+            }`}
+            aria-hidden
+          >
             <VideoThumbnail video={media} variant="vertical" fillParent />
           </div>
-          {skeleton}
           <video
-            data-no-swipe
-            className={`absolute inset-0 z-10 h-full w-full bg-black object-contain transition-opacity duration-700 ease-out ${
+            className={`absolute inset-0 z-10 h-full w-full object-contain transition-opacity duration-300 ease-out ${
               loadState === "ready" ? "opacity-100" : "opacity-0"
             }`}
-            controls
+            style={inCarousel ? { touchAction: "pan-y" } : undefined}
+            controls={loadState === "ready"}
             playsInline
-            preload="metadata"
+            preload={inCarousel ? "auto" : "metadata"}
             autoPlay={autoPlay}
             muted={autoPlay}
             src={media.url}
-            onLoadedData={onReady}
+            onLoadedData={markReady}
+            onCanPlay={markReady}
             onError={onErr}
           >
             Seu navegador não suporta vídeo HTML5.
@@ -99,18 +150,25 @@ export function MediaStage({
       {standalone && standaloneChrome ? (
         <StandaloneMediaChrome {...standaloneChrome} />
       ) : null}
-      {skeleton}
+      {poster && showPoster && poster !== media.url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={poster}
+          alt=""
+          aria-hidden
+          className={`absolute inset-0 z-[5] w-full object-contain ${imageMaxHeight}`}
+        />
+      ) : null}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={media.url}
         alt=""
         decoding="async"
-        className={`relative z-10 w-full object-contain transition-all duration-700 ease-out ${imageMaxHeight} ${
-          loadState === "ready"
-            ? "scale-100 opacity-100"
-            : "scale-[0.985] opacity-0"
+        loading={inCarousel ? "eager" : "lazy"}
+        className={`relative z-10 w-full object-contain transition-opacity duration-300 ease-out ${imageMaxHeight} ${
+          inCarousel || loadState === "ready" ? "opacity-100" : "opacity-0"
         }`}
-        onLoad={onReady}
+        onLoad={markReady}
         onError={onErr}
       />
       {loadState === "error" ? (
