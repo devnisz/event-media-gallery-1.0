@@ -47,14 +47,14 @@ import {
   validateGalleryPhotoFile,
   validateGalleryVideoFile,
 } from "@/lib/virtual-booth/gallery-import";
-import { VideoRecordingProgressRing } from "./video-recording-progress-ring";
+import { VirtualBoothCameraStage } from "./virtual-booth-camera-stage";
 import { VirtualBoothExperienceMenu } from "./virtual-booth-experience-menu";
 import { VirtualBoothSourceSheet } from "./virtual-booth-source-sheet";
 import { cn } from "@/lib/utils";
 
 const BRAND_LABEL = "Cabine Virtual";
 
-type CaptureMode = "photo" | "gif" | "boomerang" | "video";
+type CaptureMode = "photo" | "boomerang" | "video";
 
 type ModalStep =
   | "menu"
@@ -153,10 +153,11 @@ export function VirtualBoothModal({
     () => buildVirtualBoothMenuOptions(cabineConfig),
     [cabineConfig],
   );
-  const isGifMode = captureMode === "gif";
   const isBoomerangMode = captureMode === "boomerang";
   const isVideoMode = captureMode === "video";
-  const isMotionMode = isGifMode || isBoomerangMode;
+  const isMotionMode = isBoomerangMode;
+  const isImmersiveCapture =
+    step === "camera" || step === "countdown" || isRecordingMotion;
   const showingFramedVersion =
     hasOfficialFrame && useFramedPreview && Boolean(composedFile);
 
@@ -444,16 +445,6 @@ export function VirtualBoothModal({
       return;
     }
 
-    if (optionId === "gif") {
-      if (!cabineConfig.cameraEnabled) {
-        setErrorMessage("Captura por câmera desativada neste evento.");
-        return;
-      }
-
-      void startCameraCapture("gif");
-      return;
-    }
-
     if (optionId === "boomerang") {
       if (!cabineConfig.cameraEnabled) {
         setErrorMessage("Captura por câmera desativada neste evento.");
@@ -667,18 +658,16 @@ export function VirtualBoothModal({
         fps: isBoomerangMode ? BOOMERANG_CAPTURE_FPS : undefined,
         maxLongEdge: isBoomerangMode ? BOOMERANG_MAX_LONG_EDGE : undefined,
         minValidFrames: isBoomerangMode ? MIN_VALID_BOOMERANG_FRAMES : undefined,
-        logLabel: isBoomerangMode ? "Boomerang" : "GIF",
+        logLabel: "Boomerang",
         onProgress: (frameIndex, totalFrames) => {
           setComposingMessage(
-            isBoomerangMode
-              ? `Capturando Boomerang (${frameIndex}/${totalFrames})...`
-              : `Capturando movimento (${frameIndex}/${totalFrames})...`,
+            `Capturando Boomerang (${frameIndex}/${totalFrames})...`,
           );
         },
       });
 
       console.log(
-        `[Cabine Virtual ${isBoomerangMode ? "Boomerang" : "GIF"}] resumo da captura no modal`,
+        "[Cabine Virtual Boomerang] resumo da captura no modal",
         stats,
       );
 
@@ -689,9 +678,7 @@ export function VirtualBoothModal({
       setCameraReady(false);
 
       setStep("composing");
-      setComposingMessage(
-        isBoomerangMode ? "Gerando Boomerang..." : "Gerando GIF...",
-      );
+      setComposingMessage("Gerando Boomerang...");
 
       revokeObjectUrl(capturePreviewUrl);
       revokeObjectUrl(composedPreviewUrl);
@@ -700,9 +687,7 @@ export function VirtualBoothModal({
         ? buildBoomerangSequence(rawFrames)
         : rawFrames;
 
-      console.log(
-        `[Cabine Virtual ${isBoomerangMode ? "Boomerang" : "GIF"}] frames na sequência final`,
-        {
+      console.log("[Cabine Virtual Boomerang] frames na sequência final", {
           capturados: rawFrames.length,
           sequencia: sequenceFrames.length,
         },
@@ -713,18 +698,14 @@ export function VirtualBoothModal({
         {
           frameUrl: hasOfficialFrame ? officialFrameUrl : undefined,
           glamConfig: ALWAYS_ON_GLAM_FILTER,
-          fileNamePrefix: isBoomerangMode
-            ? BOOMERANG_FILE_PREFIX
-            : "cabine-virtual",
-          logLabel: isBoomerangMode ? "Boomerang" : "GIF",
+          fileNamePrefix: BOOMERANG_FILE_PREFIX,
+          logLabel: "Boomerang",
           onStage: setComposingMessage,
-          encodeOptions: isBoomerangMode
-            ? {
-                frameDelayMs: BOOMERANG_FRAME_DELAY_MS,
-                quality: BOOMERANG_GIF_QUALITY,
-                maxLongEdge: BOOMERANG_MAX_LONG_EDGE,
-              }
-            : undefined,
+          encodeOptions: {
+            frameDelayMs: BOOMERANG_FRAME_DELAY_MS,
+            quality: BOOMERANG_GIF_QUALITY,
+            maxLongEdge: BOOMERANG_MAX_LONG_EDGE,
+          },
         },
       );
 
@@ -737,9 +718,7 @@ export function VirtualBoothModal({
 
       if (!framedGif && hasOfficialFrame) {
         setErrorMessage(
-          isBoomerangMode
-            ? "Não foi possível aplicar a moldura. Você ainda pode publicar o Boomerang sem moldura."
-            : "Não foi possível aplicar a moldura. Você ainda pode publicar o GIF sem moldura.",
+          "Não foi possível aplicar a moldura. Você ainda pode publicar o Boomerang sem moldura.",
         );
       }
     } catch (error) {
@@ -749,9 +728,7 @@ export function VirtualBoothModal({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : isBoomerangMode
-            ? "Não foi possível gerar o Boomerang. Tente novamente."
-            : "Não foi possível gerar o GIF. Tente novamente.",
+          : "Não foi possível gerar o Boomerang. Tente novamente.",
       );
     }
   }
@@ -776,13 +753,7 @@ export function VirtualBoothModal({
       {
         delay: 3600,
         phase: "snap" as const,
-        value: isBoomerangMode
-          ? "🔄"
-          : isGifMode
-            ? "🎞️"
-            : isVideoMode
-              ? "🎥"
-              : "📸",
+        value: "•",
       },
     ];
 
@@ -841,11 +812,9 @@ export function VirtualBoothModal({
           ? error.message
           : isBoomerangMode
             ? "Não foi possível publicar o Boomerang."
-            : isGifMode
-              ? "Não foi possível publicar o GIF."
-              : isVideoMode
-                ? "Não foi possível publicar o vídeo."
-                : "Não foi possível publicar a foto.",
+            : isVideoMode
+              ? "Não foi possível publicar o vídeo."
+              : "Não foi possível publicar a foto.",
       );
     }
   }
@@ -871,30 +840,58 @@ export function VirtualBoothModal({
         ref={dialogRef}
         aria-labelledby={titleId}
         className={cn(
-          "max-w-[calc(100vw-2rem)] rounded-[2rem] border border-white/12 bg-slate-950/95 p-0 text-white shadow-[0_40px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl open:animate-rise",
-          step === "menu"
-            ? "w-[min(100%,36rem)] sm:w-[min(100%,40rem)]"
-            : "w-[min(100%,28rem)]",
+          "p-0 text-white open:animate-rise",
+          isImmersiveCapture
+            ? "fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-black shadow-none"
+            : cn(
+                "max-w-[calc(100vw-2rem)] rounded-[1.25rem] border border-white/[0.08] bg-neutral-950/98 shadow-[0_32px_100px_rgba(0,0,0,0.55)] backdrop-blur-xl",
+                step === "menu"
+                  ? "w-[min(100%,36rem)] sm:w-[min(100%,40rem)]"
+                  : "w-[min(100%,28rem)]",
+              ),
         )}
         onClose={handleClose}
         onClick={(event) => {
           if (
             event.target === dialogRef.current &&
+            !isImmersiveCapture &&
             step !== "uploading" &&
-            step !== "composing" &&
-            step !== "countdown" &&
-            !isRecordingMotion
+            step !== "composing"
           ) {
             handleClose();
           }
         }}
       >
-        <div className="relative overflow-hidden rounded-[2rem]">
+        {isImmersiveCapture ? (
+          <VirtualBoothCameraStage
+            titleId={titleId}
+            videoRef={videoRef}
+            captureMode={captureMode}
+            step={step === "countdown" ? "countdown" : "camera"}
+            cameraReady={cameraReady}
+            isRecordingMotion={isRecordingMotion}
+            countdownDisplay={countdownDisplay}
+            countdownPhase={countdownPhase}
+            flashVisible={flashVisible}
+            videoRecordingProgress={videoRecordingProgress}
+            composingMessage={composingMessage}
+            errorMessage={errorMessage}
+            videoMaxDurationSeconds={cabineConfig.videoMaxDurationSeconds}
+            onCameraReady={() => setCameraReady(true)}
+            onClose={handleClose}
+            onPrimaryAction={
+              isVideoMode ? beginVideoRecording : startCountdown
+            }
+            onFinishVideoRecording={finishVideoRecordingManually}
+          />
+        ) : (
+        <div className="relative overflow-hidden rounded-[1.25rem]">
           <div
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.04),transparent_72%)]",
-              step === "menu" ? "h-40" : "h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.18),transparent_70%)]",
+              "pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.035),transparent_72%)]",
+              step !== "menu" &&
+                "h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.05),transparent_70%)]",
             )}
           />
 
@@ -904,14 +901,11 @@ export function VirtualBoothModal({
               step === "menu" ? "px-5 py-7 sm:px-8 sm:py-9" : "p-6 sm:p-8",
             )}
           >
-            {step !== "uploading" &&
-            step !== "composing" &&
-            step !== "countdown" &&
-            !isRecordingMotion ? (
+            {step !== "uploading" && step !== "composing" ? (
               <button
                 type="button"
                 onClick={handleClose}
-                className="absolute right-5 top-5 grid size-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-lg text-white/60 transition hover:border-white/20 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40"
+                className="absolute right-5 top-5 grid size-10 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-lg text-white/55 transition hover:border-white/15 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
                 aria-label="Fechar"
               >
                 ×
@@ -952,183 +946,6 @@ export function VirtualBoothModal({
               </>
             ) : null}
 
-            {step === "camera" || step === "countdown" || isRecordingMotion ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  {step === "countdown"
-                    ? "Prepare-se"
-                    : isBoomerangMode
-                      ? "Enquadre seu Boomerang"
-                      : isGifMode
-                        ? "Enquadre seu GIF"
-                        : isVideoMode
-                          ? "Enquadre seu vídeo"
-                          : "Enquadre sua foto"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  {step === "countdown"
-                    ? isBoomerangMode
-                      ? "A gravação curta começa automaticamente após a contagem."
-                      : isGifMode
-                        ? "A gravação de 3 segundos começa automaticamente após a contagem."
-                        : isVideoMode
-                          ? `Grave até ${cabineConfig.videoMaxDurationSeconds} segundos. Toque em gravar para iniciar.`
-                          : "A captura acontece automaticamente no final da contagem."
-                    : isBoomerangMode
-                      ? "Use boa luz, olhe para a câmera e toque em gravar."
-                      : isGifMode
-                        ? "Use boa luz, olhe para a câmera e toque em gravar."
-                        : isVideoMode
-                          ? "Use boa luz, olhe para a câmera e toque em gravar."
-                          : "Use boa luz, olhe para a câmera e toque em capturar."}
-                </p>
-
-                <div className="relative mt-5 flex min-h-[min(52vh,30rem)] items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_20%,rgba(251,191,36,0.16),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.06),transparent_35%,rgba(0,0,0,0.28))]"
-                  />
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    onCanPlay={() => setCameraReady(true)}
-                    className="max-h-[min(58vh,34rem)] w-full scale-x-[-1] object-contain"
-                  />
-
-                  {!cameraReady ? (
-                    <div className="absolute inset-0 z-20 grid place-items-center bg-slate-950/80 px-6 text-center">
-                      <div>
-                        <div className="mx-auto size-10 animate-pulse rounded-full border-2 border-amber-200/80 border-t-transparent" />
-                        <p className="mt-4 text-sm font-semibold text-white/70">
-                          Iniciando câmera...
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {isRecordingMotion && isVideoMode ? (
-                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/30 px-6 text-center backdrop-blur-[2px]">
-                      <div className="relative grid place-items-center">
-                        <VideoRecordingProgressRing
-                          progress={videoRecordingProgress}
-                          size={104}
-                          strokeWidth={5}
-                        />
-                        <span className="absolute text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white/90">
-                          🔴 Gravando
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {isRecordingMotion && !isVideoMode ? (
-                    <div className="absolute inset-0 z-30 grid place-items-center bg-black/25 px-6 text-center backdrop-blur-[1px]">
-                      <div>
-                        <div className="mx-auto size-10 animate-pulse rounded-full border-2 border-fuchsia-300/80 border-t-transparent" />
-                        <p className="mt-4 text-sm font-semibold text-white/80">
-                          {composingMessage ||
-                            (isBoomerangMode
-                              ? "Gravando Boomerang..."
-                              : "Gravando GIF...")}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {step === "countdown" && !isRecordingMotion && !isVideoMode ? (
-                    <div className="absolute inset-0 z-30 grid place-items-center bg-black/18 px-6 text-center backdrop-blur-[1px]">
-                      <div className="relative flex flex-col items-center gap-4">
-                        {countdownPhase === "prepare" ? (
-                          <p className="max-w-[14rem] text-[0.7rem] font-medium leading-relaxed tracking-[0.18em] text-white/55 uppercase">
-                            {isBoomerangMode
-                              ? "Prepare-se para o Boomerang"
-                              : isGifMode
-                                ? "Prepare-se para o GIF"
-                                : isVideoMode
-                                  ? "Prepare-se para o vídeo"
-                                  : "Prepare-se para a foto"}
-                          </p>
-                        ) : (
-                          <>
-                            <div
-                              aria-hidden
-                              className="absolute inset-0 -z-10 rounded-full bg-amber-200/20 blur-3xl"
-                            />
-                            <p
-                              key={countdownDisplay}
-                              className="animate-count-pop text-6xl font-black leading-none tracking-tight text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.65)] sm:text-8xl"
-                            >
-                              {countdownDisplay}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {flashVisible ? (
-                    <div
-                      aria-hidden
-                      className="absolute inset-0 z-40 bg-white/95 transition-opacity duration-150"
-                    />
-                  ) : null}
-                </div>
-
-                {errorMessage ? (
-                  <p className="mt-4 text-sm font-semibold text-red-200">
-                    {errorMessage}
-                  </p>
-                ) : null}
-
-                {step === "camera" && !isRecordingMotion ? (
-                  <button
-                    type="button"
-                    onClick={
-                      isVideoMode ? beginVideoRecording : startCountdown
-                    }
-                    disabled={!cameraReady}
-                    className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
-                  >
-                    <span aria-hidden>
-                      {isBoomerangMode
-                        ? "🔄"
-                        : isGifMode
-                          ? "🎞️"
-                          : isVideoMode
-                            ? "🎥"
-                            : "📸"}
-                    </span>
-                    {isBoomerangMode
-                      ? "Gravar Boomerang"
-                      : isGifMode
-                        ? "Gravar GIF"
-                        : isVideoMode
-                          ? "Gravar vídeo"
-                          : "Capturar"}
-                  </button>
-                ) : null}
-
-                {step === "camera" && isRecordingMotion && isVideoMode ? (
-                  <button
-                    type="button"
-                    onClick={finishVideoRecordingManually}
-                    className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 text-base font-black text-white shadow-[0_12px_40px_rgba(0,0,0,0.35)] transition hover:bg-white/15 active:scale-[0.98]"
-                  >
-                    <span aria-hidden>⏹</span>
-                    Finalizar Gravação
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-
             {step === "composing" ? (
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
@@ -1140,9 +957,7 @@ export function VirtualBoothModal({
                 >
                   {isBoomerangMode
                     ? "Preparando seu Boomerang"
-                    : isGifMode
-                      ? "Preparando seu GIF"
-                      : "Preparando sua foto"}
+                    : "Preparando sua foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {composingMessage || "Ajustando detalhes da imagem..."}
@@ -1164,26 +979,20 @@ export function VirtualBoothModal({
                 >
                   {isBoomerangMode
                     ? "Seu Boomerang está pronto!"
-                    : isGifMode
-                      ? "Seu GIF está pronto!"
-                      : isVideoMode
-                        ? "Seu vídeo está pronto!"
-                        : "Sua foto está pronta!"}
+                    : isVideoMode
+                      ? "Seu vídeo está pronto!"
+                      : "Sua foto está pronta!"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {isBoomerangMode
                     ? showingFramedVersion
                       ? "Boomerang animado com moldura oficial do evento."
                       : "Prévia do Boomerang pronto para publicar."
-                    : isGifMode
-                      ? showingFramedVersion
-                        ? "GIF animado com moldura oficial do evento."
-                        : "Prévia do GIF pronto para publicar."
-                      : isVideoMode
-                        ? "Prévia do vídeo pronto para publicar."
-                        : showingFramedVersion
-                          ? "Personalizada com a moldura oficial do evento."
-                          : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
+                    : isVideoMode
+                      ? "Prévia do vídeo pronto para publicar."
+                      : showingFramedVersion
+                        ? "Personalizada com a moldura oficial do evento."
+                        : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
                 </p>
 
                 <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
@@ -1203,13 +1012,9 @@ export function VirtualBoothModal({
                           ? showingFramedVersion
                             ? "Prévia do Boomerang com moldura"
                             : "Prévia do Boomerang"
-                          : isGifMode
-                            ? showingFramedVersion
-                              ? "Prévia do GIF com moldura"
-                              : "Prévia do GIF"
-                            : showingFramedVersion
-                              ? "Prévia final com moldura"
-                              : "Prévia da foto original"
+                          : showingFramedVersion
+                            ? "Prévia final com moldura"
+                            : "Prévia da foto original"
                       }
                       className="max-h-[min(52vh,28rem)] w-full object-contain"
                     />
@@ -1231,11 +1036,9 @@ export function VirtualBoothModal({
                     <span aria-hidden>✅</span>
                     {isBoomerangMode
                       ? "Publicar Boomerang"
-                      : isGifMode
-                        ? "Publicar GIF"
-                        : isVideoMode
-                          ? "Publicar vídeo"
-                          : "Publicar foto"}
+                      : isVideoMode
+                        ? "Publicar vídeo"
+                        : "Publicar foto"}
                   </button>
 
                   {isVideoMode && isVideoFromGallery ? (
@@ -1290,11 +1093,9 @@ export function VirtualBoothModal({
                 >
                   {isBoomerangMode
                     ? "Publicando Boomerang"
-                    : isGifMode
-                      ? "Publicando GIF"
-                      : isVideoMode
-                        ? "Publicando vídeo"
-                        : "Publicando foto"}
+                    : isVideoMode
+                      ? "Publicando vídeo"
+                      : "Publicando foto"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {uploadMessage || "Enviando para a galeria..."}
@@ -1320,20 +1121,16 @@ export function VirtualBoothModal({
                   <span aria-hidden>🎉 </span>
                   {isBoomerangMode
                     ? "Boomerang publicado!"
-                    : isGifMode
-                      ? "GIF publicado!"
-                      : isVideoMode
-                        ? "Vídeo publicado!"
-                        : "Foto publicada!"}
+                    : isVideoMode
+                      ? "Vídeo publicado!"
+                      : "Foto publicada!"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-white/45">
                   {isBoomerangMode
                     ? "Seu Boomerang já está disponível na galeria do evento."
-                    : isGifMode
-                      ? "Seu GIF já está disponível na galeria do evento."
-                      : isVideoMode
-                        ? "Seu vídeo já está disponível na galeria do evento."
-                        : "Sua foto já está disponível na galeria do evento."}
+                    : isVideoMode
+                      ? "Seu vídeo já está disponível na galeria do evento."
+                      : "Sua foto já está disponível na galeria do evento."}
                 </p>
                 <button
                   type="button"
@@ -1378,6 +1175,7 @@ export function VirtualBoothModal({
             onDismiss={() => setSourceSheetVariant(null)}
           />
         </div>
+        )}
       </dialog>
     </>
   );

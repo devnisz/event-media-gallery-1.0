@@ -1,3 +1,4 @@
+import { Camera, Repeat2, Sparkles, Video, type LucideIcon } from "lucide-react";
 import {
   isCabineVirtualCaptureEnabled,
   type CabineVirtualCaptureKind,
@@ -6,7 +7,7 @@ import {
 
 export type VirtualBoothMenuOption = {
   id: CabineVirtualCaptureKind;
-  icon: string;
+  Icon: LucideIcon;
   title: string;
   description: string;
 };
@@ -14,30 +15,27 @@ export type VirtualBoothMenuOption = {
 const ALL_MENU_OPTIONS: VirtualBoothMenuOption[] = [
   {
     id: "photo",
-    icon: "📸",
+    Icon: Camera,
     title: "Foto",
     description: "Tire uma foto personalizada para o evento.",
   },
   {
-    id: "gif",
-    icon: "🎞️",
-    title: "GIF",
-    description: "Crie um GIF divertido para o evento.",
-  },
-  {
     id: "boomerang",
-    icon: "🎞️",
+    Icon: Repeat2,
     title: "Boomerang",
     description: "Crie um movimento de vai-e-volta para o evento.",
   },
-  // Futuro: { id: "ai-photo", icon: "✨", title: "Fotos com IA", description: "..." },
   {
     id: "video",
-    icon: "🎥",
+    Icon: Video,
     title: "Vídeo",
     description: "Grave um vídeo curto para o evento.",
   },
+  // Futuro: { id: "ai-photo", Icon: Sparkles, title: "Fotos com IA", description: "..." },
 ];
+
+/** Reservado para a futura opção “Fotos com IA” (não exposto no menu ainda). */
+export const FUTURE_AI_PHOTO_ICON = Sparkles;
 
 export function buildVirtualBoothMenuOptions(
   config: CabineVirtualEventConfig,

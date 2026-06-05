@@ -28,11 +28,11 @@ export function VirtualBoothExperienceMenu({
       <header className="max-w-md text-center">
         <h2
           id={titleId}
-          className="text-[1.65rem] font-semibold tracking-tight text-white sm:text-3xl"
+          className="text-[1.65rem] font-semibold tracking-[-0.02em] text-white sm:text-[1.875rem]"
         >
           Escolha sua experiência
         </h2>
-        <p className="mt-2 text-sm text-white/40 sm:text-[0.9375rem]">
+        <p className="mt-2.5 text-sm text-white/38 sm:text-[0.9375rem]">
           Como deseja criar sua lembrança?
         </p>
       </header>
@@ -40,7 +40,7 @@ export function VirtualBoothExperienceMenu({
       {errorMessage ? (
         <p
           role="alert"
-          className="mt-6 w-full max-w-lg rounded-2xl border border-red-400/20 bg-red-400/[0.08] px-4 py-3 text-center text-sm font-medium text-red-100/90"
+          className="mt-6 w-full max-w-lg rounded-2xl border border-red-400/15 bg-red-400/[0.06] px-4 py-3 text-center text-sm font-medium text-red-200/90"
         >
           {errorMessage}
         </p>
@@ -48,47 +48,52 @@ export function VirtualBoothExperienceMenu({
 
       <ul
         className={cn(
-          "mt-8 grid w-full max-w-[22rem] grid-cols-2 gap-3 sm:mt-10 sm:max-w-[28rem] sm:gap-4",
+          "mt-9 grid w-full max-w-[22rem] grid-cols-2 gap-3 sm:mt-11 sm:max-w-[28rem] sm:gap-3.5",
           optionCount === 1 && "max-w-[11rem] grid-cols-1",
         )}
         aria-label="Experiências disponíveis"
       >
-        {options.map((option, index) => (
-          <li
-            key={option.id}
-            className={cn(
-              usesCenteredLastItem &&
-                index === optionCount - 1 &&
-                "col-span-2 flex justify-center",
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(option.id)}
-              aria-label={option.description}
+        {options.map((option, index) => {
+          const Icon = option.Icon;
+
+          return (
+            <li
+              key={option.id}
               className={cn(
-                "group flex w-full flex-col items-center justify-center gap-3 rounded-[1.35rem] border border-white/[0.07] bg-white/[0.025] px-4 py-7 transition-[transform,background-color,border-color] duration-200",
-                "min-h-[9.5rem] touch-manipulation select-none sm:min-h-[10.5rem] sm:gap-4 sm:rounded-[1.5rem] sm:py-8",
-                "hover:border-white/[0.12] hover:bg-white/[0.05] active:scale-[0.97] active:bg-white/[0.06]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
                 usesCenteredLastItem &&
                   index === optionCount - 1 &&
-                  "max-w-[calc(50%-0.375rem)] sm:max-w-[calc(50%-0.5rem)]",
-                optionCount === 1 && "max-w-none",
+                  "col-span-2 flex justify-center",
               )}
             >
-              <span
-                aria-hidden
-                className="text-[2.75rem] leading-none transition-transform duration-200 group-active:scale-95 sm:text-[3.25rem]"
+              <button
+                type="button"
+                onClick={() => onSelect(option.id)}
+                aria-label={option.description}
+                className={cn(
+                  "group flex w-full flex-col items-center justify-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-8 transition-[transform,background-color,border-color] duration-200",
+                  "min-h-[10rem] touch-manipulation select-none sm:min-h-[10.75rem] sm:rounded-[1.125rem] sm:py-9",
+                  "hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] active:bg-white/[0.05]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950",
+                  usesCenteredLastItem &&
+                    index === optionCount - 1 &&
+                    "max-w-[calc(50%-0.375rem)] sm:max-w-[calc(50%-0.4375rem)]",
+                  optionCount === 1 && "max-w-none",
+                )}
               >
-                {option.icon}
-              </span>
-              <span className="text-base font-medium tracking-tight text-white/90 sm:text-lg">
-                {option.title}
-              </span>
-            </button>
-          </li>
-        ))}
+                <span className="flex size-14 items-center justify-center rounded-2xl bg-white/[0.04] text-white/85 transition-colors duration-200 group-hover:bg-white/[0.07] sm:size-16">
+                  <Icon
+                    className="size-7 sm:size-8"
+                    strokeWidth={1.5}
+                    aria-hidden
+                  />
+                </span>
+                <span className="text-[0.9375rem] font-medium tracking-[-0.01em] text-white/88 sm:text-base">
+                  {option.title}
+                </span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

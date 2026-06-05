@@ -1,9 +1,8 @@
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 
-/** Tipos de captura da Cabine Virtual (extensível: gif, story, stickers…). */
+/** Tipos de captura da Cabine Virtual (extensível: ai-photo, story, stickers…). */
 export type CabineVirtualCaptureKind =
   | "photo"
-  | "gif"
   | "boomerang"
   | "video";
 
@@ -16,8 +15,6 @@ export type CabineVirtualEventConfig = {
   photo: boolean;
   boomerang: boolean;
   video: boolean;
-  /** GIF legado — permanece disponível até haver toggle no dashboard. */
-  gif: boolean;
   videoMaxDurationSeconds: number;
   cameraEnabled: boolean;
   galleryImportEnabled: boolean;
@@ -70,7 +67,6 @@ export function resolveCabineVirtualConfig(
       photo: true,
       boomerang: true,
       video: false,
-      gif: true,
       videoMaxDurationSeconds: CABINE_VIRTUAL_VIDEO_DURATION_DEFAULT_SECONDS,
       cameraEnabled: true,
       galleryImportEnabled: true,
@@ -86,7 +82,6 @@ export function resolveCabineVirtualConfig(
     photo: source.cabineVirtualPhotoEnabled === true,
     boomerang: source.cabineVirtualBoomerangEnabled === true,
     video: source.cabineVirtualVideoEnabled === true,
-    gif: true,
     videoMaxDurationSeconds: clampVideoMaxDurationSeconds(
       source.cabineVirtualVideoMaxDurationSeconds,
     ),
@@ -131,8 +126,6 @@ export function isCabineVirtualCaptureEnabled(
   switch (kind) {
     case "photo":
       return config.photo;
-    case "gif":
-      return config.gif;
     case "boomerang":
       return config.boomerang;
     case "video":
@@ -145,12 +138,7 @@ export function isCabineVirtualCaptureEnabled(
 export function hasAnyCabineVirtualCapture(
   config: CabineVirtualEventConfig,
 ): boolean {
-  return (
-    config.photo ||
-    config.boomerang ||
-    config.video ||
-    config.gif
-  );
+  return config.photo || config.boomerang || config.video;
 }
 
 export function shouldShowCabineVirtualLauncher(
