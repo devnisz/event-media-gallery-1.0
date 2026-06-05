@@ -15,8 +15,11 @@ import { composePhotoWithFrame } from "@/lib/virtual-booth/apply-frame";
 import {
   canCapturePhoto,
   capturePhotoFromVideo,
+  flipVirtualBoothCameraStream,
+  shouldMirrorCameraPreview,
   startVirtualBoothMediaStream,
   stopMediaStream,
+  type CameraFacingPreference,
 } from "@/lib/virtual-booth/camera";
 import {
   BOOMERANG_CAPTURE_DURATION_MS,
@@ -148,6 +151,9 @@ export function VirtualBoothModal({
   >(null);
   const [isVideoFromGallery, setIsVideoFromGallery] = useState(false);
   const [videoAudioNotice, setVideoAudioNotice] = useState<string | null>(null);
+  const [cameraFacing, setCameraFacing] =
+    useState<CameraFacingPreference>("environment");
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
 
   const officialFrameUrl = frameUrl.trim();
   const hasOfficialFrame = officialFrameUrl.length > 0;
@@ -268,6 +274,8 @@ export function VirtualBoothModal({
     setSourceSheetVariant(null);
     setIsVideoFromGallery(false);
     setVideoAudioNotice(null);
+    setCameraFacing("environment");
+    setIsSwitchingCamera(false);
   }
 
   function handleClose() {
@@ -442,6 +450,7 @@ export function VirtualBoothModal({
       const result = await startVirtualBoothMediaStream({ includeAudio });
       cameraStreamRef.current = result.stream;
       setCameraStream(result.stream);
+      setCameraFacing(result.facingMode);
       setVideoAudioNotice(result.audioWarning);
     } catch (error) {
       stopMediaStream(cameraStreamRef.current);
@@ -476,6 +485,61 @@ export function VirtualBoothModal({
     }
 
     setErrorMessage("Este recurso não está disponível neste evento.");
+  }
+
+  async function flipCamera() {
+    if (
+      isSwitchingCamera ||
+      step === "countdown" ||
+      isRecordingMotion ||
+      !cameraStreamRef.current
+    ) {
+      return;
+    }
+
+    setIsSwitchingCamera(true);
+    setCameraReady(false);
+    setErrorMessage("");
+
+    stopMediaStream(cameraStreamRef.current);
+    cameraStreamRef.current = null;
+    setCameraStream(null);
+
+    try {
+      const includeAudio = captureMode === "video";
+      const result = await flipVirtualBoothCameraStream({
+        currentFacing: cameraFacing,
+        includeAudio,
+      });
+
+      cameraStreamRef.current = result.stream;
+      setCameraStream(result.stream);
+      setCameraFacing(result.facingMode);
+      setVideoAudioNotice(result.audioWarning);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível trocar a câmera.",
+      );
+
+      try {
+        const includeAudio = captureMode === "video";
+        const restored = await startVirtualBoothMediaStream({
+          includeAudio,
+          facingMode: cameraFacing,
+        });
+        cameraStreamRef.current = restored.stream;
+        setCameraStream(restored.stream);
+        setCameraFacing(restored.facingMode);
+        setVideoAudioNotice(restored.audioWarning);
+      } catch {
+        setStep("no-camera");
+        setErrorMessage("Não foi possível restaurar a câmera.");
+      }
+    } finally {
+      setIsSwitchingCamera(false);
+    }
   }
 
   function applyRecordedVideoFile(recordedFile: File) {
@@ -634,7 +698,9 @@ export function VirtualBoothModal({
     }
 
     try {
-      const capturedFile = await capturePhotoFromVideo(video, { mirror: true });
+      const capturedFile = await capturePhotoFromVideo(video, {
+        mirror: shouldMirrorCameraPreview(cameraFacing),
+      });
       stopMediaStream(cameraStreamRef.current);
       cameraStreamRef.current = null;
       setCameraStream(null);
@@ -668,7 +734,7 @@ export function VirtualBoothModal({
 
     try {
       const { frames: rawFrames, stats } = await captureGifFramesFromVideo(video, {
-        mirror: true,
+        mirror: shouldMirrorCameraPreview(cameraFacing),
         durationMs: isBoomerangMode ? BOOMERANG_CAPTURE_DURATION_MS : undefined,
         fps: isBoomerangMode ? BOOMERANG_CAPTURE_FPS : undefined,
         maxLongEdge: isBoomerangMode ? BOOMERANG_MAX_LONG_EDGE : undefined,
@@ -873,6 +939,12 @@ export function VirtualBoothModal({
             errorMessage={errorMessage}
             videoMaxDurationSeconds={cabineConfig.videoMaxDurationSeconds}
             audioNotice={videoAudioNotice}
+            cameraFacing={cameraFacing}
+            isSwitchingCamera={isSwitchingCamera}
+            canFlipCamera={
+              step === "camera" && !isRecordingMotion && !isSwitchingCamera
+            }
+            onFlipCamera={() => void flipCamera()}
             onCameraReady={() => setCameraReady(true)}
             onClose={handleClose}
             onPrimaryAction={

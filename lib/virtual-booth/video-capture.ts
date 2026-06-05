@@ -24,12 +24,22 @@ export type VideoRecordingHandle = {
   finished: Promise<File>;
 };
 
-export function pickVirtualBoothVideoMimeType(): string {
+export function pickVirtualBoothVideoMimeType(requiresAudio = false): string {
   if (typeof MediaRecorder === "undefined") {
     return "";
   }
 
-  for (const mimeType of PREFERRED_MIME_TYPES) {
+  const candidates = requiresAudio
+    ? [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm;codecs=h264,opus",
+        "video/webm",
+        "video/mp4",
+      ]
+    : PREFERRED_MIME_TYPES;
+
+  for (const mimeType of candidates) {
     if (MediaRecorder.isTypeSupported(mimeType)) {
       return mimeType;
     }
@@ -68,7 +78,9 @@ export function startVideoRecordingFromMediaStream(
     throw new Error("Gravação de vídeo não suportada neste navegador.");
   }
 
-  const recorderMimeType = pickVirtualBoothVideoMimeType();
+  const hasAudioTrack = stream.getAudioTracks().length > 0;
+
+  const recorderMimeType = pickVirtualBoothVideoMimeType(hasAudioTrack);
 
   if (!recorderMimeType) {
     throw new Error("Gravação de vídeo não suportada neste dispositivo.");
@@ -79,8 +91,6 @@ export function startVideoRecordingFromMediaStream(
   if (!resolveGuestUploadTypeInfo(uploadMimeType)) {
     throw new Error("Formato de vídeo não suportado para publicação.");
   }
-
-  const hasAudioTrack = stream.getAudioTracks().length > 0;
 
   const maxDurationMs = Math.max(1000, maxDurationSeconds * 1000);
   const chunks: Blob[] = [];

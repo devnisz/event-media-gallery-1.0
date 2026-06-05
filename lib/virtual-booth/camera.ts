@@ -6,6 +6,8 @@ export function isMobileCaptureDevice(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+export type CameraFacingPreference = "user" | "environment";
+
 function canvasToJpegFile(
   canvas: HTMLCanvasElement,
   fileName: string,
@@ -61,45 +63,75 @@ type ExtendedVideoConstraints = MediaTrackConstraints & {
   zoom?: ConstrainDouble;
 };
 
-function buildWideAngleConstraintSets(): ExtendedVideoConstraints[] {
-  const zoomCap = { zoom: { ideal: 1, min: 1, max: 1 } };
+const ZOOM_CAP = { zoom: { ideal: 1, min: 1, max: 1 } };
 
+function buildWideAngleConstraintSets(): ExtendedVideoConstraints[] {
   return [
-    {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1280, max: 1920 },
-      height: { ideal: 960, max: 1440 },
-      aspectRatio: { ideal: 4 / 3 },
-      resizeMode: "none",
-      ...zoomCap,
-    },
-    {
-      facingMode: { ideal: "user" },
-      width: { ideal: 1280, max: 1920 },
-      height: { ideal: 960, max: 1440 },
-      aspectRatio: { ideal: 4 / 3 },
-      resizeMode: "none",
-      ...zoomCap,
-    },
-    {
-      facingMode: { ideal: "environment" },
-      resizeMode: "none",
-      ...zoomCap,
-    },
-    {
-      facingMode: { ideal: "user" },
-      resizeMode: "none",
-      ...zoomCap,
-    },
+    ...buildVideoConstraintsForFacing("environment"),
+    ...buildVideoConstraintsForFacing("user"),
     {
       resizeMode: "none",
-      ...zoomCap,
+      ...ZOOM_CAP,
     },
   ];
 }
 
+function buildVideoConstraintsForFacing(
+  facing: CameraFacingPreference,
+): ExtendedVideoConstraints[] {
+  const shared = {
+    width: { ideal: 1280, max: 1920 },
+    height: { ideal: 960, max: 1440 },
+    aspectRatio: { ideal: 4 / 3 },
+    resizeMode: "none" as const,
+    ...ZOOM_CAP,
+  };
+
+  return [
+    { ...shared, facingMode: { ideal: facing } },
+    { ...shared, facingMode: { exact: facing } },
+    {
+      facingMode: { ideal: facing },
+      resizeMode: "none",
+      ...ZOOM_CAP,
+    },
+    {
+      facingMode: { exact: facing },
+      resizeMode: "none",
+      ...ZOOM_CAP,
+    },
+  ];
+}
+
+export function oppositeCameraFacing(
+  facing: CameraFacingPreference,
+): CameraFacingPreference {
+  return facing === "user" ? "environment" : "user";
+}
+
+export function detectStreamFacing(
+  stream: MediaStream,
+): CameraFacingPreference {
+  const [videoTrack] = stream.getVideoTracks();
+  const facing = videoTrack?.getSettings?.().facingMode;
+
+  if (facing === "user" || facing === "environment") {
+    return facing;
+  }
+
+  return "environment";
+}
+
+export function shouldMirrorCameraPreview(
+  facing: CameraFacingPreference,
+): boolean {
+  return facing === "user";
+}
+
 async function minimizeTrackZoom(track: MediaStreamTrack): Promise<void> {
-  const capabilities = track.getCapabilities?.() as { zoom?: { min?: number } } | undefined;
+  const capabilities = track.getCapabilities?.() as
+    | { zoom?: { min?: number } }
+    | undefined;
   const zoomCapability = capabilities?.zoom;
 
   if (!zoomCapability || typeof zoomCapability.min !== "number") {
@@ -112,7 +144,9 @@ async function minimizeTrackZoom(track: MediaStreamTrack): Promise<void> {
     });
   } catch {
     try {
-      await track.applyConstraints({ zoom: zoomCapability.min } as MediaTrackConstraints);
+      await track.applyConstraints({
+        zoom: zoomCapability.min,
+      } as MediaTrackConstraints);
     } catch {
       // Nem todos os navegadores expõem zoom nas constraints.
     }
@@ -134,6 +168,7 @@ export type VirtualBoothStreamResult = {
   hasAudio: boolean;
   /** Preenchido quando o vídeo segue sem áudio (microfone negado ou indisponível). */
   audioWarning: string | null;
+  facingMode: CameraFacingPreference;
 };
 
 const VIRTUAL_BOOTH_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
@@ -188,17 +223,32 @@ async function requestUserMediaStream(
     throw new Error("Câmera indisponível neste dispositivo.");
   }
 
-  return mediaDevices.getUserMedia({
-    audio: includeAudio ? VIRTUAL_BOOTH_AUDIO_CONSTRAINTS : false,
-    video: video as MediaTrackConstraints,
-  });
+  const videoConstraint = video as MediaTrackConstraints;
+
+  if (!includeAudio) {
+    return mediaDevices.getUserMedia({
+      audio: false,
+      video: videoConstraint,
+    });
+  }
+
+  try {
+    return await mediaDevices.getUserMedia({
+      audio: VIRTUAL_BOOTH_AUDIO_CONSTRAINTS,
+      video: videoConstraint,
+    });
+  } catch {
+    return mediaDevices.getUserMedia({
+      audio: true,
+      video: videoConstraint,
+    });
+  }
 }
 
-async function tryAcquireStreamWithVideoAttempts(
+async function tryAcquireStreamWithAttempts(
   includeAudio: boolean,
+  attempts: ExtendedVideoConstraints[],
 ): Promise<MediaStream | null> {
-  const attempts = buildWideAngleConstraintSets();
-
   for (const video of attempts) {
     try {
       const stream = await requestUserMediaStream(includeAudio, video);
@@ -216,52 +266,97 @@ async function tryAcquireStreamWithVideoAttempts(
   }
 }
 
+async function tryAcquireStreamWithVideoAttempts(
+  includeAudio: boolean,
+): Promise<MediaStream | null> {
+  return tryAcquireStreamWithAttempts(includeAudio, buildWideAngleConstraintSets());
+}
+
+async function tryAcquireStreamForFacing(
+  includeAudio: boolean,
+  facing: CameraFacingPreference,
+): Promise<MediaStream | null> {
+  return tryAcquireStreamWithAttempts(
+    includeAudio,
+    buildVideoConstraintsForFacing(facing),
+  );
+}
+
+function buildStreamResult(
+  stream: MediaStream,
+  hasAudio: boolean,
+  audioWarning: string | null,
+): VirtualBoothStreamResult {
+  return {
+    stream,
+    hasAudio,
+    audioWarning,
+    facingMode: detectStreamFacing(stream),
+  };
+}
+
+export type VirtualBoothStreamOptions = {
+  includeAudio?: boolean;
+  /** Quando definido, força frontal ou traseira (troca de câmera). */
+  facingMode?: CameraFacingPreference;
+};
+
 /**
  * Abre stream da Cabine Virtual. Foto/Boomerang usam só vídeo; gravação de vídeo
  * solicita microfone na mesma permissão (necessário para MediaRecorder com áudio).
  */
 export async function startVirtualBoothMediaStream(
-  options: { includeAudio?: boolean } = {},
+  options: VirtualBoothStreamOptions = {},
 ): Promise<VirtualBoothStreamResult> {
   const includeAudio = options.includeAudio === true;
+  const acquire = options.facingMode
+    ? () => tryAcquireStreamForFacing(includeAudio, options.facingMode!)
+    : () => tryAcquireStreamWithVideoAttempts(includeAudio);
 
   if (!includeAudio) {
-    const stream = await tryAcquireStreamWithVideoAttempts(false);
+    const stream = await acquire();
 
     if (!stream) {
       throw new Error("Câmera indisponível neste dispositivo.");
     }
 
-    return { stream, hasAudio: false, audioWarning: null };
+    return buildStreamResult(stream, false, null);
   }
 
-  try {
-    const streamWithAudio = await tryAcquireStreamWithVideoAttempts(true);
+  const streamWithAudio = await acquire();
 
-    if (streamWithAudio && streamHasActiveAudio(streamWithAudio)) {
-      return {
-        stream: streamWithAudio,
-        hasAudio: true,
-        audioWarning: null,
-      };
-    }
-
-    stopMediaStream(streamWithAudio);
-  } catch {
-    // Falha com áudio — tenta só vídeo abaixo.
+  if (streamWithAudio && streamHasActiveAudio(streamWithAudio)) {
+    return buildStreamResult(streamWithAudio, true, null);
   }
 
-  const streamVideoOnly = await tryAcquireStreamWithVideoAttempts(false);
+  stopMediaStream(streamWithAudio);
+
+  const streamVideoOnly = options.facingMode
+    ? await tryAcquireStreamForFacing(false, options.facingMode)
+    : await tryAcquireStreamWithVideoAttempts(false);
 
   if (!streamVideoOnly) {
     throw new Error("Câmera indisponível neste dispositivo.");
   }
 
-  return {
-    stream: streamVideoOnly,
-    hasAudio: false,
-    audioWarning: virtualBoothMicrophoneWarningMessage(),
-  };
+  return buildStreamResult(
+    streamVideoOnly,
+    false,
+    virtualBoothMicrophoneWarningMessage(),
+  );
+}
+
+/** Troca entre câmera frontal e traseira mantendo áudio quando em modo vídeo. */
+export async function flipVirtualBoothCameraStream(options: {
+  currentFacing: CameraFacingPreference;
+  includeAudio: boolean;
+}): Promise<VirtualBoothStreamResult> {
+  const nextFacing = oppositeCameraFacing(options.currentFacing);
+
+  return startVirtualBoothMediaStream({
+    includeAudio: options.includeAudio,
+    facingMode: nextFacing,
+  });
 }
 
 export async function startVirtualBoothPhotoStream(): Promise<MediaStream> {

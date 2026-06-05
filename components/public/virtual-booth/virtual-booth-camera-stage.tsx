@@ -1,8 +1,12 @@
 "use client";
 
-import { Camera, Repeat2, Square, Video, X } from "lucide-react";
+import { Camera, Repeat2, Square, SwitchCamera, Video, X } from "lucide-react";
 import type { RefObject } from "react";
 import { cn } from "@/lib/utils";
+import {
+  shouldMirrorCameraPreview,
+  type CameraFacingPreference,
+} from "@/lib/virtual-booth/camera";
 import { VideoRecordingProgressRing } from "./video-recording-progress-ring";
 import {
   boothPrimaryButtonClass,
@@ -27,6 +31,10 @@ type VirtualBoothCameraStageProps = {
   videoMaxDurationSeconds: number;
   /** Aviso quando o vídeo será gravado sem áudio (microfone negado). */
   audioNotice?: string | null;
+  cameraFacing: CameraFacingPreference;
+  isSwitchingCamera: boolean;
+  canFlipCamera: boolean;
+  onFlipCamera: () => void;
   onCameraReady: () => void;
   onClose: () => void;
   onPrimaryAction: () => void;
@@ -48,6 +56,10 @@ export function VirtualBoothCameraStage({
   errorMessage,
   videoMaxDurationSeconds,
   audioNotice = null,
+  cameraFacing,
+  isSwitchingCamera,
+  canFlipCamera,
+  onFlipCamera,
   onCameraReady,
   onClose,
   onPrimaryAction,
@@ -68,6 +80,8 @@ export function VirtualBoothCameraStage({
           ? "Enquadre-se e toque em gravar"
           : "Enquadre-se e toque em capturar";
 
+  const mirrorPreview = shouldMirrorCameraPreview(cameraFacing);
+
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-black">
       <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -77,16 +91,19 @@ export function VirtualBoothCameraStage({
           muted
           playsInline
           onCanPlay={onCameraReady}
-          className="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            mirrorPreview && "scale-x-[-1]",
+          )}
           aria-labelledby={titleId}
         />
 
-        {!cameraReady ? (
+        {!cameraReady || isSwitchingCamera ? (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
             <div className="flex flex-col items-center gap-3">
               <div className="size-9 animate-pulse rounded-full border-2 border-white/30 border-t-white" />
               <p className="text-sm font-medium text-white/70">
-                Iniciando câmera...
+                {isSwitchingCamera ? "Trocando câmera..." : "Iniciando câmera..."}
               </p>
             </div>
           </div>
@@ -152,6 +169,22 @@ export function VirtualBoothCameraStage({
         >
           <X className="size-5" strokeWidth={1.75} />
         </button>
+
+        {canFlipCamera ? (
+          <button
+            type="button"
+            onClick={onFlipCamera}
+            disabled={isSwitchingCamera}
+            className="absolute left-4 top-4 z-50 grid size-11 place-items-center rounded-full bg-black/40 text-white/85 transition hover:bg-black/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-45"
+            aria-label={
+              cameraFacing === "user"
+                ? "Usar câmera traseira"
+                : "Usar câmera frontal"
+            }
+          >
+            <SwitchCamera className="size-5" strokeWidth={1.75} />
+          </button>
+        ) : null}
 
         <p
           id={titleId}
