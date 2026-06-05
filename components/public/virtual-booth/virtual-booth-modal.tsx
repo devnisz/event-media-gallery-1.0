@@ -15,7 +15,7 @@ import { composePhotoWithFrame } from "@/lib/virtual-booth/apply-frame";
 import {
   canCapturePhoto,
   capturePhotoFromVideo,
-  startVirtualBoothPhotoStream,
+  startVirtualBoothMediaStream,
   stopMediaStream,
 } from "@/lib/virtual-booth/camera";
 import {
@@ -147,6 +147,7 @@ export function VirtualBoothModal({
     "photo" | "video" | null
   >(null);
   const [isVideoFromGallery, setIsVideoFromGallery] = useState(false);
+  const [videoAudioNotice, setVideoAudioNotice] = useState<string | null>(null);
 
   const officialFrameUrl = frameUrl.trim();
   const hasOfficialFrame = officialFrameUrl.length > 0;
@@ -266,6 +267,7 @@ export function VirtualBoothModal({
     setErrorMessage("");
     setSourceSheetVariant(null);
     setIsVideoFromGallery(false);
+    setVideoAudioNotice(null);
   }
 
   function handleClose() {
@@ -433,11 +435,14 @@ export function VirtualBoothModal({
 
     setStep("camera");
     setCameraReady(false);
+    setVideoAudioNotice(null);
 
     try {
-      const stream = await startVirtualBoothPhotoStream();
-      cameraStreamRef.current = stream;
-      setCameraStream(stream);
+      const includeAudio = mode === "video";
+      const result = await startVirtualBoothMediaStream({ includeAudio });
+      cameraStreamRef.current = result.stream;
+      setCameraStream(result.stream);
+      setVideoAudioNotice(result.audioWarning);
     } catch (error) {
       stopMediaStream(cameraStreamRef.current);
       cameraStreamRef.current = null;
@@ -867,6 +872,7 @@ export function VirtualBoothModal({
             composingMessage={composingMessage}
             errorMessage={errorMessage}
             videoMaxDurationSeconds={cabineConfig.videoMaxDurationSeconds}
+            audioNotice={videoAudioNotice}
             onCameraReady={() => setCameraReady(true)}
             onClose={handleClose}
             onPrimaryAction={
@@ -903,6 +909,7 @@ export function VirtualBoothModal({
             composedFile={composedFile}
             activePreviewUrl={activePreviewUrl}
             errorMessage={errorMessage}
+            audioNotice={isVideoMode ? videoAudioNotice : null}
             onClose={handleClose}
             onPublish={() => void handlePublishMedia()}
             onReset={resetState}

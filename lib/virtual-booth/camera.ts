@@ -129,7 +129,58 @@ async function prepareWideAngleStream(stream: MediaStream): Promise<MediaStream>
   return stream;
 }
 
-export async function startVirtualBoothPhotoStream(): Promise<MediaStream> {
+export type VirtualBoothStreamResult = {
+  stream: MediaStream;
+  hasAudio: boolean;
+  /** Preenchido quando o vídeo segue sem áudio (microfone negado ou indisponível). */
+  audioWarning: string | null;
+};
+
+const VIRTUAL_BOOTH_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+};
+
+export function streamHasActiveAudio(stream: MediaStream): boolean {
+  return stream
+    .getAudioTracks()
+    .some((track) => track.enabled && track.readyState === "live");
+}
+
+/** Mensagem amigável quando o microfone não pôde ser usado na gravação de vídeo. */
+export function virtualBoothMicrophoneWarningMessage(): string {
+  return "Microfone bloqueado ou indisponível. O vídeo será gravado sem áudio. Para incluir som, permita o microfone nas configurações do navegador e grave novamente.";
+}
+
+/**
+ * Limitações conhecidas em mobile:
+ * - iOS Safari: MediaRecorder e áudio exigem permissão explícita de câmera + microfone
+ *   na mesma chamada getUserMedia; versões antigas podem não suportar gravação.
+ * - Android Chrome: geralmente grava WebM com Opus quando o stream inclui faixa de áudio.
+ * - Preview da câmera permanece mudo (autoplay); isso não afeta o áudio gravado no arquivo.
+ */
+export function virtualBoothVideoAudioPlatformNote(): string {
+  if (typeof navigator === "undefined") {
+    return "";
+  }
+
+  const ua = navigator.userAgent;
+
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return "No iPhone/iPad, permita câmera e microfone quando o navegador solicitar. Use Safari atualizado para gravação com som.";
+  }
+
+  if (/Android/i.test(ua)) {
+    return "No Android, toque em Permitir para câmera e microfone na primeira gravação.";
+  }
+
+  return "";
+}
+
+async function requestUserMediaStream(
+  includeAudio: boolean,
+  video: boolean | MediaTrackConstraints,
+): Promise<MediaStream> {
   const mediaDevices =
     typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
 
@@ -137,27 +188,85 @@ export async function startVirtualBoothPhotoStream(): Promise<MediaStream> {
     throw new Error("Câmera indisponível neste dispositivo.");
   }
 
+  return mediaDevices.getUserMedia({
+    audio: includeAudio ? VIRTUAL_BOOTH_AUDIO_CONSTRAINTS : false,
+    video: video as MediaTrackConstraints,
+  });
+}
+
+async function tryAcquireStreamWithVideoAttempts(
+  includeAudio: boolean,
+): Promise<MediaStream | null> {
   const attempts = buildWideAngleConstraintSets();
-  let lastError: unknown;
 
   for (const video of attempts) {
     try {
-      const stream = await mediaDevices.getUserMedia({
-        audio: false,
-        video: video as MediaTrackConstraints,
-      });
+      const stream = await requestUserMediaStream(includeAudio, video);
       return prepareWideAngleStream(stream);
-    } catch (error) {
-      lastError = error;
+    } catch {
+      // Próximo conjunto de constraints.
     }
   }
 
   try {
-    const stream = await mediaDevices.getUserMedia({ audio: false, video: true });
+    const stream = await requestUserMediaStream(includeAudio, true);
     return prepareWideAngleStream(stream);
-  } catch (error) {
-    throw lastError instanceof Error ? lastError : error;
+  } catch {
+    return null;
   }
+}
+
+/**
+ * Abre stream da Cabine Virtual. Foto/Boomerang usam só vídeo; gravação de vídeo
+ * solicita microfone na mesma permissão (necessário para MediaRecorder com áudio).
+ */
+export async function startVirtualBoothMediaStream(
+  options: { includeAudio?: boolean } = {},
+): Promise<VirtualBoothStreamResult> {
+  const includeAudio = options.includeAudio === true;
+
+  if (!includeAudio) {
+    const stream = await tryAcquireStreamWithVideoAttempts(false);
+
+    if (!stream) {
+      throw new Error("Câmera indisponível neste dispositivo.");
+    }
+
+    return { stream, hasAudio: false, audioWarning: null };
+  }
+
+  try {
+    const streamWithAudio = await tryAcquireStreamWithVideoAttempts(true);
+
+    if (streamWithAudio && streamHasActiveAudio(streamWithAudio)) {
+      return {
+        stream: streamWithAudio,
+        hasAudio: true,
+        audioWarning: null,
+      };
+    }
+
+    stopMediaStream(streamWithAudio);
+  } catch {
+    // Falha com áudio — tenta só vídeo abaixo.
+  }
+
+  const streamVideoOnly = await tryAcquireStreamWithVideoAttempts(false);
+
+  if (!streamVideoOnly) {
+    throw new Error("Câmera indisponível neste dispositivo.");
+  }
+
+  return {
+    stream: streamVideoOnly,
+    hasAudio: false,
+    audioWarning: virtualBoothMicrophoneWarningMessage(),
+  };
+}
+
+export async function startVirtualBoothPhotoStream(): Promise<MediaStream> {
+  const { stream } = await startVirtualBoothMediaStream({ includeAudio: false });
+  return stream;
 }
 
 export function stopMediaStream(stream: MediaStream | null): void {

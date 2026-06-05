@@ -25,6 +25,8 @@ type VirtualBoothCameraStageProps = {
   composingMessage: string;
   errorMessage: string;
   videoMaxDurationSeconds: number;
+  /** Aviso quando o vídeo será gravado sem áudio (microfone negado). */
+  audioNotice?: string | null;
   onCameraReady: () => void;
   onClose: () => void;
   onPrimaryAction: () => void;
@@ -45,6 +47,7 @@ export function VirtualBoothCameraStage({
   composingMessage,
   errorMessage,
   videoMaxDurationSeconds,
+  audioNotice = null,
   onCameraReady,
   onClose,
   onPrimaryAction,
@@ -163,6 +166,15 @@ export function VirtualBoothCameraStage({
       </div>
 
       <div className="relative z-40 shrink-0 border-t border-white/[0.06] bg-neutral-950/95 px-5 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {audioNotice && isVideoMode ? (
+          <p
+            role="status"
+            className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.08] px-3 py-2.5 text-center text-xs leading-relaxed text-amber-100/90"
+          >
+            {audioNotice}
+          </p>
+        ) : null}
+
         <p className="mb-4 text-center text-xs text-white/45">{hint}</p>
 
         {errorMessage ? (

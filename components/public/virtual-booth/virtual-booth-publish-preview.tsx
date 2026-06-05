@@ -22,6 +22,7 @@ type VirtualBoothPublishPreviewProps = {
   composedFile: File | null;
   activePreviewUrl: string;
   errorMessage: string;
+  audioNotice?: string | null;
   onClose: () => void;
   onPublish: () => void;
   onReset: () => void;
@@ -40,6 +41,7 @@ export function VirtualBoothPublishPreview({
   composedFile,
   activePreviewUrl,
   errorMessage,
+  audioNotice = null,
   onClose,
   onPublish,
   onReset,
@@ -114,6 +116,15 @@ export function VirtualBoothPublishPreview({
         </div>
 
         <div className="mt-4 shrink-0 space-y-2 sm:mt-5">
+          {audioNotice && isVideoMode ? (
+            <p
+              role="status"
+              className="rounded-xl border border-amber-400/20 bg-amber-400/[0.08] px-3 py-2 text-center text-xs leading-relaxed text-amber-100/90"
+            >
+              {audioNotice}
+            </p>
+          ) : null}
+
           {errorMessage ? (
             <p
               role="alert"

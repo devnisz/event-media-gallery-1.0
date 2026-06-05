@@ -80,6 +80,8 @@ export function startVideoRecordingFromMediaStream(
     throw new Error("Formato de vídeo não suportado para publicação.");
   }
 
+  const hasAudioTrack = stream.getAudioTracks().length > 0;
+
   const maxDurationMs = Math.max(1000, maxDurationSeconds * 1000);
   const chunks: Blob[] = [];
   let progressTimer: number | null = null;
@@ -90,6 +92,7 @@ export function startVideoRecordingFromMediaStream(
   const recorder = new MediaRecorder(stream, {
     mimeType: recorderMimeType,
     videoBitsPerSecond: 2_500_000,
+    ...(hasAudioTrack ? { audioBitsPerSecond: 128_000 } : {}),
   });
 
   let resolveFinished!: (file: File) => void;
