@@ -16,6 +16,7 @@ import {
   canCapturePhoto,
   capturePhotoFromVideo,
   flipVirtualBoothCameraStream,
+  oppositeCameraFacing,
   shouldMirrorCameraPreview,
   startVirtualBoothMediaStream,
   stopMediaStream,
@@ -232,9 +233,22 @@ export function VirtualBoothModal({
     }
 
     video.srcObject = cameraStream;
-    void video.play();
+
+    const handleReady = () => {
+      setCameraReady(true);
+    };
+
+    video.addEventListener("loadeddata", handleReady);
+    video.addEventListener("canplay", handleReady);
+
+    void video.play().then(handleReady).catch(() => {
+      // Autoplay bloqueado — loadeddata/canplay ainda marcam pronto.
+    });
 
     return () => {
+      video.removeEventListener("loadeddata", handleReady);
+      video.removeEventListener("canplay", handleReady);
+      video.pause();
       video.srcObject = null;
     };
   }, [cameraStream, step, isRecordingMotion]);
@@ -492,10 +506,13 @@ export function VirtualBoothModal({
       isSwitchingCamera ||
       step === "countdown" ||
       isRecordingMotion ||
-      !cameraStreamRef.current
+      step !== "camera"
     ) {
       return;
     }
+
+    const previousFacing = cameraFacing;
+    const nextFacing = oppositeCameraFacing(previousFacing);
 
     setIsSwitchingCamera(true);
     setCameraReady(false);
@@ -508,13 +525,13 @@ export function VirtualBoothModal({
     try {
       const includeAudio = captureMode === "video";
       const result = await flipVirtualBoothCameraStream({
-        currentFacing: cameraFacing,
+        currentFacing: previousFacing,
         includeAudio,
       });
 
       cameraStreamRef.current = result.stream;
       setCameraStream(result.stream);
-      setCameraFacing(result.facingMode);
+      setCameraFacing(result.facingMode ?? nextFacing);
       setVideoAudioNotice(result.audioWarning);
     } catch (error) {
       setErrorMessage(
@@ -527,11 +544,12 @@ export function VirtualBoothModal({
         const includeAudio = captureMode === "video";
         const restored = await startVirtualBoothMediaStream({
           includeAudio,
-          facingMode: cameraFacing,
+          facingMode: previousFacing,
+          strictFacing: true,
         });
         cameraStreamRef.current = restored.stream;
         setCameraStream(restored.stream);
-        setCameraFacing(restored.facingMode);
+        setCameraFacing(restored.facingMode ?? previousFacing);
         setVideoAudioNotice(restored.audioWarning);
       } catch {
         setStep("no-camera");
