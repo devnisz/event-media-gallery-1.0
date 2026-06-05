@@ -49,10 +49,11 @@ import {
 } from "@/lib/virtual-booth/gallery-import";
 import { VirtualBoothCameraStage } from "./virtual-booth-camera-stage";
 import { VirtualBoothExperienceMenu } from "./virtual-booth-experience-menu";
+import { VirtualBoothFlowStatus } from "./virtual-booth-flow-status";
+import { VirtualBoothPublishPreview } from "./virtual-booth-publish-preview";
 import { VirtualBoothSourceSheet } from "./virtual-booth-source-sheet";
+import { boothCloseButtonClass, boothShellClass } from "./virtual-booth-ui";
 import { cn } from "@/lib/utils";
-
-const BRAND_LABEL = "Cabine Virtual";
 
 type CaptureMode = "photo" | "boomerang" | "video";
 
@@ -159,7 +160,6 @@ export function VirtualBoothModal({
   const isMenuStep = step === "menu";
   const isImmersiveCapture =
     step === "camera" || step === "countdown" || isRecordingMotion;
-  const isFullScreenShell = isImmersiveCapture || isMenuStep;
   const showingFramedVersion =
     hasOfficialFrame && useFramedPreview && Boolean(composedFile);
 
@@ -170,6 +170,14 @@ export function VirtualBoothModal({
   const activePublishFile = showingFramedVersion
     ? composedFile
     : sourceFile;
+
+  const isPreviewStep =
+    step === "final-preview" && Boolean(activePreviewUrl);
+  const isFlowStatusStep =
+    step === "no-camera" ||
+    step === "composing" ||
+    step === "uploading" ||
+    step === "success";
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -841,26 +849,8 @@ export function VirtualBoothModal({
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
-        className={cn(
-          "p-0 text-white open:animate-rise",
-          isFullScreenShell
-            ? "fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-neutral-950 shadow-none"
-            : cn(
-                "max-w-[calc(100vw-2rem)] rounded-[1.25rem] border border-white/[0.08] bg-neutral-950/98 shadow-[0_32px_100px_rgba(0,0,0,0.55)] backdrop-blur-xl",
-                "w-[min(100%,28rem)]",
-              ),
-        )}
+        className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-neutral-950 p-0 text-white shadow-none open:animate-rise"
         onClose={handleClose}
-        onClick={(event) => {
-          if (
-            event.target === dialogRef.current &&
-            !isFullScreenShell &&
-            step !== "uploading" &&
-            step !== "composing"
-          ) {
-            handleClose();
-          }
-        }}
       >
         {isImmersiveCapture ? (
           <VirtualBoothCameraStage
@@ -885,11 +875,11 @@ export function VirtualBoothModal({
             onFinishVideoRecording={finishVideoRecordingManually}
           />
         ) : isMenuStep ? (
-          <div className="relative flex min-h-[100dvh] flex-col justify-center px-5 py-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8">
+          <div className={cn(boothShellClass, "justify-center")}>
             <button
               type="button"
               onClick={handleClose}
-              className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] grid size-10 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-lg text-white/55 transition hover:border-white/15 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+              className={boothCloseButtonClass}
               aria-label="Fechar"
             >
               ×
@@ -901,248 +891,48 @@ export function VirtualBoothModal({
               onSelect={handleOptionClick}
             />
           </div>
-        ) : (
-        <div className="relative overflow-hidden rounded-[1.25rem]">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.05),transparent_70%)]"
+        ) : isPreviewStep && activePreviewUrl ? (
+          <VirtualBoothPublishPreview
+            titleId={titleId}
+            isBoomerangMode={isBoomerangMode}
+            isVideoMode={isVideoMode}
+            isMotionMode={isMotionMode}
+            isVideoFromGallery={isVideoFromGallery}
+            showingFramedVersion={showingFramedVersion}
+            hasOfficialFrame={hasOfficialFrame}
+            composedFile={composedFile}
+            activePreviewUrl={activePreviewUrl}
+            errorMessage={errorMessage}
+            onClose={handleClose}
+            onPublish={() => void handlePublishMedia()}
+            onReset={resetState}
+            onToggleFrame={() => {
+              setUseFramedPreview((current) => !current);
+              setErrorMessage("");
+            }}
+            onChangeVideo={openGalleryVideoPicker}
           />
-
-          <div className="relative p-6 sm:p-8">
-            {step !== "uploading" && step !== "composing" ? (
-              <button
-                type="button"
-                onClick={handleClose}
-                className="absolute right-5 top-5 grid size-10 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-lg text-white/55 transition hover:border-white/15 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
-                aria-label="Fechar"
-              >
-                ×
-              </button>
-            ) : null}
-
-            {step === "no-camera" ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  Foto indisponível
-                </h2>
-                <p className="mt-4 text-sm leading-7 text-white/55">
-                  {errorMessage ||
-                    "Captura de foto disponível apenas em dispositivos com câmera."}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setStep("menu")}
-                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-6 text-sm font-bold text-white/80 transition hover:bg-white/10"
-                >
-                  Voltar
-                </button>
-              </>
-            ) : null}
-
-            {step === "composing" ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  {isBoomerangMode
-                    ? "Preparando seu Boomerang"
-                    : "Preparando sua foto"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  {composingMessage || "Ajustando detalhes da imagem..."}
-                </p>
-                <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400" />
-                </div>
-              </>
-            ) : null}
-
-            {step === "final-preview" && activePreviewUrl ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  {isBoomerangMode
-                    ? "Seu Boomerang está pronto!"
-                    : isVideoMode
-                      ? "Seu vídeo está pronto!"
-                      : "Sua foto está pronta!"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  {isBoomerangMode
-                    ? showingFramedVersion
-                      ? "Boomerang animado com moldura oficial do evento."
-                      : "Prévia do Boomerang pronto para publicar."
-                    : isVideoMode
-                      ? "Prévia do vídeo pronto para publicar."
-                      : showingFramedVersion
-                        ? "Personalizada com a moldura oficial do evento."
-                        : "Visualizando a foto sem moldura. Você pode voltar à versão oficial."}
-                </p>
-
-                <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                  {isVideoMode ? (
-                    <video
-                      src={activePreviewUrl}
-                      controls
-                      playsInline
-                      className="max-h-[min(52vh,28rem)] w-full object-contain"
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={activePreviewUrl}
-                      alt={
-                        isBoomerangMode
-                          ? showingFramedVersion
-                            ? "Prévia do Boomerang com moldura"
-                            : "Prévia do Boomerang"
-                          : showingFramedVersion
-                            ? "Prévia final com moldura"
-                            : "Prévia da foto original"
-                      }
-                      className="max-h-[min(52vh,28rem)] w-full object-contain"
-                    />
-                  )}
-                </div>
-
-                {errorMessage ? (
-                  <p className="mt-4 text-sm font-semibold text-red-200">
-                    {errorMessage}
-                  </p>
-                ) : null}
-
-                <div className="mt-6 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => void handlePublishMedia()}
-                    className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-6 text-base font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.32)] transition hover:brightness-105 active:scale-[0.98]"
-                  >
-                    <span aria-hidden>✅</span>
-                    {isBoomerangMode
-                      ? "Publicar Boomerang"
-                      : isVideoMode
-                        ? "Publicar vídeo"
-                        : "Publicar foto"}
-                  </button>
-
-                  {isVideoMode && isVideoFromGallery ? (
-                    <button
-                      type="button"
-                      onClick={openGalleryVideoPicker}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
-                    >
-                      Trocar Vídeo
-                    </button>
-                  ) : isMotionMode || isVideoMode ? (
-                    <button
-                      type="button"
-                      onClick={resetState}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
-                    >
-                      Refazer
-                    </button>
-                  ) : hasOfficialFrame && composedFile ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUseFramedPreview((current) => !current);
-                        setErrorMessage("");
-                      }}
-                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-transparent px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
-                    >
-                      <span aria-hidden>{showingFramedVersion ? "◻" : "🖼️"}</span>
-                      {showingFramedVersion ? "Sem moldura" : "Com moldura oficial"}
-                    </button>
-                  ) : !hasOfficialFrame ? (
-                    <button
-                      type="button"
-                      onClick={resetState}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/45 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white/70"
-                    >
-                      Tirar outra foto
-                    </button>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
-
-            {step === "uploading" ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  {isBoomerangMode
-                    ? "Publicando Boomerang"
-                    : isVideoMode
-                      ? "Publicando vídeo"
-                      : "Publicando foto"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  {uploadMessage || "Enviando para a galeria..."}
-                </p>
-                <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400 transition-all duration-300"
-                    style={{ width: `${Math.max(uploadProgress, 8)}%` }}
-                  />
-                </div>
-              </>
-            ) : null}
-
-            {step === "success" ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  <span aria-hidden>🎉 </span>
-                  {isBoomerangMode
-                    ? "Boomerang publicado!"
-                    : isVideoMode
-                      ? "Vídeo publicado!"
-                      : "Foto publicada!"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  {isBoomerangMode
-                    ? "Seu Boomerang já está disponível na galeria do evento."
-                    : isVideoMode
-                      ? "Seu vídeo já está disponível na galeria do evento."
-                      : "Sua foto já está disponível na galeria do evento."}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 text-sm font-black text-slate-950 transition hover:bg-amber-100"
-                >
-                  Fechar
-                </button>
-              </>
-            ) : null}
-          </div>
-        </div>
-        )}
+        ) : isFlowStatusStep ? (
+          <VirtualBoothFlowStatus
+            titleId={titleId}
+            variant={step}
+            isBoomerangMode={isBoomerangMode}
+            isVideoMode={isVideoMode}
+            message={
+              step === "composing"
+                ? composingMessage
+                : step === "uploading"
+                  ? uploadMessage
+                  : undefined
+            }
+            uploadProgress={uploadProgress}
+            errorMessage={errorMessage || undefined}
+            onClose={handleClose}
+            onBack={
+              step === "no-camera" ? () => setStep("menu") : undefined
+            }
+          />
+        ) : null}
 
         <VirtualBoothSourceSheet
           embedded

@@ -2,6 +2,7 @@
 
 import type { VirtualBoothMenuOption } from "@/lib/virtual-booth/capture-options";
 import { cn } from "@/lib/utils";
+import { boothSubtitleClass, boothTitleClass } from "./virtual-booth-ui";
 
 type VirtualBoothExperienceMenuProps = {
   titleId: string;
@@ -28,13 +29,11 @@ export function VirtualBoothExperienceMenu({
       <header className="w-full text-center">
         <h2
           id={titleId}
-          className="text-[1.75rem] font-semibold tracking-[-0.03em] text-white sm:text-[1.875rem]"
+          className={cn(boothTitleClass, "text-[1.75rem] sm:text-[1.875rem]")}
         >
           Escolha sua experiência
         </h2>
-        <p className="mt-3 text-[0.9375rem] leading-relaxed text-white/36">
-          Como deseja criar sua lembrança?
-        </p>
+        <p className={boothSubtitleClass}>Como deseja criar sua lembrança?</p>
       </header>
 
       {errorMessage ? (

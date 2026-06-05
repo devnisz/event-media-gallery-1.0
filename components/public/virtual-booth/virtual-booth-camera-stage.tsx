@@ -4,6 +4,10 @@ import { Camera, Repeat2, Square, Video, X } from "lucide-react";
 import type { RefObject } from "react";
 import { cn } from "@/lib/utils";
 import { VideoRecordingProgressRing } from "./video-recording-progress-ring";
+import {
+  boothPrimaryButtonClass,
+  boothSecondaryButtonClass,
+} from "./virtual-booth-ui";
 
 type CaptureMode = "photo" | "boomerang" | "video";
 
@@ -176,9 +180,8 @@ export function VirtualBoothCameraStage({
             onClick={onPrimaryAction}
             disabled={!cameraReady}
             className={cn(
-              "inline-flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-white px-6 text-base font-semibold text-neutral-950 transition",
-              "hover:bg-white/95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+              boothPrimaryButtonClass(),
+              "gap-2.5",
             )}
           >
             {isVideoMode ? (
@@ -200,7 +203,7 @@ export function VirtualBoothCameraStage({
           <button
             type="button"
             onClick={onFinishVideoRecording}
-            className="inline-flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl border border-white/20 bg-white/10 px-6 text-base font-semibold text-white transition hover:bg-white/15 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            className={cn(boothSecondaryButtonClass(), "gap-2.5")}
           >
             <Square className="size-4 fill-current" strokeWidth={1.75} />
             Finalizar gravação
