@@ -9,7 +9,6 @@ import {
 import { setGalleryOpenPreviewFromVideo } from "@/lib/gallery/gallery-open-preview";
 import { startMediaOpenTrace } from "@/lib/gallery/media-open-perf";
 import { routes } from "@/lib/routes";
-import { MediaBadge } from "./media-badge";
 import { MediaLikeButton } from "./media-like-button";
 import { VideoThumbnail } from "./video-thumbnail";
 
@@ -75,9 +74,8 @@ export function VideoCard({
             c ? "max-md:left-1.5 max-md:top-1.5" : ""
           }`}
         >
-          <MediaBadge kind={video.mediaType} />
           {isNew ? (
-            <span className="w-fit rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-2 py-0.5 text-[0.55rem] font-black uppercase tracking-wider text-slate-950 shadow-lg">
+            <span className="w-fit rounded-full bg-white/90 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-neutral-950 shadow-sm">
               Novo
             </span>
           ) : null}

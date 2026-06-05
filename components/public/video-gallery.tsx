@@ -31,7 +31,6 @@ import type { CabineVirtualEventConfig } from "@/lib/virtual-booth/event-config"
 import { tryRealtimeRowToEventMedia } from "@/lib/media/galleryMapping";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { EventVideo } from "@/types/video";
-import { GuestUploadButton } from "./guest-upload-button";
 
 type VideoGalleryProps = {
   initialVideos: EventVideo[];
@@ -350,11 +349,6 @@ export function VideoGallery({
     );
   }
 
-  const guestUploadSlot =
-    allowGuestUpload && eventId ? (
-      <GuestUploadButton eventId={eventId} eventSlug={eventSlug} compact />
-    ) : null;
-
   const gridSharedProps = {
     videos,
     newMediaIds,
@@ -369,7 +363,6 @@ export function VideoGallery({
       <GalleryCompactHeader
         eventName={eventName}
         mediaCount={visibleVideoCount}
-        guestUploadSlot={guestUploadSlot}
         compact={isSocialLayout}
       />
 

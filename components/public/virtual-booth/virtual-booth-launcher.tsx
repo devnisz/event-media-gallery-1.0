@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import {
   shouldShowCabineVirtualLauncher,
@@ -55,13 +56,11 @@ export function VirtualBoothLauncher({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/15 bg-gradient-to-r from-amber-300 via-orange-400 to-fuchsia-500 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.35)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/40 active:scale-[0.98] sm:bottom-8 sm:right-8 sm:min-h-14 sm:px-6 sm:text-base"
+        className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-40 inline-flex min-h-[3.25rem] items-center justify-center gap-2.5 rounded-full border border-white/[0.12] bg-neutral-950/88 px-5 py-3 text-sm font-medium tracking-[-0.01em] text-white/92 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:border-white/20 hover:bg-neutral-900/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25 active:scale-[0.98] sm:bottom-8 sm:right-8 sm:min-h-14 sm:px-6 sm:text-[0.9375rem]"
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span aria-hidden className="text-base sm:text-lg">
-          📸
-        </span>
+        <Sparkles className="size-[1.05rem] text-white/75" strokeWidth={1.5} />
         <span>Cabine Virtual</span>
       </button>
     </>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { MediaBadge } from "@/components/public/media-badge";
 import { MediaLikeButton } from "@/components/public/media-like-button";
 import {
   galleryMediaElementId,
@@ -89,12 +88,6 @@ export function SocialGalleryTile({
             aria-hidden
           />
         )}
-
-        {video.mediaType === "gif" || video.mediaType === "boomerang" ? (
-          <span className="pointer-events-none absolute left-1.5 top-1.5 z-10">
-            <MediaBadge kind={video.mediaType} size="sm" />
-          </span>
-        ) : null}
 
         {video.mediaType === "video" ? (
           <span className="pointer-events-none absolute bottom-1.5 left-1.5 opacity-90">

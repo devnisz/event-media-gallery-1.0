@@ -1,3 +1,15 @@
+"use client";
+
+import {
+  Camera,
+  FolderOpen,
+  ImageIcon,
+  Video,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
 type VirtualBoothSourceSheetProps = {
   open: boolean;
   variant: "photo" | "video";
@@ -10,25 +22,37 @@ type VirtualBoothSourceSheetProps = {
   onDismiss: () => void;
 };
 
-function SourceRow({
-  icon,
-  label,
+function SourceCard({
+  icon: Icon,
+  title,
+  description,
   onClick,
 }: {
-  icon: string;
-  label: string;
+  icon: LucideIcon;
+  title: string;
+  description: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-[0.95rem] font-semibold text-white transition hover:bg-white/[0.06] active:bg-white/[0.09]"
+      className={cn(
+        "group flex w-full flex-col items-center justify-center gap-4 rounded-[1.125rem] border border-white/[0.07] bg-white/[0.025] px-5 py-8 transition-[transform,background-color,border-color] duration-200",
+        "min-h-[9.5rem] touch-manipulation text-center sm:min-h-[10rem] sm:rounded-2xl sm:py-9",
+        "hover:border-white/[0.11] hover:bg-white/[0.045] active:scale-[0.98] active:bg-white/[0.055]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950",
+      )}
     >
-      <span className="text-lg leading-none" aria-hidden>
-        {icon}
+      <span className="flex size-[3.5rem] items-center justify-center rounded-[1rem] bg-white/[0.045] text-white/90 transition-colors group-hover:bg-white/[0.075] sm:size-16">
+        <Icon className="size-7 sm:size-8" strokeWidth={1.35} aria-hidden />
       </span>
-      <span>{label}</span>
+      <span className="block">
+        <span className="block text-base font-medium tracking-[-0.015em] text-white/90">
+          {title}
+        </span>
+        <span className="mt-1 block text-xs text-white/38">{description}</span>
+      </span>
     </button>
   );
 }
@@ -47,52 +71,76 @@ export function VirtualBoothSourceSheet({
     return null;
   }
 
-  const cameraLabel = variant === "photo" ? "Tirar Foto" : "Gravar Vídeo";
-  const galleryLabel =
-    variant === "photo" ? "Escolher da Galeria" : "Escolher Vídeo";
-  const cameraIcon = variant === "photo" ? "📸" : "🎥";
-  const galleryIcon = variant === "photo" ? "🖼" : "📂";
+  const isPhoto = variant === "photo";
+  const title = isPhoto ? "Adicionar foto" : "Adicionar vídeo";
+  const subtitle = isPhoto
+    ? "Como deseja criar sua foto?"
+    : "Como deseja adicionar seu vídeo?";
 
   const overlayClass = embedded
-    ? "absolute inset-0 z-50 flex items-end justify-center p-4"
-    : "fixed inset-0 z-[60] flex items-end justify-center p-4 sm:p-6";
+    ? "absolute inset-0 z-50 flex items-center justify-center px-5 py-8"
+    : "fixed inset-0 z-[60] flex items-center justify-center px-5 py-8 sm:px-6";
 
   return (
     <div className={overlayClass}>
       <button
         type="button"
         aria-label="Fechar"
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/70"
         onClick={onDismiss}
       />
+
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-950/98 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+        aria-label={title}
+        className="relative flex w-full max-w-[22rem] flex-col sm:max-w-[24rem]"
       >
-        <div className="px-2 py-2">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="absolute -right-1 -top-1 z-10 grid size-10 place-items-center rounded-full border border-white/[0.08] bg-neutral-900/90 text-white/60 transition hover:border-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25 sm:right-0 sm:top-0"
+          aria-label="Fechar"
+        >
+          <X className="size-4" strokeWidth={1.75} />
+        </button>
+
+        <header className="mb-8 pt-2 text-center sm:mb-10">
+          <h2 className="text-[1.65rem] font-semibold tracking-[-0.03em] text-white sm:text-[1.75rem]">
+            {title}
+          </h2>
+          <p className="mt-3 text-[0.9375rem] text-white/36">{subtitle}</p>
+        </header>
+
+        <div className="grid gap-3.5 sm:gap-4">
           {showCamera ? (
-            <SourceRow
-              icon={cameraIcon}
-              label={cameraLabel}
+            <SourceCard
+              icon={isPhoto ? Camera : Video}
+              title={isPhoto ? "Tirar foto" : "Gravar vídeo"}
+              description={
+                isPhoto ? "Use a câmera do dispositivo" : "Grave agora com a câmera"
+              }
               onClick={onCamera}
             />
           ) : null}
-          {showCamera && showGallery ? (
-            <div className="mx-4 h-px bg-white/8" aria-hidden />
-          ) : null}
           {showGallery ? (
-            <SourceRow
-              icon={galleryIcon}
-              label={galleryLabel}
+            <SourceCard
+              icon={isPhoto ? ImageIcon : FolderOpen}
+              title={isPhoto ? "Escolher da galeria" : "Escolher vídeo"}
+              description={
+                isPhoto
+                  ? "Selecione uma foto existente"
+                  : "Importe um vídeo do dispositivo"
+              }
               onClick={onGallery}
             />
           ) : null}
         </div>
+
         <button
           type="button"
           onClick={onDismiss}
-          className="w-full border-t border-white/8 py-3.5 text-sm font-semibold text-white/45 transition hover:bg-white/[0.04] hover:text-white/70"
+          className="mt-6 min-h-11 rounded-xl text-sm font-medium text-white/42 transition hover:text-white/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
         >
           Cancelar
         </button>

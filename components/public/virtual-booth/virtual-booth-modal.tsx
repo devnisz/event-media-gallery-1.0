@@ -156,8 +156,10 @@ export function VirtualBoothModal({
   const isBoomerangMode = captureMode === "boomerang";
   const isVideoMode = captureMode === "video";
   const isMotionMode = isBoomerangMode;
+  const isMenuStep = step === "menu";
   const isImmersiveCapture =
     step === "camera" || step === "countdown" || isRecordingMotion;
+  const isFullScreenShell = isImmersiveCapture || isMenuStep;
   const showingFramedVersion =
     hasOfficialFrame && useFramedPreview && Boolean(composedFile);
 
@@ -841,20 +843,18 @@ export function VirtualBoothModal({
         aria-labelledby={titleId}
         className={cn(
           "p-0 text-white open:animate-rise",
-          isImmersiveCapture
-            ? "fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-black shadow-none"
+          isFullScreenShell
+            ? "fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-neutral-950 shadow-none"
             : cn(
                 "max-w-[calc(100vw-2rem)] rounded-[1.25rem] border border-white/[0.08] bg-neutral-950/98 shadow-[0_32px_100px_rgba(0,0,0,0.55)] backdrop-blur-xl",
-                step === "menu"
-                  ? "w-[min(100%,36rem)] sm:w-[min(100%,40rem)]"
-                  : "w-[min(100%,28rem)]",
+                "w-[min(100%,28rem)]",
               ),
         )}
         onClose={handleClose}
         onClick={(event) => {
           if (
             event.target === dialogRef.current &&
-            !isImmersiveCapture &&
+            !isFullScreenShell &&
             step !== "uploading" &&
             step !== "composing"
           ) {
@@ -884,23 +884,31 @@ export function VirtualBoothModal({
             }
             onFinishVideoRecording={finishVideoRecordingManually}
           />
+        ) : isMenuStep ? (
+          <div className="relative flex min-h-[100dvh] flex-col justify-center px-5 py-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] grid size-10 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-lg text-white/55 transition hover:border-white/15 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+              aria-label="Fechar"
+            >
+              ×
+            </button>
+            <VirtualBoothExperienceMenu
+              titleId={titleId}
+              options={menuOptions}
+              errorMessage={errorMessage || undefined}
+              onSelect={handleOptionClick}
+            />
+          </div>
         ) : (
         <div className="relative overflow-hidden rounded-[1.25rem]">
           <div
             aria-hidden
-            className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.035),transparent_72%)]",
-              step !== "menu" &&
-                "h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.05),transparent_70%)]",
-            )}
+            className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.05),transparent_70%)]"
           />
 
-          <div
-            className={cn(
-              "relative",
-              step === "menu" ? "px-5 py-7 sm:px-8 sm:py-9" : "p-6 sm:p-8",
-            )}
-          >
+          <div className="relative p-6 sm:p-8">
             {step !== "uploading" && step !== "composing" ? (
               <button
                 type="button"
@@ -910,15 +918,6 @@ export function VirtualBoothModal({
               >
                 ×
               </button>
-            ) : null}
-
-            {step === "menu" ? (
-              <VirtualBoothExperienceMenu
-                titleId={titleId}
-                options={menuOptions}
-                errorMessage={errorMessage || undefined}
-                onSelect={handleOptionClick}
-              />
             ) : null}
 
             {step === "no-camera" ? (
@@ -1142,40 +1141,40 @@ export function VirtualBoothModal({
               </>
             ) : null}
           </div>
-
-          <VirtualBoothSourceSheet
-            embedded
-            open={sourceSheetVariant !== null}
-            variant={sourceSheetVariant ?? "photo"}
-            showCamera={cabineConfig.cameraEnabled}
-            showGallery={cabineConfig.galleryImportEnabled}
-            onCamera={() => {
-              const variant = sourceSheetVariant;
-              setSourceSheetVariant(null);
-
-              if (variant === "photo") {
-                void startCameraCapture("photo");
-                return;
-              }
-
-              if (variant === "video") {
-                void startCameraCapture("video");
-              }
-            }}
-            onGallery={() => {
-              if (sourceSheetVariant === "photo") {
-                openGalleryPhotoPicker();
-                return;
-              }
-
-              if (sourceSheetVariant === "video") {
-                openGalleryVideoPicker();
-              }
-            }}
-            onDismiss={() => setSourceSheetVariant(null)}
-          />
         </div>
         )}
+
+        <VirtualBoothSourceSheet
+          embedded
+          open={sourceSheetVariant !== null}
+          variant={sourceSheetVariant ?? "photo"}
+          showCamera={cabineConfig.cameraEnabled}
+          showGallery={cabineConfig.galleryImportEnabled}
+          onCamera={() => {
+            const variant = sourceSheetVariant;
+            setSourceSheetVariant(null);
+
+            if (variant === "photo") {
+              void startCameraCapture("photo");
+              return;
+            }
+
+            if (variant === "video") {
+              void startCameraCapture("video");
+            }
+          }}
+          onGallery={() => {
+            if (sourceSheetVariant === "photo") {
+              openGalleryPhotoPicker();
+              return;
+            }
+
+            if (sourceSheetVariant === "video") {
+              openGalleryVideoPicker();
+            }
+          }}
+          onDismiss={() => setSourceSheetVariant(null)}
+        />
       </dialog>
     </>
   );

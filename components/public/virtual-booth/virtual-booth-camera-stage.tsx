@@ -62,7 +62,7 @@ export function VirtualBoothCameraStage({
           : "Enquadre-se e toque em capturar";
 
   return (
-    <div className="relative flex min-h-[min(100dvh,720px)] flex-col bg-black">
+    <div className="relative flex min-h-[100dvh] flex-col bg-black">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <video
           ref={videoRef}
@@ -75,7 +75,7 @@ export function VirtualBoothCameraStage({
         />
 
         {!cameraReady ? (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
             <div className="flex flex-col items-center gap-3">
               <div className="size-9 animate-pulse rounded-full border-2 border-white/30 border-t-white" />
               <p className="text-sm font-medium text-white/70">
