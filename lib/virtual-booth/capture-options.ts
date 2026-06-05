@@ -26,10 +26,11 @@ const ALL_MENU_OPTIONS: VirtualBoothMenuOption[] = [
   },
   {
     id: "boomerang",
-    icon: "🔄",
+    icon: "🎞️",
     title: "Boomerang",
     description: "Crie um movimento de vai-e-volta para o evento.",
   },
+  // Futuro: { id: "ai-photo", icon: "✨", title: "Fotos com IA", description: "..." },
   {
     id: "video",
     icon: "🎥",

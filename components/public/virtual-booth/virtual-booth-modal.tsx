@@ -48,7 +48,9 @@ import {
   validateGalleryVideoFile,
 } from "@/lib/virtual-booth/gallery-import";
 import { VideoRecordingProgressRing } from "./video-recording-progress-ring";
+import { VirtualBoothExperienceMenu } from "./virtual-booth-experience-menu";
 import { VirtualBoothSourceSheet } from "./virtual-booth-source-sheet";
+import { cn } from "@/lib/utils";
 
 const BRAND_LABEL = "Cabine Virtual";
 
@@ -868,7 +870,12 @@ export function VirtualBoothModal({
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
-        className="w-[min(100%,28rem)] max-w-[calc(100vw-2rem)] rounded-[2rem] border border-white/12 bg-slate-950/95 p-0 text-white shadow-[0_40px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl open:animate-rise"
+        className={cn(
+          "max-w-[calc(100vw-2rem)] rounded-[2rem] border border-white/12 bg-slate-950/95 p-0 text-white shadow-[0_40px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl open:animate-rise",
+          step === "menu"
+            ? "w-[min(100%,36rem)] sm:w-[min(100%,40rem)]"
+            : "w-[min(100%,28rem)]",
+        )}
         onClose={handleClose}
         onClick={(event) => {
           if (
@@ -885,10 +892,18 @@ export function VirtualBoothModal({
         <div className="relative overflow-hidden rounded-[2rem]">
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.18),transparent_70%)]"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 top-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.04),transparent_72%)]",
+              step === "menu" ? "h-40" : "h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.18),transparent_70%)]",
+            )}
           />
 
-          <div className="relative p-6 sm:p-8">
+          <div
+            className={cn(
+              "relative",
+              step === "menu" ? "px-5 py-7 sm:px-8 sm:py-9" : "p-6 sm:p-8",
+            )}
+          >
             {step !== "uploading" &&
             step !== "composing" &&
             step !== "countdown" &&
@@ -904,50 +919,12 @@ export function VirtualBoothModal({
             ) : null}
 
             {step === "menu" ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200/90">
-                  {BRAND_LABEL}
-                </p>
-                <h2
-                  id={titleId}
-                  className="mt-3 pr-10 text-2xl font-black tracking-tight sm:text-3xl"
-                >
-                  {BRAND_LABEL}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">
-                  Crie fotos, GIFs e Boomerangs personalizados com a moldura oficial do evento.
-                </p>
-
-                {errorMessage ? (
-                  <p className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
-                    {errorMessage}
-                  </p>
-                ) : null}
-
-                <ul className="mt-6 space-y-3">
-                  {menuOptions.map((option) => (
-                    <li key={option.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleOptionClick(option.id)}
-                        className="group flex w-full items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition duration-300 hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 active:scale-[0.99]"
-                      >
-                        <span className="grid size-12 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/30 text-xl transition group-hover:scale-105">
-                          {option.icon}
-                        </span>
-                        <span className="min-w-0 pt-0.5">
-                          <span className="block text-base font-black text-white">
-                            {option.title}
-                          </span>
-                          <span className="mt-1 block text-sm leading-5 text-white/50">
-                            {option.description}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              <VirtualBoothExperienceMenu
+                titleId={titleId}
+                options={menuOptions}
+                errorMessage={errorMessage || undefined}
+                onSelect={handleOptionClick}
+              />
             ) : null}
 
             {step === "no-camera" ? (
