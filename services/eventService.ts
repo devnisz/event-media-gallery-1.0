@@ -108,6 +108,9 @@ export async function createEventRecordWithPersistence(
     liveMomentsEnabled: false,
     allowLikes: false,
     allowMediaShare: true,
+    viewCount: 0,
+    downloadCount: 0,
+    shareCount: 0,
     ...(ownerUserId ? { ownerUserId } : {}),
   };
 
