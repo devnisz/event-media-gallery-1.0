@@ -7,11 +7,11 @@ type LegacyVideoRedirectProps = {
   }>;
 };
 
-/** Mantém bookmarks antigos `/videos/[slug]` → `/video/[id]`. */
+/** Mantém bookmarks antigos `/videos/[slug]` → `/media/[id]`. */
 export default async function LegacyVideoRedirect({
   params,
 }: LegacyVideoRedirectProps) {
   const { slug } = await params;
 
-  redirect(routes.video(slug));
+  redirect(routes.media(slug));
 }

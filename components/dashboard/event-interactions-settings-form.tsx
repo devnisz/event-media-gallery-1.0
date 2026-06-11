@@ -96,7 +96,7 @@ export function EventInteractionsSettingsForm({
         <span>
           <span className="block font-bold">Permitir compartilhamento de mídias</span>
           <span className="mt-1 block text-sm leading-6 text-white/50">
-            Exibe ↗ para compartilhar o link individual (/video/id). Padrão:
+            Exibe ↗ para compartilhar o link individual (/media/id). Padrão:
             ativado.
           </span>
         </span>

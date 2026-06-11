@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidateMediaPublicPages } from "@/lib/routes";
 import {
   isValidReviewStatus,
   softDeleteDashboardMedia,
@@ -19,7 +20,7 @@ function revalidateMediaPaths(media: {
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/events/${encodeURIComponent(media.eventId)}`);
   revalidatePath(`/evento/${media.eventSlug}`);
-  revalidatePath(`/video/${encodeURIComponent(media.id)}`);
+  revalidateMediaPublicPages(revalidatePath, media.id);
 }
 
 export async function PATCH(request: Request, context: MediaRouteContext) {

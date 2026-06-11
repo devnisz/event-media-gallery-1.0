@@ -1,10 +1,11 @@
 import { buildPublicPageUrl } from "@/lib/media/publicPageUrl";
+import { routes } from "@/lib/routes";
 import { storePublicAssetObject } from "@/lib/r2/upload";
 
 export async function generateAndStoreMediaQrCode(
   mediaId: string,
 ): Promise<string> {
-  const pageUrl = buildPublicPageUrl(`/video/${encodeURIComponent(mediaId)}`);
+  const pageUrl = buildPublicPageUrl(routes.media(mediaId));
   const qrUrl = new URL("https://quickchart.io/qr");
 
   qrUrl.searchParams.set("text", pageUrl);

@@ -19,7 +19,7 @@ function mediaKindShareLabel(mediaType: MediaKind): string {
 }
 
 export function buildMediaShareUrl(mediaId: string): string {
-  return buildPublicPageUrl(routes.video(mediaId));
+  return buildPublicPageUrl(routes.media(mediaId));
 }
 
 export function buildMediaShareText(mediaType: MediaKind): string {

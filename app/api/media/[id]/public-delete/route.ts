@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidateMediaPublicPages } from "@/lib/routes";
 import { softDeletePublicMedia } from "@/lib/public/public-media-actions";
 
 type PublicMediaDeleteContext = {
@@ -15,7 +16,7 @@ function revalidateMediaPaths(media: {
   revalidatePath("/");
   revalidatePath(`/dashboard/events/${encodeURIComponent(media.eventId)}`);
   revalidatePath(`/evento/${media.eventSlug}`);
-  revalidatePath(`/video/${encodeURIComponent(media.id)}`);
+  revalidateMediaPublicPages(revalidatePath, media.id);
 }
 
 async function readPin(request: Request): Promise<string | undefined> {

@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidateMediaPublicPages } from "@/lib/routes";
 import { togglePublicMediaLike } from "@/lib/public/public-media-like";
 
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ function revalidateMediaPaths(media: {
   revalidatePath("/");
   revalidatePath(`/dashboard/events/${encodeURIComponent(media.eventId)}`);
   revalidatePath(`/evento/${media.eventSlug}`);
-  revalidatePath(`/video/${encodeURIComponent(media.id)}`);
+  revalidateMediaPublicPages(revalidatePath, media.id);
 }
 
 export async function POST(request: Request, context: MediaLikeContext) {

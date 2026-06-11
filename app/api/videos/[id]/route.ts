@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidateMediaPublicPages } from "@/lib/routes";
 import { softDeleteDashboardMedia } from "@/lib/dashboard/media-actions";
 import { getRouteHandlerUser } from "@/lib/auth/session";
 
@@ -35,7 +36,7 @@ export async function DELETE(_request: Request, { params }: DeleteVideoContext) 
     revalidatePath("/dashboard");
     revalidatePath(`/dashboard/events/${encodeURIComponent(result.media.eventId)}`);
     revalidatePath(`/evento/${result.media.eventSlug}`);
-    revalidatePath(`/video/${encodeURIComponent(id)}`);
+    revalidateMediaPublicPages(revalidatePath, id);
     revalidatePath(`/videos/${encodeURIComponent(id)}`);
 
     return Response.json({

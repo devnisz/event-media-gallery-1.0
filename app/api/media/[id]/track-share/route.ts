@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidateMediaPublicPages } from "@/lib/routes";
 
 import { recordMediaShare } from "@/lib/public/record-engagement";
 import { safeDecodeURIComponentSegment } from "@/lib/utils/safe-decode-uri";
@@ -22,7 +23,7 @@ function revalidateMediaPaths(media: {
     revalidatePath(`/evento/${media.eventSlug}`);
   }
 
-  revalidatePath(`/video/${encodeURIComponent(media.id)}`);
+  revalidateMediaPublicPages(revalidatePath, media.id);
 }
 
 export async function POST(_request: Request, context: TrackShareContext) {

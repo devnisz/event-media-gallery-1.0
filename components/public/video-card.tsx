@@ -59,7 +59,7 @@ export function VideoCard({
       style={{ animationDelay: isNew ? undefined : `${index * 50}ms` }}
     >
       <Link
-        href={routes.video(video.id)}
+        href={routes.media(video.id)}
         onClick={() => {
           startMediaOpenTrace(video.id);
           setGalleryOpenPreviewFromVideo(video);

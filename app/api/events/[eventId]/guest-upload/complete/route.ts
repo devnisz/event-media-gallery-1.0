@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidateMediaPublicPages } from "@/lib/routes";
 import type { GalleryMediaRecord, MediaKind } from "@/types/media";
 import { getEventById } from "@/services/eventService";
 import { appendGalleryMediaRecord } from "@/services/mediaService";
@@ -38,7 +39,7 @@ function revalidateEventPaths(eventId: string, eventSlug: string, mediaId: strin
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/events/${encodeURIComponent(eventId)}`);
   revalidatePath(`/evento/${eventSlug}`);
-  revalidatePath(`/video/${encodeURIComponent(mediaId)}`);
+  revalidateMediaPublicPages(revalidatePath, mediaId);
 }
 
 export async function POST(

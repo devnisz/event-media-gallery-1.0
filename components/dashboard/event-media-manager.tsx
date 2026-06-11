@@ -240,7 +240,7 @@ export function EventMediaManager({ initialMedia }: EventMediaManagerProps) {
                       {item.isHidden ? "Reexibir" : "Ocultar"}
                     </button>
                     <Link
-                      href={routes.video(item.id)}
+                      href={routes.media(item.id)}
                       className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold text-white/70 transition hover:bg-white/10"
                     >
                       Abrir

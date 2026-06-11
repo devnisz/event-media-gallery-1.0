@@ -53,7 +53,7 @@ export type GalleryMediaRecord = {
 };
 
 /**
- * Modelo de UI — QR continua apontando para `/video/[id]` (rota estável).
+ * Modelo de UI — `qrUrl` aponta para `/media/[id]` (canônica); QRs antigos em `/video/` redirecionam.
  * Campos duplicados (`videoUrl`, `thumbnail`) mantêm compat com componentes antigos.
  */
 export type EventMedia = {

@@ -2,6 +2,7 @@ import type { PublicGalleryEventSettings } from "@/lib/gallery/public-event-sett
 import type { EventMedia, GalleryMediaRecord } from "@/types/media";
 import { inferFileType, inferMediaKind } from "@/utils/mediaInference";
 import { buildPublicPageUrl } from "@/lib/media/publicPageUrl";
+import { routes } from "@/lib/routes";
 
 /** @deprecated Use `PublicGalleryEventSettings`. */
 export type PublicDeleteSettings = Pick<
@@ -324,7 +325,7 @@ export function toEventMedia(
     allowMediaShare: true,
   },
 ): EventMedia {
-  const pageUrl = buildPublicPageUrl(`/video/${encodeURIComponent(record.id)}`);
+  const pageUrl = buildPublicPageUrl(routes.media(record.id));
   const thumb = record.thumbnailUrl;
   const url = record.url;
 

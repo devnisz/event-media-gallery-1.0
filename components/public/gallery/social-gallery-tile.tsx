@@ -58,7 +58,7 @@ export function SocialGalleryTile({
       }`}
     >
       <Link
-        href={routes.video(video.id)}
+        href={routes.media(video.id)}
         onClick={() => {
           startMediaOpenTrace(video.id);
           setGalleryOpenPreviewFromVideo(video);

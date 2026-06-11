@@ -349,7 +349,7 @@ export function MediaViewerNavigator({
     preloadEventMedia(items[activeIndex + 1], "next");
     setGalleryFocusMedia(eventSlug, current.id);
 
-    const nextUrl = routes.video(current.id);
+    const nextUrl = routes.media(current.id);
 
     if (window.location.pathname !== nextUrl) {
       window.history.replaceState(null, "", nextUrl);
