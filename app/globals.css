@@ -147,6 +147,16 @@ body {
   }
 }
 
+@keyframes media-wait-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
+}
+
 @keyframes ring-spin {
   from {
     transform: rotate(0deg);
@@ -296,6 +306,10 @@ body {
 
 .animate-count-pop {
   animation: count-pop 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-media-wait-indeterminate {
+  animation: media-wait-indeterminate 1.4s ease-in-out infinite;
 }
 
 .animate-float-soft {
