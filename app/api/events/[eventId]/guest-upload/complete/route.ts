@@ -54,7 +54,7 @@ export async function POST(
       return Response.json({ error: "Evento não encontrado." }, { status: 404 });
     }
 
-    if (!event.allowGuestUpload) {
+    if (event.allowGuestUpload !== true) {
       return Response.json(
         { error: "Este evento não permite uploads públicos." },
         { status: 403 },

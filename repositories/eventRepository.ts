@@ -1,8 +1,6 @@
 /**
  * Persistência de eventos: Supabase quando configurado, com fallback JSON.
  */
-import { normalizeGalleryLayout } from "@/lib/gallery/layout";
-import { clampVideoMaxDurationSeconds } from "@/lib/virtual-booth/event-config";
 import type { GalleryEventRecord, StoredEventLoose } from "@/types/event";
 import {
   createServiceRoleSupabase,
@@ -27,37 +25,14 @@ import {
   writeEventsToStorage,
 } from "@/services/storageService";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  eventToRow,
+  rowToLoose,
+  type EventRow,
+} from "@/repositories/eventMappers";
 
-type EventRow = {
-  id: string;
-  slug: string;
-  name: string;
-  upload_token: string;
-  created_at: string;
-  cover_image: string | null;
-  videos_count: number | null;
-  owner_user_id: string | null;
-  allow_public_delete?: boolean | null;
-  require_delete_pin?: boolean | null;
-  delete_pin_hash?: string | null;
-  allow_guest_upload?: boolean | null;
-  require_guest_upload_approval?: boolean | null;
-  frame_url?: string | null;
-  gallery_layout?: string | null;
-  cabine_virtual_enabled?: boolean | null;
-  cabine_virtual_photo_enabled?: boolean | null;
-  cabine_virtual_boomerang_enabled?: boolean | null;
-  cabine_virtual_video_enabled?: boolean | null;
-  cabine_virtual_video_max_duration_seconds?: number | null;
-  cabine_virtual_camera_enabled?: boolean | null;
-  cabine_virtual_gallery_import_enabled?: boolean | null;
-  live_moments_enabled?: boolean | null;
-  allow_likes?: boolean | null;
-  allow_media_share?: boolean | null;
-  view_count?: number | null;
-  download_count?: number | null;
-  share_count?: number | null;
-};
+export type { EventRow } from "@/repositories/eventMappers";
+export { eventToRow, rowToLoose } from "@/repositories/eventMappers";
 
 export type PersistEventsOutcome = {
   branch:
@@ -120,7 +95,9 @@ function formatSupabaseErrorForThrow(
   const needsEventsSchemaUpdate =
     missingColumn !== undefined ||
     /PGRST204/i.test(detail) ||
-    /cabine_virtual_|live_moments_enabled|allow_likes|allow_media_share/i.test(detail) ||
+    /cabine_virtual_|live_moments_enabled|allow_likes|allow_media_share|allow_guest_upload/i.test(
+      detail,
+    ) ||
     /column.*events.*does not exist/i.test(detail);
 
   if (needsEventsSchemaUpdate) {
@@ -132,120 +109,6 @@ function formatSupabaseErrorForThrow(
   }
 
   return detail;
-}
-
-function optionalBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : false;
-}
-
-function optionalTrimmedString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function rowToLoose(row: EventRow): StoredEventLoose {
-  const deletePinHash = optionalTrimmedString(row.delete_pin_hash);
-
-  return {
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    createdAt: row.created_at,
-    uploadToken: row.upload_token,
-    coverImage: row.cover_image ?? "",
-    videosCount: row.videos_count ?? 0,
-    allowPublicDelete: optionalBoolean(row.allow_public_delete),
-    requireDeletePin: optionalBoolean(row.require_delete_pin),
-    allowGuestUpload: optionalBoolean(row.allow_guest_upload),
-    requireGuestUploadApproval: optionalBoolean(row.require_guest_upload_approval),
-    frameUrl: optionalTrimmedString(row.frame_url),
-    galleryLayout: normalizeGalleryLayout(row.gallery_layout),
-    ...(typeof row.cabine_virtual_enabled === "boolean"
-      ? { cabineVirtualEnabled: row.cabine_virtual_enabled }
-      : {}),
-    ...(typeof row.cabine_virtual_photo_enabled === "boolean"
-      ? { cabineVirtualPhotoEnabled: row.cabine_virtual_photo_enabled }
-      : {}),
-    ...(typeof row.cabine_virtual_boomerang_enabled === "boolean"
-      ? { cabineVirtualBoomerangEnabled: row.cabine_virtual_boomerang_enabled }
-      : {}),
-    ...(typeof row.cabine_virtual_video_enabled === "boolean"
-      ? { cabineVirtualVideoEnabled: row.cabine_virtual_video_enabled }
-      : {}),
-    ...(typeof row.cabine_virtual_video_max_duration_seconds === "number"
-      ? {
-          cabineVirtualVideoMaxDurationSeconds: clampVideoMaxDurationSeconds(
-            row.cabine_virtual_video_max_duration_seconds,
-          ),
-        }
-      : {}),
-    ...(typeof row.cabine_virtual_camera_enabled === "boolean"
-      ? { cabineVirtualCameraEnabled: row.cabine_virtual_camera_enabled }
-      : {}),
-    ...(typeof row.cabine_virtual_gallery_import_enabled === "boolean"
-      ? {
-          cabineVirtualGalleryImportEnabled:
-            row.cabine_virtual_gallery_import_enabled,
-        }
-      : {}),
-    ...(typeof row.live_moments_enabled === "boolean"
-      ? { liveMomentsEnabled: row.live_moments_enabled }
-      : {}),
-    ...(typeof row.allow_likes === "boolean"
-      ? { allowLikes: row.allow_likes }
-      : {}),
-    ...(typeof row.allow_media_share === "boolean"
-      ? { allowMediaShare: row.allow_media_share }
-      : {}),
-    ...(typeof row.view_count === "number"
-      ? { viewCount: Math.max(0, Math.trunc(row.view_count)) }
-      : {}),
-    ...(typeof row.download_count === "number"
-      ? { downloadCount: Math.max(0, Math.trunc(row.download_count)) }
-      : {}),
-    ...(typeof row.share_count === "number"
-      ? { shareCount: Math.max(0, Math.trunc(row.share_count)) }
-      : {}),
-    ...(deletePinHash ? { deletePinHash } : {}),
-    ...(row.owner_user_id
-      ? { ownerUserId: row.owner_user_id }
-      : {}),
-  };
-}
-
-function eventToRow(e: GalleryEventRecord): EventRow {
-  return {
-    id: e.id,
-    slug: e.slug,
-    name: e.name,
-    upload_token: e.uploadToken,
-    created_at: e.createdAt,
-    cover_image: e.coverImage ?? "",
-    videos_count: e.videosCount ?? 0,
-    owner_user_id: e.ownerUserId?.trim() ? e.ownerUserId.trim() : null,
-    allow_public_delete: e.allowPublicDelete,
-    require_delete_pin: e.requireDeletePin,
-    delete_pin_hash: e.deletePinHash?.trim() ? e.deletePinHash.trim() : null,
-    allow_guest_upload: e.allowGuestUpload,
-    require_guest_upload_approval: e.requireGuestUploadApproval,
-    frame_url: e.frameUrl ?? "",
-    gallery_layout: normalizeGalleryLayout(e.galleryLayout),
-    cabine_virtual_enabled: e.cabineVirtualEnabled === true,
-    cabine_virtual_photo_enabled: e.cabineVirtualPhotoEnabled === true,
-    cabine_virtual_boomerang_enabled: e.cabineVirtualBoomerangEnabled === true,
-    cabine_virtual_video_enabled: e.cabineVirtualVideoEnabled === true,
-    cabine_virtual_video_max_duration_seconds: clampVideoMaxDurationSeconds(
-      e.cabineVirtualVideoMaxDurationSeconds,
-    ),
-    cabine_virtual_camera_enabled: e.cabineVirtualCameraEnabled !== false,
-    cabine_virtual_gallery_import_enabled:
-      e.cabineVirtualGalleryImportEnabled !== false,
-    live_moments_enabled: e.liveMomentsEnabled === true,
-    allow_likes: e.allowLikes === true,
-    allow_media_share: e.allowMediaShare !== false,
-    view_count: Math.max(0, Math.trunc(e.viewCount ?? 0)),
-    download_count: Math.max(0, Math.trunc(e.downloadCount ?? 0)),
-    share_count: Math.max(0, Math.trunc(e.shareCount ?? 0)),
-  };
 }
 
 async function loadEventsFromSupabase(
@@ -324,11 +187,19 @@ async function syncEventsToSupabase(
     return { ok: true, upsertData: null, rows: [] };
   }
 
-  logRepository("syncEventsToSupabase: payload upsert", { rows });
+  logRepository("syncEventsToSupabase: payload upsert", {
+    rowCount: rows.length,
+    allowGuestUploadFlags: rows.map((r) => ({
+      id: r.id,
+      allow_guest_upload: r.allow_guest_upload,
+    })),
+  });
 
+  // defaultToNull: false — colunas ausentes usam DEFAULT do banco em INSERT,
+  // em vez de NULL explícito (evita regressão em batch heterogêneo).
   const { data: upData, error: upErr } = await client
     .from("events")
-    .upsert(rows, { onConflict: "id" })
+    .upsert(rows, { onConflict: "id", defaultToNull: false })
     .select();
 
   if (upErr) {

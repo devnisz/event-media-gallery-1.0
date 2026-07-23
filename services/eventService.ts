@@ -25,6 +25,36 @@ export type EventGalleryDeleteSettingsInput = {
   galleryLayout?: GalleryLayout;
 };
 
+/** Persistência considerada ok para leitura subsequente (Supabase ou JSON local). */
+export function isPersistenceSuccessful(
+  persistence: PersistEventsOutcome,
+): boolean {
+  return (
+    persistence.branch === "supabase_success" ||
+    persistence.branch === "supabase_success_dual_json" ||
+    persistence.branch === "json_not_configured" ||
+    persistence.branch === "json_no_client"
+  );
+}
+
+function assertPersistenceOk(
+  persistence: PersistEventsOutcome,
+  context: string,
+): void {
+  if (isPersistenceSuccessful(persistence)) {
+    return;
+  }
+
+  const detail =
+    persistence.supabaseError?.message ??
+    persistence.syncFailedPhase ??
+    persistence.branch;
+
+  throw new Error(
+    `Falha ao persistir eventos (${context}): ${detail}. O valor não foi gravado no banco.`,
+  );
+}
+
 export async function readEvents(): Promise<GalleryEventRecord[]> {
   return listPersistedEventsHydrated();
 }
@@ -68,7 +98,7 @@ export async function getEventById(
 
 export async function createEventRecordWithPersistence(
   name: string,
-  options?: { ownerUserId?: string },
+  options?: { ownerUserId?: string; allowGuestUpload?: boolean },
 ): Promise<{ event: GalleryEventRecord; persistence: PersistEventsOutcome }> {
   const trimmed = name.trim();
 
@@ -83,6 +113,7 @@ export async function createEventRecordWithPersistence(
   const slug = ensureUniqueSlug(baseSlug, takenSlugs);
 
   const ownerUserId = options?.ownerUserId?.trim();
+  const allowGuestUpload = options?.allowGuestUpload === true;
 
   const record: GalleryEventRecord = {
     id: generateEventId(),
@@ -94,7 +125,8 @@ export async function createEventRecordWithPersistence(
     videosCount: 0,
     allowPublicDelete: false,
     requireDeletePin: false,
-    allowGuestUpload: false,
+    // Default permanece false; watcher/Booth pode pedir true explicitamente.
+    allowGuestUpload,
     requireGuestUploadApproval: false,
     frameUrl: "",
     galleryLayout: "premium",
@@ -116,8 +148,22 @@ export async function createEventRecordWithPersistence(
 
   events.push(record);
   const persistence = await writeEvents(events);
+  assertPersistenceOk(persistence, "createEvent");
 
-  return { event: record, persistence };
+  const verified = await getEventById(record.id);
+  if (!verified) {
+    throw new Error(
+      "Evento criado mas não encontrado na re-leitura após persistência.",
+    );
+  }
+
+  if (verified.allowGuestUpload !== allowGuestUpload) {
+    throw new Error(
+      `allowGuestUpload não persistiu: esperado ${allowGuestUpload}, lido ${verified.allowGuestUpload}.`,
+    );
+  }
+
+  return { event: verified, persistence };
 }
 
 export async function createEventRecord(name: string): Promise<GalleryEventRecord> {
@@ -179,8 +225,22 @@ export async function updateEventGalleryDeleteSettings(
 
   events[idx] = event;
   const persistence = await writeEvents(events);
+  assertPersistenceOk(persistence, "updateEventGalleryDeleteSettings");
 
-  return { event, persistence };
+  const verified = await getEventById(eventId);
+  if (!verified) {
+    throw new Error(
+      "Evento atualizado mas não encontrado na re-leitura após persistência.",
+    );
+  }
+
+  if (verified.allowGuestUpload !== allowGuestUpload) {
+    throw new Error(
+      `allowGuestUpload não persistiu no PATCH: esperado ${allowGuestUpload}, lido ${verified.allowGuestUpload}.`,
+    );
+  }
+
+  return { event: verified, persistence };
 }
 
 export async function adjustEventVideosCount(

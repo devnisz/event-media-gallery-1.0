@@ -42,6 +42,8 @@ export async function GET(request: Request) {
 
 type CreateBody = {
   name?: string;
+  /** Quando true, habilita guest-upload (Booth / cabine). Default remoto: false. */
+  allowGuestUpload?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -62,12 +64,16 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateBody;
     const name = typeof body.name === "string" ? body.name.trim() : "";
-    const persistenceInput = { ownerUserId: userOrRes.id };
+    const allowGuestUpload = body.allowGuestUpload === true;
+    const persistenceInput = {
+      ownerUserId: userOrRes.id,
+      allowGuestUpload,
+    };
 
     console.info("[WATCHER_CREATE_EVENT][BODY]", {
-      body,
       name,
       nameLength: name.length,
+      allowGuestUpload,
     });
 
     console.info("[WATCHER_CREATE_EVENT][USER]", {
@@ -127,6 +133,7 @@ export async function POST(request: Request) {
         name: event.name,
         slug: event.slug,
         uploadToken: event.uploadToken,
+        allowGuestUpload: event.allowGuestUpload === true,
       },
     });
   } catch (error) {

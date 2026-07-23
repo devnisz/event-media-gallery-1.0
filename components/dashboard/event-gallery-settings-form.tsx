@@ -84,10 +84,42 @@ export function EventGallerySettingsForm({
           galleryLayout,
         }),
       });
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        ok?: boolean;
+        event?: {
+          allowGuestUpload?: boolean;
+          requireGuestUploadApproval?: boolean;
+          allowPublicDelete?: boolean;
+          requireDeletePin?: boolean;
+          galleryLayout?: GalleryLayout;
+        };
+      };
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Não foi possível salvar.");
+      }
+
+      // UI reflete o valor persistido real (não otimista).
+      if (payload.event) {
+        if (typeof payload.event.allowGuestUpload === "boolean") {
+          setAllowGuestUpload(payload.event.allowGuestUpload);
+        }
+        if (typeof payload.event.requireGuestUploadApproval === "boolean") {
+          setRequireGuestUploadApproval(payload.event.requireGuestUploadApproval);
+        }
+        if (typeof payload.event.allowPublicDelete === "boolean") {
+          setAllowPublicDelete(payload.event.allowPublicDelete);
+        }
+        if (typeof payload.event.requireDeletePin === "boolean") {
+          setRequireDeletePin(payload.event.requireDeletePin);
+        }
+        if (
+          payload.event.galleryLayout === "premium" ||
+          payload.event.galleryLayout === "social"
+        ) {
+          setGalleryLayout(payload.event.galleryLayout);
+        }
       }
 
       setDeletePin("");
